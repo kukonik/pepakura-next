@@ -1,7 +1,0 @@
-D:\Dev\pepakura-next\api_gateway\target\release\deps\bytestring-1afac15c62855411.d: C:\Users\kukon\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bytestring-1.5.0\src\lib.rs
-
-D:\Dev\pepakura-next\api_gateway\target\release\deps\libbytestring-1afac15c62855411.rlib: C:\Users\kukon\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bytestring-1.5.0\src\lib.rs
-
-D:\Dev\pepakura-next\api_gateway\target\release\deps\libbytestring-1afac15c62855411.rmeta: C:\Users\kukon\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bytestring-1.5.0\src\lib.rs
-
-C:\Users\kukon\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bytestring-1.5.0\src\lib.rs:
