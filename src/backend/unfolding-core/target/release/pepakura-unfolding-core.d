@@ -1,0 +1,1 @@
+D:\Dev\pepakura-next\src\backend\unfolding-core\target\release\pepakura-unfolding-core.exe: D:\Dev\pepakura-next\src\backend\unfolding-core\src\lib.rs D:\Dev\pepakura-next\src\backend\unfolding-core\src\main.rs
