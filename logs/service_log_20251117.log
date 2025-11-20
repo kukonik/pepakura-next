@@ -1,0 +1,55 @@
+[2025-11-17 15:07:20] [Important] 🚀 PEPAKURA NEXT ORCHESTRATOR v3.1
+[2025-11-17 15:07:20] [Info] 📍 Directory: D:\Dev\pepakura-next
+[2025-11-17 15:07:20] [Info] ⚙️ Loading default config...
+[2025-11-17 15:07:20] [Success] 🐍 Found Python executable in venv: D:\Dev\pepakura-next\venv\Scripts\python.exe
+[2025-11-17 15:07:20] [Success] ✅ 'Unfolding Core' found: D:\Dev\pepakura-next\src\backend\unfolding-core
+[2025-11-17 15:07:20] [Success] ✅ 'AI Gateway' found: D:\Dev\pepakura-next\src\backend\ai-gateway\main.py
+[2025-11-17 15:07:21] [Important] 🚀 Starting (2) services...
+[2025-11-17 15:07:21] [Info] 🔧 Starting: Unfolding Core in D:\Dev\pepakura-next\src\backend. CMD: cargo run --release --features server -- --port 3000
+[2025-11-17 15:07:23] [Info] 🔄 Started 'Unfolding Core' (Job ID: 1)
+[2025-11-17 15:07:23] [Info] 🔧 Starting: AI Gateway in D:\Dev\pepakura-next\src\backend\ai-gateway. CMD: D:\Dev\pepakura-next\venv\Scripts\python.exe main.py --port 8000
+[2025-11-17 15:07:24] [Info] 🔄 Started 'AI Gateway' (Job ID: 3)
+[2025-11-17 15:07:24] [Info] ⏳ Waiting 15 seconds...
+[2025-11-17 15:07:39] [Info] 🔍 Health check...
+[2025-11-17 15:07:46] [Error] ❌ 'Unfolding Core' health FAILED: Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение. (localhost:3000)
+[2025-11-17 15:07:51] [Error] ❌ 'AI Gateway' health FAILED: Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение. (localhost:8000)
+[2025-11-17 15:13:44] [Warning] 🛑 Graceful shutdown...
+[2025-11-17 15:13:44] [Success] ✅ Stopped 'Unfolding Core'
+[2025-11-17 15:13:44] [Success] ✅ Stopped 'AI Gateway'
+[2025-11-17 15:13:44] [Success] ✅ Orchestrator stopped.
+[2025-11-17 15:14:07] [Important] 🚀 PEPAKURA NEXT ORCHESTRATOR v4.0
+[2025-11-17 15:14:07] [Info] 📍 Directory: D:\Dev\pepakura-next
+[2025-11-17 15:14:07] [Success] 🐍 Found Python executable in venv: D:\Dev\pepakura-next\venv\Scripts\python.exe
+[2025-11-17 15:14:07] [Success] ✅ 'Unfolding Core' found: D:\Dev\pepakura-next\src\backend\unfolding-core
+[2025-11-17 15:14:07] [Success] ✅ 'AI Gateway' found: D:\Dev\pepakura-next\src\backend\ai-gateway
+[2025-11-17 15:14:07] [Important] 🚀 Starting (2) services...
+[2025-11-17 15:14:07] [Info] 🔧 Starting: Unfolding Core in D:\Dev\pepakura-next\src\backend\unfolding-core, CMD: cargo run --release --features server -- --port 3000
+[2025-11-17 15:14:08] [Info] 🔄 Started 'Unfolding Core' (Job ID: 5)
+[2025-11-17 15:14:08] [Info] 🔧 Starting: AI Gateway in D:\Dev\pepakura-next\src\backend\ai-gateway, CMD: D:\Dev\pepakura-next\venv\Scripts\python.exe main.py --port 8000
+[2025-11-17 15:14:09] [Info] 🔄 Started 'AI Gateway' (Job ID: 7)
+[2025-11-17 15:14:09] [Info] ⏳ Waiting 25 seconds...
+[2025-11-17 15:14:34] [Info] 🔍 Health check...
+[2025-11-17 15:14:38] [Error] ❌ 'Unfolding Core' health FAILED: Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение. (localhost:3000)
+[2025-11-17 15:14:41] [Success] ✅ 'AI Gateway' running OK
+[2025-11-17 15:21:21] [Warning] 🛑 Graceful shutdown...
+[2025-11-17 15:21:21] [Success] ✅ Stopped 'Unfolding Core'
+[2025-11-17 15:21:21] [Success] ✅ Stopped 'AI Gateway'
+[2025-11-17 15:21:21] [Success] ✅ Orchestrator stopped.
+[2025-11-17 15:21:40] [Important] 🚀 PEPAKURA NEXT ORCHESTRATOR v4.0
+[2025-11-17 15:21:40] [Info] 📍 Directory: D:\Dev\pepakura-next
+[2025-11-17 15:21:40] [Success] 🐍 Found Python executable in venv: D:\Dev\pepakura-next\venv\Scripts\python.exe
+[2025-11-17 15:21:40] [Success] ✅ 'API Gateway' found: D:\Dev\pepakura-next\api_gateway
+[2025-11-17 15:21:40] [Success] ✅ 'AI Engine' found: D:\Dev\pepakura-next\ai_engine
+[2025-11-17 15:21:40] [Important] 🚀 Starting (2) services...
+[2025-11-17 15:21:40] [Info] 🔧 Starting: AI Engine in D:\Dev\pepakura-next\ai_engine, CMD: D:\Dev\pepakura-next\venv\Scripts\python.exe main.py --port 8000
+[2025-11-17 15:21:41] [Info] 🔄 Started 'AI Engine' (Job ID: 9)
+[2025-11-17 15:21:41] [Info] 🔧 Starting: API Gateway in D:\Dev\pepakura-next\api_gateway, CMD: cargo run --release --features server -- --port 3000
+[2025-11-17 15:21:42] [Info] 🔄 Started 'API Gateway' (Job ID: 11)
+[2025-11-17 15:21:42] [Info] ⏳ Waiting 25 seconds...
+[2025-11-17 15:22:07] [Info] 🔍 Health check...
+[2025-11-17 15:22:11] [Error] ❌ 'AI Engine' health FAILED: Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение. (localhost:8000)
+[2025-11-17 15:22:15] [Error] ❌ 'API Gateway' health FAILED: Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение. (localhost:3000)
+[2025-11-17 15:30:03] [Warning] 🛑 Graceful shutdown...
+[2025-11-17 15:30:03] [Success] ✅ Stopped 'API Gateway'
+[2025-11-17 15:30:04] [Success] ✅ Stopped 'AI Engine'
+[2025-11-17 15:30:04] [Success] ✅ Orchestrator stopped.

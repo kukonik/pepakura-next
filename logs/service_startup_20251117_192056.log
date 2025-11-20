@@ -1,0 +1,23 @@
+PEPAKURA NEXT - ЛОГИ ЗАПУСКА СЕРВИСОВ
+Время: 11/17/2025 19:20:55
+==================================================
+Сервис: AI Gateway
+Состояние: Running
+Порт: 8000
+URL: http://localhost:8000/health
+Логи:
+
+--------------------------------------------------
+Сервис: Unfolding Core
+Состояние: Running
+Порт: 3000
+URL: http://localhost:3000/health
+Логи:
+[2m2025-11-17T14:20:48.309287Z[0m [32m INFO[0m [2mpepakura_unfolding_core[0m[2m:[0m Starting Pepakura Unfolding Server...
+[2m2025-11-17T14:20:48.309535Z[0m [32m INFO[0m [2mpepakura_unfolding_core[0m[2m:[0m Server listening on 0.0.0.0:8080
+[2m2025-11-17T14:20:48.309569Z[0m [32m INFO[0m [2mpepakura_unfolding_core[0m[2m:[0m Available endpoints:
+[2m2025-11-17T14:20:48.309582Z[0m [32m INFO[0m [2mpepakura_unfolding_core[0m[2m:[0m   GET  /health     - Health check
+[2m2025-11-17T14:20:48.309589Z[0m [32m INFO[0m [2mpepakura_unfolding_core[0m[2m:[0m   GET  /test-cube  - Test cube unfolding
+[2m2025-11-17T14:20:48.309597Z[0m [32m INFO[0m [2mpepakura_unfolding_core[0m[2m:[0m   POST /unfold     - Unfold custom mesh
+[2m2025-11-17T14:20:48.309605Z[0m [32m INFO[0m [2mpepakura_unfolding_core[0m[2m:[0m   GET  /info       - Server information
+--------------------------------------------------
