@@ -1,0 +1,18 @@
+{
+  "deviceProfile": "low",
+  "parameters": {
+    "maxTimeSec": 5,
+    "dagSize": 25,
+    "maxMemoryMB": 256,
+    "iterations": 10
+  },
+  "results": {
+    "minTime": 0.3,
+    "maxTime": 0.41,
+    "averageTime": 0.33,
+    "maxMemory": 0.0,
+    "iterations": 10
+  },
+  "requirementsMet": true,
+  "timestamp": "2025-12-20 18:32:52"
+}

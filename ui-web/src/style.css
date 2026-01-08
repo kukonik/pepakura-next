@@ -1,0 +1,23 @@
+/* ui-web/src/style.css */
+/* Глобальные стили для веб-версии */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: linear-gradient(155deg, #0b1120 0%, #1a202c 100%);
+  color: #e2e8f0;
+  height: 100vh;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}

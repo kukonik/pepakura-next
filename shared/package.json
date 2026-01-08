@@ -1,0 +1,15 @@
+{
+  "name": "pepakura-shared",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*"
+  },
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "vue": "^3.4.0",
+    "three": "^0.182.0"
+  }
+}

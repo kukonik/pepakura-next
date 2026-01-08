@@ -1,0 +1,19 @@
+{
+  "types": "./src/index.ts",
+  "name": "pepakura-shared",
+  "peerDependencies": {
+    "vue": "^3.3.0",
+    "three": "^0.168.0"
+  },
+  "type": "module",
+  "version": "0.1.0",
+  "main": "./src/index.ts",
+  "exports": {
+    "./composables/*": "./src/composables/*",
+    ".": {
+      "import": "./src/index.ts"
+    },
+    "./components/*": "./src/components/*",
+    "./i18n": "./src/i18n/index.ts"
+  }
+}

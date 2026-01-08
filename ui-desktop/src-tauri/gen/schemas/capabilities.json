@@ -1,0 +1,1 @@
+{"devtools":{"identifier":"devtools","description":"Devtools access in dev builds","local":true,"windows":["*"],"permissions":["core:webview:allow-internal-toggle-devtools"]}}

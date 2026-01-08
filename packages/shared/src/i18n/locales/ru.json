@@ -1,0 +1,11 @@
+{
+  "buttons": {
+    "export": "Экспорт",
+    "save": "Сохранить",
+    "import": "Импорт 3D"
+  },
+  "app": {
+    "loading": "Загрузка...",
+    "title": "Pepakura Next"
+  }
+}

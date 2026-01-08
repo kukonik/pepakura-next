@@ -1,0 +1,25 @@
+{
+  "model": {
+    "format": "auto",
+    "sourcePath": "D:\\Dev\\pepakura-next\\test.obj",
+    "stats": {
+      "faces": 1,
+      "format": "obj",
+      "parts": 1,
+      "vertices": 3
+    }
+  },
+  "project": {
+    "createdAt": "2026-01-03T09:10:42.038Z",
+    "id": null,
+    "name": "Untitled",
+    "updatedAt": "2026-01-03T09:10:42.038Z"
+  },
+  "schema": "pepakura-next-pnx",
+  "unfold": {
+    "flapWidth": 12,
+    "showFolds": false,
+    "showNumbers": true
+  },
+  "version": 1
+}

@@ -1,0 +1,8 @@
+{
+  "identifier": "devtools",
+  "description": "Devtools access in dev builds",
+  "windows": ["*"],
+  "permissions": [
+    "core:webview:allow-internal-toggle-devtools"
+  ]
+}

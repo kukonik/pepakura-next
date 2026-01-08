@@ -1,0 +1,23 @@
+# Node / frontend
+node_modules/
+dist/
+.env
+.env.local
+
+# pnpm / monorepo
+packages/*/node_modules/
+ui-desktop/node_modules/
+ui-web/node_modules/
+web/node_modules/
+
+# Rust / backend
+target/
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db

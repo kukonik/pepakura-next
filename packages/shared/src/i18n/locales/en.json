@@ -1,0 +1,11 @@
+{
+  "buttons": {
+    "export": "Export",
+    "save": "Save",
+    "import": "Import 3D"
+  },
+  "app": {
+    "loading": "Loading...",
+    "title": "Pepakura Next"
+  }
+}
