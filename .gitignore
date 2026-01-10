@@ -1,4 +1,4 @@
-# Node / frontend
+# Node.js
 node_modules/
 dist/
 .env
@@ -12,12 +12,49 @@ web/node_modules/
 
 # Rust / backend
 target/
+Cargo.lock
+**/*.rs.bk
 
 # IDE
 .vscode/
 .idea/
 *.code-workspace
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
 
 # OS
 .DS_Store
-Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Test & Debug artifacts (SHOULD NOT COMMIT TO MAIN)
+test.obj
+test.mtl
+benchmark_report_low.json
+debug_report.txt
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+.venv/
+venv/
+
+# Temporary files
+*.tmp
+*.bak
+*~
+.~*
