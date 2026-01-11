@@ -1,10 +1,9 @@
 <template>
   <div class="welcome-root">
     <section class="hero">
-      <h1 class="title">Pepakura Next</h1>
+      <h1 class="title">Проекты</h1>
       <p class="subtitle">
-        Простое и современное приложение для создания бумажных 3D‑моделей:
-        от текста и референсов до развёртки на листы.
+        Создайте новый проект или откройте существующий, чтобы перейти к редактору и развёртке.
       </p>
 
       <div class="actions">
@@ -17,7 +16,7 @@
       </div>
 
       <p class="hint">
-        Начните с пустого проекта или загрузите уже существующую 3D‑модель, чтобы сразу перейти к развёртке.
+        Новый проект откроется сразу в редакторе текста описания модели.
       </p>
     </section>
 
@@ -64,8 +63,8 @@ function openProject() {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 1.5rem 1.8rem;
-  gap: 1.4rem;
+  padding: 1.2rem 1.6rem;
+  gap: 1.2rem;
   color: #e5e7eb;
 }
 
@@ -74,27 +73,28 @@ function openProject() {
 }
 
 .title {
-  font-size: 2rem;
-  margin: 0 0 0.4rem;
-  font-weight: 700;
+  font-size: 1.4rem;
+  margin: 0 0 0.3rem;
+  font-weight: 600;
 }
 
 .subtitle {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: #cbd5e1;
-  margin: 0 0 0.9rem;
+  margin: 0 0 0.7rem;
 }
 
 .actions {
   display: flex;
-  gap: 0.6rem;
-  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
 }
 
 .primary-btn {
   border-radius: 999px;
   border: 1px solid transparent;
-  padding: 0.45rem 1.2rem;
+  padding: 0.4rem 1.1rem;
   font-size: 0.9rem;
   cursor: pointer;
   background: linear-gradient(135deg, #22c55e, #16a34a);
@@ -104,7 +104,7 @@ function openProject() {
 .secondary-btn {
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.8);
-  padding: 0.45rem 1.1rem;
+  padding: 0.4rem 1rem;
   font-size: 0.9rem;
   cursor: pointer;
   background: rgba(15, 23, 42, 0.96);
@@ -117,12 +117,12 @@ function openProject() {
 }
 
 .recent {
-  margin-top: 0.6rem;
+  margin-top: 0.4rem;
 }
 
 .recent-title {
   font-size: 0.95rem;
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.2rem;
 }
 
 .recent-empty {

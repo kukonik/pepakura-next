@@ -1,118 +1,132 @@
-import { defineStore } from 'pinia'
-import { invoke } from '@tauri-apps/api/tauri'
-import { useProjectStore } from '@/stores/project'
+import { defineStore } from "pinia";
+import { invoke } from "@tauri-apps/api/core";
+import { useProjectStore } from "@/stores/project";
 
-export type LineKind = 'Cut' | 'Valley' | 'Mountain' | 'GlueTab'
+export type LineKind = "Cut" | "Valley" | "Mountain" | "GlueTab";
 
-export interface UnfoldLine {
-  x1: number
-  y1: number
-  x2: number
-  y2: number
-  kind: LineKind
+export interface Line2D {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  kind: LineKind;
 }
 
-export interface UnfoldRect {
-  x: number
-  y: number
-  width: number
-  height: number
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
-export interface UnfoldPart {
-  id: number
-  name?: string
-  bounds: UnfoldRect
-  lines: UnfoldLine[]
+export interface Part2D {
+  id: number;
+  name?: string;
+  bounds: Rect;
+  lines: Line2D[];
 }
 
-export interface UnfoldSheet {
-  id: number
-  index: number
-  width_mm: number
-  height_mm: number
-  margin_mm: number
-  parts: UnfoldPart[]
+export interface Sheet {
+  id: number;
+  index: number;
+  width_mm: number;
+  height_mm: number;
+  margin_mm: number;
+  parts: Part2D[];
 }
 
 export interface UnfoldResult {
-  sheets: UnfoldSheet[]
+  sheets: Sheet[];
 }
 
-export type UnfoldStatus = 'idle' | 'running' | 'ready' | 'error'
-
 export interface UnfoldParams {
-  paperFormat: 'A4' | 'A3' | 'Letter'
-  marginMm: number
-  maxSheets: number
-  scale: number
+  paper_format: string;
+  margin_mm: number;
+  max_sheets: number;
+  scale: number;
 }
 
 interface UnfoldState {
-  status: UnfoldStatus
-  result: UnfoldResult | null
-  errorMessage: string | null
+  result: UnfoldResult | null;
+  isUnfolding: boolean;
+  lastError: string | null;
+  params: UnfoldParams;
 }
 
-export const useUnfoldStore = defineStore('unfold', {
+export const useUnfoldStore = defineStore("unfold", {
   state: (): UnfoldState => ({
-    status: 'idle',
     result: null,
-    errorMessage: null,
+    isUnfolding: false,
+    lastError: null,
+    params: {
+      paper_format: "A4",
+      margin_mm: 5,
+      max_sheets: 4,
+      scale: 1.0,
+    },
   }),
 
   getters: {
-    totalSheets(state): number {
-      return state.result?.sheets.length ?? 0
-    },
-    totalParts(state): number {
-      if (!state.result) return 0
-      return state.result.sheets.reduce((sum, sheet) => sum + sheet.parts.length, 0)
-    },
+    hasResult: (state) => !!state.result,
+    sheets: (state) => state.result?.sheets ?? [],
   },
 
   actions: {
-    reset() {
-      this.status = 'idle'
-      this.result = null
-      this.errorMessage = null
+    setParams(params: Partial<UnfoldParams>) {
+      this.params = { ...this.params, ...params };
     },
 
-    async runAutoUnfold(params: UnfoldParams): Promise<void> {
-      const projectStore = useProjectStore()
-      const modelPath = projectStore.threeD.workingPath || projectStore.threeD.sourcePath
+    clearResult() {
+      this.result = null;
+      this.lastError = null;
+    },
+
+    async unfoldCurrentModel() {
+      const projectStore = useProjectStore();
+      const modelPath = projectStore.currentModelPath;
 
       if (!modelPath) {
-        this.status = 'error'
-        this.errorMessage = 'Нет пути к 3D‑модели для развёртки.'
-        return
+        this.lastError = "3D модель не загружена";
+        return;
       }
 
-      this.status = 'running'
-      this.errorMessage = null
+      this.isUnfolding = true;
+      this.lastError = null;
 
       try {
-        const rustParams = {
-          paper_format: params.paperFormat,
-          margin_mm: params.marginMm,
-          max_sheets: params.maxSheets,
-          scale: params.scale,
-        }
-
-        const result = await invoke<UnfoldResult>('unfold_3d_model', {
+        const result = await invoke<UnfoldResult>("unfold_3d_model", {
           modelPath,
-          params: rustParams,
-        })
+          params: this.params,
+        });
 
-        this.result = result
-        this.status = 'ready'
-      } catch (e: any) {
-        console.error('[PepakuraNext] unfold_3d_model failed', e)
-        this.status = 'error'
-        this.errorMessage =
-          typeof e === 'string' ? e : e?.message || 'Ошибка развёртки в движке.'
-        this.result = null
+        this.result = result;
+      } catch (err: any) {
+        console.error("[UnfoldStore] unfoldCurrentModel error", err);
+        this.lastError = String(err?.message ?? err ?? "Unknown error");
+      } finally {
+        this.isUnfolding = false;
+      }
+    },
+
+    async exportPdf() {
+      if (!this.result) {
+        this.lastError = "Нет данных развёртки для экспорта";
+        return;
+      }
+
+      this.isUnfolding = true;
+      this.lastError = null;
+
+      try {
+        await invoke("export_unfold_pdf", {
+          unfold: this.result,
+        });
+      } catch (err: any) {
+        console.error("[UnfoldStore] exportPdf error", err);
+        this.lastError = String(err?.message ?? err ?? "Unknown error");
+      } finally {
+        this.isUnfolding = false;
       }
     },
   },
-})
+});

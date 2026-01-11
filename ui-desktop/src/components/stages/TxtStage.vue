@@ -9,33 +9,36 @@
       </header>
 
       <div class="content">
-        <div class="editor-block">
-          <label class="field-label">
-            Текстовое описание
-          </label>
-          <textarea
-            v-model="rawText"
-            class="text-input"
-            rows="8"
-            placeholder="Например: «Низкополигональная голова дракона высотой около 20 см, с крупными гранями, без мелких деталей. Нужно собрать из 10–15 листов A4»."
-          />
-          <p class="hint">
-            Чем конкретнее задание (размер, стилистика, количество деталей, формат бумаги), тем проще будет раскрой.
-          </p>
-        </div>
+        <div class="editor-wrapper">
+          <div class="editor-block">
+            <label class="field-label">
+              Текстовое описание
+            </label>
+            <textarea
+              v-model="rawText"
+              class="text-input"
+              rows="8"
+              placeholder="Например: «Низкополигональная голова дракона высотой около 20 см, с крупными гранями, без мелких деталей. Нужно собрать из 10–15 листов A4»."
+            />
+            <p class="hint">
+              Чем конкретнее задание (размер, стилистика, количество деталей, формат бумаги), тем проще будет раскрой.
+            </p>
+          </div>
 
-        <div class="ai-actions">
-          <button
-            class="primary-btn"
-            :disabled="!canRunAi"
-            @click="runAi"
-          >
-            <span>Сгенерировать проект из текста (заглушка)</span>
-          </button>
-          <p class="ai-note">
-            Режим: Авто (AI доступен). Далее появится связка:
-            текст → 2D референсы → 3D модель → развёртка.
-          </p>
+          <div class="ai-actions">
+            <button
+              class="primary-btn"
+              :disabled="!canRunAi"
+              :title="aiButtonTitle"
+              @click="runAi"
+            >
+              <span>Сгенерировать проект из текста</span>
+            </button>
+            <p class="ai-note">
+              В дальнейшем здесь появится связка:
+              текст → 2D референсы → 3D модель → развёртка.
+            </p>
+          </div>
         </div>
       </div>
     </section>
@@ -122,10 +125,16 @@ const sheetsText = computed(() =>
 
 const canRunAi = computed(() => rawText.value.trim().length > 0)
 
+const aiButtonTitle = computed(() =>
+  canRunAi.value
+    ? 'В будущем здесь можно будет запустить AI‑генерацию проекта из текста'
+    : 'Введите описание, чтобы подготовить проект'
+)
+
 function runAi() {
   if (!canRunAi.value) return
   showMessage(
-    'AI‑генерация проекта по тексту пока не подключена. Будет добавлена связка: текст → референсы/3D/раскрой.',
+    'Подготовка AI‑генерации проекта по тексту находится в разработке.',
     'info'
   )
 }
@@ -173,6 +182,15 @@ function runAi() {
   flex-direction: column;
   gap: 0.6rem;
   margin-top: 0.2rem;
+}
+
+/* новый контейнер вокруг текстового редактора – сюда упирается ширина */
+.editor-wrapper {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
 }
 
 .editor-block {

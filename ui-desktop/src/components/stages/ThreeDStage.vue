@@ -1,358 +1,520 @@
+<!-- pepakura-next/ui-desktop/src/components/stages/ThreeDStage.vue -->
 <template>
-  <div class="threed-root">
-    <div class="threed-inner">
-      <header class="threed-header">
-        <div class="header-text">
-          <h2 class="header-title">3D Редактор и Просмотрщик</h2>
-          <p class="header-subtitle">
-            Загрузите модель, затем настройте развёртку на этапе Paper.
+  <div class="stage-root" :class="{ 'stage-fullscreen': fullscreen }">
+    <div class="viewer-shell">
+      <header class="viewer-top">
+        <div class="viewer-titles">
+          <h2 class="viewer-title">3D модель</h2>
+          <p class="viewer-subtitle">
+            Полноэкранный просмотр с базовыми действиями. Редактирование пока в разработке.
           </p>
+        </div>
+
+        <div class="top-actions">
+          <button class="icon-btn" @click="toggleLeftPanel">
+            ⚙
+          </button>
+          <button class="icon-btn" @click="toggleRightPanel">
+            ⓘ
+          </button>
+          <button class="icon-btn" @click="onToggleFullscreen">
+            {{ fullscreen ? '⤢' : '⛶' }}
+          </button>
         </div>
       </header>
 
-      <section class="viewer-section">
-        <div
-          class="viewer-wrapper"
-          ref="viewerWrapper"
-          @dragover.prevent="onDragOver"
-          @dragenter.prevent="onDragOver"
-          @drop.prevent="onDrop"
-        >
-          <header class="viewer-header">
-            <div class="viewer-text">
-              <h3 class="viewer-title">Просмотрщик 3D модели</h3>
-              <p class="viewer-subtitle">
-                {{ hasModel ? 'Используйте мышь для вращения, колёсико для зума.' : 'Загрузите модель, чтобы увидеть её здесь.' }}
-              </p>
-            </div>
-            <div class="viewer-actions">
-              <button
-                type="button"
-                class="viewer-btn"
-                @click="resetView"
-              >
-                Сбросить вид
-              </button>
-              <button
-                type="button"
-                class="viewer-btn secondary"
-                @click="toggleFullscreen"
-              >
-                <span v-if="!viewerFullscreen">Полноэкранно</span>
-                <span v-else>Выйти</span>
-              </button>
-            </div>
-          </header>
+      <div class="viewer-main">
+        <ThreeDViewerCanvas
+          class="three-viewer"
+          :model-path="project.threeD.workingPath"
+          :mtl-path="project.threeD.mtlPath"
+        />
 
-          <div class="viewer-shell">
-            <div class="viewer-canvas-container">
-              <ThreeDViewerCanvas
-                v-if="hasModel"
-                :model-path="project.threeD.workingPath"
-                :mtl-path="mtlPath"
-                :reset-token="resetToken"
-              />
-            </div>
+        <button class="fab-import" @click="importModel">
+          Импорт 3D
+        </button>
 
-            <!-- Оверлей импорта поверх viewer -->
-            <div class="import-overlay" :class="{ hidden: hasModel }">
-              <div class="import-card">
-                <div class="import-icon">▢</div>
-                <h3 class="import-title">Загрузите модель для начала работы</h3>
-                <p class="import-text">
-                  Перетащите файлы OBJ + MTL в эту область или воспользуйтесь кнопкой ниже.
-                </p>
-                <p class="import-text small">
-                  Поддерживаемые форматы: OBJ, STL, GLTF, SVG, PNG, JPG.
-                </p>
-                <button
-                  type="button"
-                  class="import-btn"
-                  @click="triggerFileDialog"
-                >
-                  Импорт 3D
-                </button>
-                <input
-                  ref="fileInput"
-                  type="file"
-                  class="file-input"
-                  multiple
-                  accept=".obj,.mtl,.stl,.gltf,.glb,.svg,.png,.jpg,.jpeg"
-                  @change="onFileInputChange"
-                />
+        <transition name="slide-left">
+          <aside
+            v-if="showLeft"
+            class="side-panel left"
+          >
+            <div class="panel-inner">
+              <h3 class="side-title">Действия с моделью</h3>
+
+              <button class="primary-btn" @click="importModel">
+                Импортировать 3D‑модель (демо/Tauri)
+              </button>
+
+              <div class="actions-group">
+                <p class="group-title">Геометрия (в разработке)</p>
+                <div class="group-buttons">
+                  <button class="ghost-btn" :disabled="!hasModel" @click="stub('simplify')">
+                    Упростить модель
+                  </button>
+                  <button class="ghost-btn" :disabled="!hasModel" @click="stub('smooth')">
+                    Сгладить
+                  </button>
+                  <button class="ghost-btn" :disabled="!hasModel" @click="stub('recalc-normals')">
+                    Пересчитать нормали
+                  </button>
+                </div>
+              </div>
+
+              <div class="actions-group">
+                <p class="group-title">Поза и детали (в разработке)</p>
+                <div class="group-buttons">
+                  <button class="ghost-btn" :disabled="!hasModel" @click="stub('pose')">
+                    Позинг
+                  </button>
+                  <button class="ghost-btn" :disabled="!hasModel" @click="stub('details')">
+                    Упростить/обогатить детали
+                  </button>
+                </div>
+              </div>
+
+              <div class="actions-group">
+                <p class="group-title">Текстуры (в разработке)</p>
+                <div class="group-buttons">
+                  <button class="ghost-btn" :disabled="!hasModel" @click="stub('textures')">
+                    Работа с текстурами
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
+          </aside>
+        </transition>
+
+        <transition name="slide-right">
+          <aside
+            v-if="showRight"
+            class="side-panel right"
+          >
+            <div class="panel-inner">
+              <h3 class="side-title">Состояние 3D‑этапа</h3>
+
+              <div class="status-block">
+                <p class="status-line">
+                  Статус:
+                  <span
+                    class="status-tag"
+                    :class="{
+                      ok: threeStatus === 'ready',
+                      bad: threeStatus === 'error',
+                      idle: threeStatus !== 'ready' && threeStatus !== 'error'
+                    }"
+                  >
+                    {{ threeStatusLabel }}
+                  </span>
+                </p>
+                <p class="status-line">
+                  Геометрия:
+                  <span class="status-value">
+                    {{ facesText }}, {{ partsText }}
+                  </span>
+                </p>
+                <p class="status-line">
+                  Источник:
+                  <span class="status-value">
+                    {{ sourceLabel }}
+                  </span>
+                </p>
+              </div>
+
+              <div class="side-section">
+                <p class="side-label">Связь с этапами</p>
+                <ul class="links-list">
+                  <li>
+                    TXT:
+                    <span class="link-tag">
+                      {{ hasTxt ? 'Есть текстовое ТЗ' : 'Без текста' }}
+                    </span>
+                  </li>
+                  <li>
+                    2D:
+                    <span class="link-tag">
+                      {{ hasTwoD ? 'Есть 2D‑референсы' : '2D не использовалось' }}
+                    </span>
+                  </li>
+                  <li>
+                    Paper:
+                    <span class="link-tag">
+                      {{ hasUnfold ? 'Есть развёртка' : 'Развёртка ещё не построена' }}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="side-section">
+                <p class="side-label">Дальше → Paper</p>
+                <button
+                  class="primary-btn"
+                  :disabled="!hasModel"
+                  @click="goToPaperStub"
+                >
+                  Перейти к развёртке (заглушка)
+                </button>
+                <p class="side-note">
+                  Позже здесь будет прямой переход к Paper с проверкой актуальности развёртки.
+                </p>
+              </div>
+            </div>
+          </aside>
+        </transition>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, defineEmits, defineProps, ref } from 'vue'
 import { useProjectStore } from '@/stores/project'
-import { useImport3DModel } from '@/composables/useImport3DModel'
+import { useTauriModelLoader } from '@/composables/useTauriModelLoader'
 import ThreeDViewerCanvas from '@/components/viewer/ThreeDViewerCanvas.vue'
 
+const props = defineProps<{
+  fullscreen?: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'toggle-fullscreen'): void
+}>()
+
 const project = useProjectStore()
-const { importFromFiles, reset } = useImport3DModel()
+const { showMessage, import3dModel } = useTauriModelLoader()
 
-const fileInput = ref<HTMLInputElement | null>(null)
-const viewerWrapper = ref<HTMLDivElement | null>(null)
+const threeStatus = computed(() => project.threeD.status)
 
-const hasModel = computed(() => !!project.threeD.workingPath)
-
-const viewerFullscreen = ref(false)
-const resetToken = ref(0)
-
-const mtlPath = computed(() => {
-  if (!project.threeD.workingPath) return null
-  return project.threeD.workingPath.replace(/\.obj$/i, '.mtl')
+const threeStatusLabel = computed(() => {
+  switch (threeStatus.value) {
+    case 'ready':
+      return 'модель готова'
+    case 'loading':
+      return 'загружается'
+    case 'error':
+      return 'ошибка загрузки'
+    default:
+      return 'нет модели'
+  }
 })
 
-function triggerFileDialog() {
-  if (fileInput.value) {
-    fileInput.value.value = ''
-    fileInput.value.click()
+const hasModel = computed(() => threeStatus.value === 'ready')
+
+const facesText = computed(() =>
+  project.threeD.faces != null ? `${project.threeD.faces} граней` : 'граней: —'
+)
+
+const partsText = computed(() =>
+  project.threeD.parts != null ? `${project.threeD.parts} частей` : 'частей: —'
+)
+
+const hasTxt = computed(() => {
+  const txt = project.text?.rawText
+  return typeof txt === 'string' && txt.trim().length > 0
+})
+
+const hasTwoD = computed(() => project.twod.images.length > 0)
+
+const hasUnfold = computed(
+  () => !!project.unfold.layoutPath || !!project.unfold.estimatedSheets
+)
+
+const sourceLabel = computed(() => {
+  if (hasTxt.value && hasTwoD.value) return 'TXT + 2D'
+  if (hasTwoD.value) return '2D'
+  if (hasTxt.value) return 'TXT'
+  return 'импорт / не указан'
+})
+
+const showLeft = ref(false)
+const showRight = ref(false)
+
+function toggleLeftPanel() {
+  showLeft.value = !showLeft.value
+}
+
+function toggleRightPanel() {
+  showRight.value = !showRight.value
+}
+
+async function importModel() {
+  try {
+    await import3dModel()
+  } catch (e) {
+    console.error(e)
+    showMessage('Не удалось импортировать 3D‑модель.', 'error')
   }
 }
 
-async function onFileInputChange(e: Event) {
-  const input = e.target as HTMLInputElement
-  const files = input.files
-  if (!files || files.length === 0) return
-  await importFromFiles(files)
-}
-
-function onDragOver(e: DragEvent) {
-  e.preventDefault()
-}
-
-async function onDrop(e: DragEvent) {
-  e.preventDefault()
-  const items = e.dataTransfer?.files
-  if (!items || items.length === 0) return
-  await importFromFiles(items)
-}
-
-function toggleFullscreen() {
-  viewerFullscreen.value = !viewerFullscreen.value
-  const el = viewerWrapper.value
-  if (!el) return
-  if (viewerFullscreen.value) {
-    if (el.requestFullscreen) el.requestFullscreen()
-  } else if (document.fullscreenElement) {
-    document.exitFullscreen()
+function stub(kind: 'simplify' | 'smooth' | 'recalc-normals' | 'pose' | 'details' | 'textures') {
+  switch (kind) {
+    case 'simplify':
+      showMessage('Упрощение (decimation) 3D‑модели пока в разработке.', 'info')
+      break
+    case 'smooth':
+      showMessage('Сглаживание 3D‑модели пока в разработке.', 'info')
+      break
+    case 'recalc-normals':
+      showMessage('Пересчёт нормалей пока в разработке.', 'info')
+      break
+    case 'pose':
+      showMessage('Позинг 3D‑модели пока в разработке.', 'info')
+      break
+    case 'details':
+      showMessage('Изменение уровня детализации модели пока в разработке.', 'info')
+      break
+    case 'textures':
+      showMessage('Редактор текстур пока в разработке.', 'info')
+      break
   }
 }
 
-function resetView() {
-  resetToken.value++
+function goToPaperStub() {
+  if (!hasModel.value) {
+    showMessage('Сначала нужно получить или импортировать 3D‑модель.', 'warning')
+    return
+  }
+  showMessage('Переход к Paper пока в разработке. Откройте Paper‑стейдж вручную.', 'info')
 }
 
-function clearModel() {
-  reset()
+function onToggleFullscreen() {
+  emit('toggle-fullscreen')
 }
 </script>
 
 <style scoped>
-.threed-root {
+/* твои же стили, только файл повешен на полный путь в репе */
+.stage-root {
   flex: 1;
-  display: flex;
   min-height: 0;
-}
-
-.threed-inner {
-  flex: 1;
+  display: flex;
+  padding: 0.75rem;
   border-radius: 0.9rem;
   border: 1px solid rgba(148, 163, 184, 0.7);
   background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
 }
 
-.threed-header {
-  padding-bottom: 0.35rem;
+.stage-fullscreen {
+  padding: 0.3rem;
+}
+
+.viewer-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.viewer-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.4rem;
   border-bottom: 1px solid rgba(148, 163, 184, 0.5);
 }
 
-.header-text {
+.viewer-titles {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
 }
 
-.header-title {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 500;
-}
-
-.header-subtitle {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #9ca3af;
-}
-
-.viewer-section {
-  flex: 1;
-  min-height: 0;
-  margin-top: 0.5rem;
-}
-
-.viewer-wrapper {
-  height: 100%;
-  border-radius: 0.8rem;
-  border: 1px solid rgba(148, 163, 184, 0.7);
-  background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.viewer-header {
-  padding: 0.45rem 0.6rem;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.6);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.6rem;
-  background: rgba(15, 23, 42, 0.98);
-}
-
-.viewer-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.08rem;
-}
-
 .viewer-title {
+  font-size: 0.95rem;
   margin: 0;
-  font-size: 0.88rem;
-  font-weight: 500;
 }
 
 .viewer-subtitle {
+  font-size: 0.78rem;
+  color: #9ca3af;
   margin: 0;
-  font-size: 0.8rem;
+}
+
+.top-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.viewer-main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin-top: 0.5rem;
+  border-radius: 0.8rem;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+}
+
+.three-viewer {
+  width: 100%;
+  height: 100%;
+}
+
+.side-panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 260px;
+  max-width: 70%;
+  background: rgba(15, 23, 42, 0.98);
+  border-radius: 0.8rem;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.7);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+
+.side-panel.left {
+  left: 0.4rem;
+}
+
+.side-panel.right {
+  right: 0.4rem;
+}
+
+.panel-inner {
+  padding: 0.55rem 0.6rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.78rem;
+}
+
+.side-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.status-block {
+  border-radius: 0.6rem;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  padding: 0.4rem 0.5rem;
+  background: rgba(15, 23, 42, 0.96);
+}
+
+.status-line {
+  margin: 0.1rem 0;
+  display: flex;
+  gap: 0.25rem;
+  align-items: baseline;
+}
+
+.status-tag {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+}
+.status-tag.ok {
+  color: #bbf7d0;
+  border-color: rgba(22, 163, 74, 0.9);
+}
+.status-tag.bad {
+  color: #fecaca;
+  border-color: rgba(239, 68, 68, 0.9);
+}
+.status-tag.idle {
   color: #9ca3af;
 }
 
-.viewer-actions {
-  display: flex;
-  gap: 0.25rem;
+.status-value {
+  color: #e5e7eb;
 }
 
-.viewer-btn {
+.side-section {
+  font-size: 0.78rem;
+}
+
+.side-label {
+  margin: 0 0 0.15rem;
+  color: #cbd5e1;
+}
+
+.side-note {
+  font-size: 0.76rem;
+  color: #9ca3af;
+  margin: 0.25rem 0 0;
+}
+
+.links-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #9ca3af;
+  font-size: 0.78rem;
+}
+
+.link-tag {
+  color: #e5e7eb;
+}
+
+.primary-btn {
   border-radius: 999px;
-  border: 1px solid rgba(59, 130, 246, 0.9);
+  border: 1px solid transparent;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+  cursor: pointer;
   background: linear-gradient(135deg, #3b82f6, #6366f1);
   color: #f9fafb;
-  font-size: 0.78rem;
+}
+.primary-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ghost-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.8);
+  background: transparent;
+  color: #e5e7eb;
+  font-size: 0.75rem;
   padding: 0.18rem 0.7rem;
   cursor: pointer;
 }
-
-.viewer-btn.secondary {
-  border-color: rgba(148, 163, 184, 0.8);
-  background: rgba(15, 23, 42, 0.98);
-  color: #e5e7eb;
+.ghost-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
-.viewer-shell {
-  flex: 1;
-  min-height: 0;
-  position: relative;
-  padding: 0.4rem;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-}
-
-.viewer-canvas-container {
-  flex: 1;
-  min-height: 0;
-}
-
-/* Оверлей импорта */
-
-.import-overlay {
-  position: absolute;
-  inset: 0.4rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: auto;
-}
-
-.import-overlay.hidden {
-  display: none;
-}
-
-.import-card {
-  max-width: 420px;
-  width: 100%;
-  padding: 1rem 1.2rem;
-  border-radius: 0.9rem;
+.icon-btn {
+  border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.8);
-  background: radial-gradient(circle at top, rgba(15, 23, 42, 0.98) 0, #020617 60%);
-  text-align: center;
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.9);
-}
-
-.import-icon {
-  font-size: 2.2rem;
-  margin-bottom: 0.4rem;
-  color: #64748b;
-}
-
-.import-title {
-  margin: 0 0 0.25rem;
-  font-size: 0.9rem;
-}
-
-.import-text {
-  margin: 0;
+  background: rgba(15, 23, 42, 0.96);
+  color: #e5e7eb;
   font-size: 0.8rem;
-  color: #9ca3af;
-}
-
-.import-text.small {
-  margin-top: 0.15rem;
-}
-
-.import-btn {
-  margin-top: 0.6rem;
-  border-radius: 0.7rem;
-  border: 1px solid rgba(59, 130, 246, 0.9);
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
-  color: #f9fafb;
-  font-size: 0.82rem;
-  padding: 0.3rem 0.9rem;
+  padding: 0.12rem 0.5rem;
   cursor: pointer;
 }
 
-.file-input {
-  display: none;
+.fab-import {
+  position: absolute;
+  bottom: 0.6rem;
+  left: 0.8rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: #f9fafb;
 }
 
-.viewer-placeholder {
-  margin: auto;
-  text-align: center;
-  max-width: 320px;
-  color: #e5e7eb;
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform 0.18s ease-out, opacity 0.18s ease-out;
 }
 
-.placeholder-title {
-  font-size: 0.9rem;
-  margin-bottom: 0.2rem;
+.slide-left-enter-from,
+.slide-left-leave-to {
+  transform: translateX(-8px);
+  opacity: 0;
 }
 
-.placeholder-text {
-  font-size: 0.8rem;
-  color: #9ca3af;
+.slide-right-enter-from,
+.slide-right-leave-to {
+  transform: translateX(8px);
+  opacity: 0;
 }
 </style>

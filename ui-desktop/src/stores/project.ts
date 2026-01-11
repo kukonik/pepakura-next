@@ -1,4 +1,4 @@
-// src/stores/project.ts
+// pepakura-next/ui-desktop/src/stores/project.ts
 import { defineStore } from 'pinia'
 
 export type StageId = 'text' | 'twod' | 'threed' | 'unfold'
@@ -24,8 +24,9 @@ export interface TwoDState {
 }
 
 export interface ThreeDState {
-  sourcePath: string | null        // исходный OBJ/FBX/GLB и т.п.
-  workingPath: string | null       // нормализованный/очищенный mesh
+  sourcePath: string | null        // исходный путь (файл/tauri)
+  workingPath: string | null       // путь, с которым работает viewer (URL вида /models/...)
+  mtlPath: string | null           // путь к MTL (если есть)
   format: 'obj+mtl' | 'fbx' | 'gltf' | 'unknown'
   faces: number | null
   parts: number | null
@@ -39,8 +40,8 @@ export interface UnfoldState {
   flapWidthMm: number
   showNumbers: boolean
   showFolds: boolean
-  estimatedPatches: number | null  // оценка числа 2D‑островов
-  estimatedSheets: number | null   // оценка числа листов
+  estimatedPatches: number | null
+  estimatedSheets: number | null
 }
 
 export interface ProjectState {
@@ -77,6 +78,7 @@ export const useProjectStore = defineStore('project', {
     threeD: {
       sourcePath: null,
       workingPath: null,
+      mtlPath: null,
       format: 'unknown',
       faces: null,
       parts: null,
@@ -176,6 +178,7 @@ export const useProjectStore = defineStore('project', {
       this.threeD = {
         sourcePath: null,
         workingPath: null,
+        mtlPath: null,
         format: 'unknown',
         faces: null,
         parts: null,
@@ -214,7 +217,6 @@ export const useProjectStore = defineStore('project', {
         return
       }
 
-      // очень грубые эвристики, дальше их можно заменить данными из Rust‑движка
       const patches = Math.max(1, Math.round(faces / 400))
       const sheets = Math.max(1, Math.round(faces / 600))
 

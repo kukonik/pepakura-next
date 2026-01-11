@@ -1,3 +1,4 @@
+// pepakura-next/ui-desktop/src/composables/useImport3DModel.ts
 import { ref } from 'vue'
 import { useProjectStore } from '@/stores/project'
 
@@ -6,16 +7,22 @@ export function useImport3DModel() {
   const isLoading = ref(false)
   const lastError = ref<string | null>(null)
 
+  /**
+   * Унифицированный импорт 3D‑модели.
+   * Сейчас: демо‑режим, берём OBJ из pepakura-next/ui-desktop/public/models/model.obj
+   * (в рантайме это /models/model.obj).
+   */
   async function importFromFiles(_files: FileList | File[]) {
-    // На данном этапе игнорируем реальные файлы и берём демо‑модель из public.
-    // public/models/model.obj -> /models/model.obj
     isLoading.value = true
     lastError.value = null
 
     try {
+      const objUrl = 'models/model.obj' // /public/models/model.obj
+
       project.setThreeD({
-        sourcePath: 'models/model.obj',
-        workingPath: 'models/model.obj',
+        sourcePath: objUrl,
+        workingPath: objUrl,
+        mtlPath: null,
         format: 'obj+mtl',
         status: 'ready',
         faces: 4460,

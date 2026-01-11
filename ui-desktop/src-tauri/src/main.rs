@@ -4,17 +4,18 @@
 )]
 
 use std::fs;
-use std::io::Write;
+use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::process::{Command, Stdio};
 
 use serde::{Deserialize, Serialize};
 use tauri_plugin_dialog::DialogExt;
 
 use printpdf::{
-  Color, Line, LineCapStyle, LineJoinStyle, Mm, PdfDocument, PdfLayerReference, Pt,
+  Color, Line as PdfLine, LineCapStyle, LineJoinStyle, Mm, PdfDocument, PdfLayerReference, Point,
+  Rgb as PdfRgb,
 };
 
-/// Тип линии на развёртке.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LineKind {
   Cut,
@@ -23,7 +24,6 @@ pub enum LineKind {
   GlueTab,
 }
 
-/// Отрезок линии в координатах листа, миллиметры.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Line2D {
   pub x1: f32,
@@ -33,7 +33,6 @@ pub struct Line2D {
   pub kind: LineKind,
 }
 
-/// Прямоугольный бокс детали на листе, миллиметры.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rect {
   pub x: f32,
@@ -42,7 +41,6 @@ pub struct Rect {
   pub height: f32,
 }
 
-/// Деталь на листе.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Part2D {
   pub id: u32,
@@ -51,7 +49,6 @@ pub struct Part2D {
   pub lines: Vec<Line2D>,
 }
 
-/// Лист бумаги с деталями.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sheet {
   pub id: u32,
@@ -62,23 +59,19 @@ pub struct Sheet {
   pub parts: Vec<Part2D>,
 }
 
-/// Результат развёртки: набор листов.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnfoldResult {
   pub sheets: Vec<Sheet>,
 }
 
-/// Параметры бумаги и развёртки, приходящие с фронта.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnfoldParams {
-  pub paper_format: String, // "A4" | "A3" | "Letter" и т.п.
+  pub paper_format: String,
   pub margin_mm: f32,
   pub max_sheets: u32,
   pub scale: f32,
 }
 
-/// Простая заглушка движка развёртки: делает фиктивные листы,
-/// но в финальном формате UnfoldResult.
 fn compute_unfold_stub(_model_path: &str, params: &UnfoldParams) -> UnfoldResult {
   let (w, h) = match params.paper_format.as_str() {
     "A3" => (297.0_f32, 420.0_f32),
@@ -162,8 +155,6 @@ fn compute_unfold_stub(_model_path: &str, params: &UnfoldParams) -> UnfoldResult
 
 #[tauri::command]
 async fn import_3d_model(app_handle: tauri::AppHandle) -> Result<serde_json::Value, String> {
-  use tauri_plugin_dialog::DialogExt;
-
   println!("[PepakuraNext] import_3d_model called");
 
   let (tx, rx) = std::sync::mpsc::channel::<Option<String>>();
@@ -320,21 +311,16 @@ async fn unfold_3d_model(
   Ok(result)
 }
 
-/// Нарисовать все линии одного листа на заданном PDF‑слое.
-/// Координаты: UnfoldResult использует миллиметры с началом в левом верхнем углу,
-/// а printpdf — пункты с началом в левом нижнем, поэтому инвертируем Y.
-fn draw_sheet_on_layer(sheet: &Sheet, layer: &PdfLayerReference, color_cut: Color) {
-  let page_width_mm = sheet.width_mm as f64;
+fn draw_sheet_on_layer(sheet: &Sheet, layer: &PdfLayerReference, color_cut: &Color) {
   let page_height_mm = sheet.height_mm as f64;
 
   for part in &sheet.parts {
     for line in &part.lines {
-      // Выбор цвета и толщины по типу линии.
       let (color, width_pt) = match line.kind {
-        LineKind::Cut => (color_cut, 0.8),
-        LineKind::Valley => (Color::Rgb(0.2, 0.6, 1.0, None), 0.4),
-        LineKind::Mountain => (Color::Rgb(1.0, 0.6, 0.2, None), 0.4),
-        LineKind::GlueTab => (Color::Rgb(0.4, 1.0, 0.4, None), 0.5),
+        LineKind::Cut => (color_cut.clone(), 0.8),
+        LineKind::Valley => (Color::Rgb(PdfRgb::new(0.2, 0.6, 1.0, None)), 0.4),
+        LineKind::Mountain => (Color::Rgb(PdfRgb::new(1.0, 0.6, 0.2, None)), 0.4),
+        LineKind::GlueTab => (Color::Rgb(PdfRgb::new(0.4, 1.0, 0.4, None)), 0.5),
       };
 
       let x1_mm = line.x1 as f64;
@@ -342,26 +328,21 @@ fn draw_sheet_on_layer(sheet: &Sheet, layer: &PdfLayerReference, color_cut: Colo
       let x2_mm = line.x2 as f64;
       let y2_mm = line.y2 as f64;
 
-      // Инвертируем Y: 0 сверху → 0 снизу.
       let y1_mm_pdf = page_height_mm - y1_mm;
       let y2_mm_pdf = page_height_mm - y2_mm;
 
-      let start = (Mm(x1_mm), Mm(y1_mm_pdf));
-      let end = (Mm(x2_mm), Mm(y2_mm_pdf));
+      let start = Point::new(Mm(x1_mm as f32), Mm(y1_mm_pdf as f32));
+      let end = Point::new(Mm(x2_mm as f32), Mm(y2_mm_pdf as f32));
 
-      let line_vec = Line {
+      let line_vec = PdfLine {
         points: vec![(start, false), (end, false)],
         is_closed: false,
-        has_fill: false,
-        has_stroke: true,
-        is_clipping_path: false,
       };
 
       layer.set_outline_color(color);
-      layer.set_outline_thickness(Pt(width_pt));
+      layer.set_outline_thickness(width_pt as f32);
       layer.set_line_cap_style(LineCapStyle::Round);
       layer.set_line_join_style(LineJoinStyle::Round);
-
       layer.add_line(line_vec);
     }
   }
@@ -395,38 +376,35 @@ async fn export_unfold_pdf(
 
   println!("[PepakuraNext] export_unfold_pdf: {}", path);
 
-  // Используем размер первого листа как базу, остальные страницы будут
-  // со своими размерами.
   let first_sheet = &unfold.sheets[0];
   let doc_title = "Pepakura Next Unfold";
+
   let (mut doc, page1, layer1) = PdfDocument::new(
     doc_title,
-    Mm(first_sheet.width_mm as f64),
-    Mm(first_sheet.height_mm as f64),
+    Mm(first_sheet.width_mm),
+    Mm(first_sheet.height_mm),
     "Layer 1",
   );
 
-  let color_cut = Color::Rgb(0.0, 0.0, 0.0, None);
+  let color_cut = Color::Rgb(PdfRgb::new(0.0, 0.0, 0.0, None));
 
-  // Первый лист на первой странице.
   {
     let layer = doc.get_page(page1).get_layer(layer1);
-    draw_sheet_on_layer(first_sheet, &layer, color_cut);
+    draw_sheet_on_layer(first_sheet, &layer, &color_cut);
   }
 
-  // Остальные листы — отдельные страницы.
   for sheet in unfold.sheets.iter().skip(1) {
     let (page, layer) = doc.add_page(
-      Mm(sheet.width_mm as f64),
-      Mm(sheet.height_mm as f64),
+      Mm(sheet.width_mm),
+      Mm(sheet.height_mm),
       format!("Layer {}", sheet.index),
     );
     let layer_ref = doc.get_page(page).get_layer(layer);
-    draw_sheet_on_layer(sheet, &layer_ref, color_cut);
+    draw_sheet_on_layer(sheet, &layer_ref, &color_cut);
   }
 
   doc
-    .save(&mut fs::File::create(&path).map_err(|e| e.to_string())?)
+    .save(&mut BufWriter::new(File::create(&path).map_err(|e| e.to_string())?))
     .map_err(|e| e.to_string())?;
 
   println!("[PepakuraNext] PDF exported to {}", path);

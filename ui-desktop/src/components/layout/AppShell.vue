@@ -2,8 +2,15 @@
   <div class="shell-root">
     <header class="shell-top">
       <div class="brand" @click="goWelcome">
-        <span class="brand-main">Pepakura Next</span>
-        <span class="brand-sub">TXT2D3DPaper</span>
+        <img
+          :src="appIconUrl"
+          alt="Pepakura Next"
+          class="brand-logo"
+        />
+        <div class="brand-text">
+          <span class="brand-main">Pepakura Next</span>
+          <span class="brand-sub">TXT2D3DPaper</span>
+        </div>
       </div>
 
       <nav class="top-nav">
@@ -31,7 +38,9 @@
       </nav>
 
       <div class="top-actions">
-        <span class="top-hint">Режим: Авто (AI доступен)</span>
+        <span class="top-hint">
+          Экспериментальный AI‑режим. Интерфейс и поведение могут меняться.
+        </span>
       </div>
     </header>
 
@@ -49,6 +58,7 @@ import { useUiStore } from '@/stores/ui'
 import WelcomePage from '@/pages/WelcomePage.vue'
 import EditorPage from '@/pages/EditorPage.vue'
 import SettingsPage from '@/pages/SettingsPage.vue'
+import appIconUrl from '@/assets/app-icon.png'
 
 const ui = useUiStore()
 const page = computed(() => ui.currentPage)
@@ -61,9 +71,7 @@ function goWelcome() {
   ui.setPage('welcome')
 }
 
-// глобально блокируем стандартное поведение dnd файлов (открытие в новой вкладке)
 function preventGlobalFileDrop(e: DragEvent) {
-  // если есть файлы в dataTransfer — предотвращаем дефолт
   if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
     e.preventDefault()
   }
@@ -103,15 +111,28 @@ onBeforeUnmount(() => {
 
 .brand {
   display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+.brand-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 0.4rem;
+}
+
+.brand-text {
+  display: flex;
   flex-direction: column;
   gap: 0.05rem;
-  cursor: pointer;
 }
 
 .brand-main {
   font-size: 0.9rem;
   font-weight: 600;
 }
+
 .brand-sub {
   font-size: 0.75rem;
   color: #9ca3af;
@@ -131,6 +152,7 @@ onBeforeUnmount(() => {
   font-size: 0.8rem;
   cursor: pointer;
 }
+
 .top-btn.active {
   background: linear-gradient(135deg, #3b82f6, #6366f1);
   border-color: rgba(191, 219, 254, 0.9);

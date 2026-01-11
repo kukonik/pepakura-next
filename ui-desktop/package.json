@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@tauri-apps/plugin-shell": "^2.3.3",
+    "axios": "^1.13.2",
     "pepakura-shared": "workspace:*",
     "pinia": "^2.1.7",
     "three": "^0.182.0",
@@ -18,7 +19,7 @@
   },
   "devDependencies": {
     "@tauri-apps/api": "^2.9.1",
-    "@tauri-apps/cli": "^2.0.0",
+    "@tauri-apps/cli": "^2.9.6",
     "@types/node": "^20.0.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "typescript": "^5.0.0",

@@ -1,6 +1,9 @@
 <template>
   <div class="app-root">
-    <header class="app-header">
+    <header
+      v-if="fullscreenStage === 'none'"
+      class="app-header"
+    >
       <div class="header-left">
         <div class="logo">
           <span class="logo-icon">▢</span>
@@ -47,23 +50,48 @@
       </div>
     </header>
 
-    <div class="app-body">
-      <aside class="sidebar">
-        <p class="sidebar-title">Проекты</p>
+    <div class="app-body" :class="{ 'app-body-full': fullscreenStage !== 'none' }">
+      <aside
+        v-if="fullscreenStage === 'none'"
+        class="sidebar"
+      >
+        <div class="sidebar-header">
+          <p class="sidebar-title">Проекты</p>
+          <span class="sidebar-status">скоро</span>
+        </div>
+        <p class="sidebar-empty">
+          Здесь будут сохранённые проекты и истории генераций.
+        </p>
       </aside>
 
-      <main class="main-area">
-        <TxtStage v-if="stage === 'text'" />
-        <TwoDStage v-else-if="stage === 'twod'" />
-        <ThreeDStage v-else-if="stage === 'threed'" />
-        <UnfoldStage v-else />
+      <main class="main-area" :class="{ 'main-area-full': fullscreenStage !== 'none' }">
+        <TxtStage
+          v-if="stage === 'text'"
+          :fullscreen="fullscreenStage === 'text'"
+          @toggle-fullscreen="toggleFullscreen('text')"
+        />
+        <TwoDStage
+          v-else-if="stage === 'twod'"
+          :fullscreen="fullscreenStage === 'twod'"
+          @toggle-fullscreen="toggleFullscreen('twod')"
+        />
+        <ThreeDStage
+          v-else-if="stage === 'threed'"
+          :fullscreen="fullscreenStage === 'threed'"
+          @toggle-fullscreen="toggleFullscreen('threed')"
+        />
+        <UnfoldStage
+          v-else
+          :fullscreen="fullscreenStage === 'unfold'"
+          @toggle-fullscreen="toggleFullscreen('unfold')"
+        />
       </main>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useProjectStore } from '@/stores/project'
 import TxtStage from '@/components/stages/TxtStage.vue'
 import TwoDStage from '@/components/stages/TwoDStage.vue'
@@ -74,8 +102,15 @@ const project = useProjectStore()
 
 const stage = computed(() => project.stage)
 
+const fullscreenStage = ref<'none' | 'text' | 'twod' | 'threed' | 'unfold'>('none')
+
 function setStage(s: 'text' | 'twod' | 'threed' | 'unfold') {
   project.setStage(s)
+}
+
+function toggleFullscreen(stageKey: 'text' | 'twod' | 'threed' | 'unfold') {
+  fullscreenStage.value =
+    fullscreenStage.value === stageKey ? 'none' : stageKey
 }
 </script>
 
@@ -172,6 +207,10 @@ function setStage(s: 'text' | 'twod' | 'threed' | 'unfold') {
   min-height: 0;
 }
 
+.app-body-full {
+  /* без хедера и сайдбара просто больше места */
+}
+
 .sidebar {
   width: 220px;
   border-right: 1px solid rgba(148, 163, 184, 0.5);
@@ -179,9 +218,32 @@ function setStage(s: 'text' | 'twod' | 'threed' | 'unfold') {
   background: linear-gradient(to bottom, rgba(15, 23, 42, 0.98), #020617);
 }
 
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
 .sidebar-title {
   font-size: 0.8rem;
   color: #9ca3af;
+  margin: 0;
+}
+
+.sidebar-status {
+  font-size: 0.7rem;
+  color: #6b7280;
+  border-radius: 999px;
+  border: 1px solid rgba(75, 85, 99, 0.9);
+  padding: 0.05rem 0.35rem;
+}
+
+.sidebar-empty {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin: 0.15rem 0 0;
 }
 
 .main-area {
@@ -189,5 +251,9 @@ function setStage(s: 'text' | 'twod' | 'threed' | 'unfold') {
   min-width: 0;
   padding: 0.7rem;
   display: flex;
+}
+
+.main-area-full {
+  padding: 0; /* чтобы стейдж занял всё */
 }
 </style>

@@ -1,303 +1,577 @@
 <template>
-  <div class="threed-root">
-    <div class="threed-inner">
-      <section class="viewer-section">
+  <div class="stage-root">
+    <section class="left-panel">
+      <header class="panel-header">
+        <h2 class="panel-title">2D референсы и чертежи</h2>
+        <p class="panel-subtitle">
+          Здесь будут эскизы, ракурсы и схемы, которые пойдут в 3D‑генерацию.
+        </p>
+      </header>
+
+      <div class="refs-list">
+        <div class="refs-header">
+          <span class="refs-title">Референсы проекта</span>
+          <button class="small-btn" @click="addRefStub">
+            Добавить изображение (заглушка)
+          </button>
+        </div>
+
         <div
-          class="viewer-wrapper"
-          ref="viewerWrapper"
-          @dragover.prevent="onDragOver"
-          @dragenter.prevent="onDragOver"
-          @drop.prevent="onDrop"
+          v-if="refs.length === 0"
+          class="refs-empty"
         >
-          <header class="viewer-header">
-            <div class="viewer-text">
-              <h3 class="viewer-title">Просмотрщик 3D модели</h3>
-              <p class="viewer-subtitle">
-                {{ hasModel ? 'Используйте мышь для вращения, колёсико для зума.' : 'Загрузите модель, чтобы увидеть её здесь.' }}
-              </p>
-            </div>
-            <div class="viewer-actions">
-              <button
-                type="button"
-                class="viewer-btn"
-                @click="resetView"
-              >
-                Сбросить вид
-              </button>
-              <button
-                type="button"
-                class="viewer-btn secondary"
-                @click="toggleFullscreen"
-              >
-                <span v-if="!viewerFullscreen">Полноэкранно</span>
-                <span v-else>Выйти</span>
-              </button>
-            </div>
-          </header>
+          Пока нет референсов. Здесь появятся загруженные и сгенерированные изображения.
+        </div>
 
-          <div class="viewer-shell">
-            <div class="viewer-canvas-container">
-              <ThreeDViewerCanvas
-                v-if="hasModel"
-                :model-path="project.threeD.workingPath"
-                :mtl-path="mtlPath"
-                :reset-token="resetToken"
-              />
-            </div>
-
-            <div class="import-overlay" :class="{ hidden: hasModel }">
-              <div class="import-card">
-                <div class="import-icon">▢</div>
-                <h3 class="import-title">Загрузите модель для начала работы</h3>
-                <p class="import-text">
-                  Перетащите файлы OBJ + MTL в эту область или воспользуйтесь кнопкой ниже.
-                </p>
-                <p class="import-text small">
-                  Поддерживаемые форматы: OBJ, STL, GLTF, SVG, PNG, JPG.
-                </p>
-                <button
-                  type="button"
-                  class="import-btn"
-                  @click="triggerFileDialog"
-                >
-                  Импорт 3D
-                </button>
-                <input
-                  ref="fileInput"
-                  type="file"
-                  class="file-input"
-                  multiple
-                  accept=".obj,.mtl,.stl,.gltf,.glb,.svg,.png,.jpg,.jpeg"
-                  @change="onFileInputChange"
-                />
+        <ul
+          v-else
+          class="refs-items"
+        >
+          <li
+            v-for="ref in refs"
+            :key="ref.id"
+            class="refs-item"
+            :class="{ active: ref.id === activeRefId }"
+            @click="setActiveRef(ref.id)"
+          >
+            <div class="thumb" />
+            <div class="ref-meta">
+              <div class="ref-line">
+                <span class="ref-name">{{ ref.name }}</span>
+                <span class="ref-tag">{{ ref.kindLabel }}</span>
+              </div>
+              <div class="ref-line meta">
+                <span class="ref-origin">{{ ref.originLabel }}</span>
+                <span class="ref-size">{{ ref.sizeLabel }}</span>
               </div>
             </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="center-panel">
+      <header class="sub-header">
+        <div class="sub-titles">
+          <h3 class="sub-title">
+            Предпросмотр кадра
+          </h3>
+          <p class="sub-subtitle">
+            Пока только просмотр. В дальнейшем здесь появятся кадрирование, маски и разметка для AI.
+          </p>
+        </div>
+
+        <div class="actions-row">
+          <button
+            class="ghost-btn"
+            :disabled="!activeRef"
+            @click="showStub('crop')"
+          >
+            Обрезать кадр (в разработке)
+          </button>
+          <button
+            class="ghost-btn"
+            :disabled="!activeRef"
+            @click="showStub('mask')"
+          >
+            Маска / выделение (в разработке)
+          </button>
+          <button
+            class="ghost-btn"
+            :disabled="!activeRef"
+            @click="showStub('ai-view')"
+          >
+            Новый ракурс (AI, в разработке)
+          </button>
+        </div>
+      </header>
+
+      <div class="viewer">
+        <div class="viewer-inner">
+          <div v-if="activeRef" class="viewer-placeholder">
+            <p class="viewer-title">
+              {{ activeRef.name }}
+            </p>
+            <p class="viewer-text">
+              Здесь будет реальное 2D‑изображение/чертёж. Пока заглушка для предпросмотра.
+            </p>
+            <p class="viewer-meta">
+              {{ activeRef.originLabel }} • {{ activeRef.kindLabel }} • {{ activeRef.sizeLabel }}
+            </p>
+          </div>
+          <div v-else class="viewer-empty">
+            <p>Выберите референс слева или добавьте новый (пока заглушка).</p>
           </div>
         </div>
-      </section>
-    </div>
+      </div>
+    </section>
+
+    <aside class="right-panel">
+      <h3 class="side-title">Состояние 2D‑этапа</h3>
+
+      <div class="status-block">
+        <p class="status-line">
+          Референсы:
+          <span class="status-value">
+            {{ refs.length }} шт.
+          </span>
+        </p>
+        <p class="status-line">
+          Связь с TXT:
+          <span class="status-tag">
+            {{ hasTxtLink ? 'Есть текстовое ТЗ' : 'Без текста' }}
+          </span>
+        </p>
+        <p class="status-line">
+          Связь с 3D:
+          <span class="status-tag">
+            {{ hasThreeDLink ? 'Есть 3D‑модель' : 'Ещё нет 3D' }}
+          </span>
+        </p>
+      </div>
+
+      <div class="side-section">
+        <p class="side-label">Действия этапа 2D → 3D</p>
+        <button
+          class="primary-btn"
+          :disabled="!refs.length"
+          @click="showStub('send-to-3d')"
+        >
+          Использовать референсы для 3D (заглушка)
+        </button>
+        <p class="side-note">
+          В будущем здесь будет запуск AI‑пайплайна 2D → 3D (многоракурсная реконструкция, текст‑подсказки).
+        </p>
+      </div>
+
+      <div class="side-section">
+        <p class="side-label">Подсказки по 2D</p>
+        <ul class="tips-list">
+          <li>Загрузите хотя бы 2–3 ракурса объекта.</li>
+          <li>Добавьте чертежи или схемы, если они есть.</li>
+          <li>Старайтесь избегать слишком тёмных и размытых изображений.</li>
+        </ul>
+      </div>
+    </aside>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useProjectStore } from '@/stores/project'
-import { useImport3DModel } from '@/composables/useImport3DModel'
-import ThreeDViewerCanvas from '@/components/viewer/ThreeDViewerCanvas.vue'
+import { useTauriModelLoader } from '@/composables/useTauriModelLoader'
 
 const project = useProjectStore()
-const { importFromFiles, reset } = useImport3DModel()
+const { showMessage } = useTauriModelLoader()
 
-const fileInput = ref<HTMLInputElement | null>(null)
-const viewerWrapper = ref<HTMLDivElement | null>(null)
+type RefKind = 'photo' | 'sketch' | 'blueprint'
+type RefOrigin = 'imported' | 'generated' | 'mixed'
 
-const hasModel = computed(() => !!project.threeD.workingPath)
+interface TwoDRef {
+  id: string
+  name: string
+  kind: RefKind
+  origin: RefOrigin
+  width: number | null
+  height: number | null
+}
 
-const viewerFullscreen = ref(false)
-const resetToken = ref(0)
+const refs = ref<TwoDRef[]>([])
 
-const mtlPath = computed(() => {
-  if (!project.threeD.workingPath) return null
-  return project.threeD.workingPath.replace(/\.obj$/i, '.mtl')
+const activeRefId = ref<string | null>(null)
+
+const activeRef = computed(() => refs.value.find(r => r.id === activeRefId.value) ?? null)
+
+const hasTxtLink = computed(() => {
+  const txt = project.text?.rawText
+  return typeof txt === 'string' && txt.trim().length > 0
 })
 
-function triggerFileDialog() {
-  if (fileInput.value) {
-    fileInput.value.value = ''
-    fileInput.value.click()
+const hasThreeDLink = computed(() => project.threeD.status === 'ready')
+
+function setActiveRef(id: string) {
+  activeRefId.value = id
+}
+
+function addRefStub() {
+  const id = `ref-${Date.now()}`
+  const item: TwoDRef = {
+    id,
+    name: `Референс ${refs.value.length + 1}`,
+    kind: 'photo',
+    origin: 'imported',
+    width: null,
+    height: null
+  }
+  refs.value = [...refs.value, item]
+  activeRefId.value = id
+
+  showMessage(
+    'Пока добавляется только заглушка референса. Загрузка файлов и реальных изображений будет подключена позже.',
+    'info'
+  )
+}
+
+function showStub(kind: 'crop' | 'mask' | 'ai-view' | 'send-to-3d') {
+  if (!activeRef.value && kind !== 'send-to-3d') {
+    showMessage('Сначала выберите референс слева.', 'warning')
+    return
+  }
+
+  switch (kind) {
+    case 'crop':
+      showMessage('Обрезка/кадрирование 2D‑изображения пока в разработке.', 'info')
+      break
+    case 'mask':
+      showMessage('Редактор масок и выделений пока в разработке.', 'info')
+      break
+    case 'ai-view':
+      showMessage('Генерация новых ракурсов по 2D‑референсам пока в разработке.', 'info')
+      break
+    case 'send-to-3d':
+      showMessage(
+        'Передача 2D‑референсов в 3D‑этап будет добавлена позже. Сейчас это только заглушка действия.',
+        'info'
+      )
+      break
   }
 }
 
-async function onFileInputChange(e: Event) {
-  const input = e.target as HTMLInputElement
-  const files = input.files
-  if (!files || files.length === 0) return
-  await importFromFiles(files)
-}
+const refsWithLabels = computed(() =>
+  refs.value.map(r => ({
+    ...r,
+    kindLabel:
+      r.kind === 'photo'
+        ? 'Фото/рендер'
+        : r.kind === 'sketch'
+          ? 'Эскиз'
+          : 'Чертёж',
+    originLabel:
+      r.origin === 'imported'
+        ? 'Импорт'
+        : r.origin === 'generated'
+          ? 'AI‑генерация'
+          : 'Смешанный',
+    sizeLabel:
+      r.width && r.height
+        ? `${r.width}×${r.height}px`
+        : 'Размер неизвестен'
+  }))
+)
 
-function onDragOver(e: DragEvent) {
-  e.preventDefault()
-}
+const refsComputed = computed(() => refsWithLabels.value)
 
-async function onDrop(e: DragEvent) {
-  e.preventDefault()
-  const items = e.dataTransfer?.files
-  if (!items || items.length === 0) return
-  await importFromFiles(items)
-}
-
-function toggleFullscreen() {
-  viewerFullscreen.value = !viewerFullscreen.value
-  const el = viewerWrapper.value
-  if (!el) return
-  if (viewerFullscreen.value) {
-    if (el.requestFullscreen) el.requestFullscreen()
-  } else if (document.fullscreenElement) {
-    document.exitFullscreen()
-  }
-}
-
-function resetView() {
-  resetToken.value++
-}
-
-function clearModel() {
-  reset()
-}
 </script>
 
 <style scoped>
-.threed-root {
+.stage-root {
   flex: 1;
   display: flex;
+  padding: 0.75rem;
+  gap: 0.75rem;
   min-height: 0;
-}
-
-.threed-inner {
-  flex: 1;
   border-radius: 0.9rem;
   border: 1px solid rgba(148, 163, 184, 0.7);
   background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
 }
 
-.viewer-section {
+/* левая колонка – список референсов */
+.left-panel {
+  width: 260px;
+  min-width: 220px;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.panel-header {
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.5);
+}
+
+.panel-title {
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin: 0 0 0.15rem;
+}
+
+.panel-subtitle {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.refs-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.refs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.refs-title {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+.refs-empty {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  padding: 0.4rem 0;
+}
+
+.refs-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  overflow-y: auto;
+}
+
+.refs-item {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.3rem 0.35rem;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.refs-item.active {
+  border-color: rgba(59, 130, 246, 0.9);
+  background: radial-gradient(circle at top left, #1e293b, #020617);
+}
+
+.thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 0.4rem;
+  background: #020617;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+}
+
+.ref-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.ref-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.3rem;
+}
+
+.ref-name {
+  font-size: 0.8rem;
+  color: #e5e7eb;
+}
+
+.ref-tag {
+  font-size: 0.72rem;
+  color: #cbd5e1;
+}
+
+.ref-line.meta {
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+.ref-origin {
+}
+
+.ref-size {
+}
+
+/* центр – viewer и панель действий */
+.center-panel {
+  flex: 1.6;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.sub-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: flex-start;
+}
+
+.sub-titles {
+  max-width: 60%;
+}
+
+.sub-title {
+  font-size: 0.9rem;
+  margin: 0 0 0.1rem;
+}
+
+.sub-subtitle {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  justify-content: flex-end;
+}
+
+.viewer {
   flex: 1;
   min-height: 0;
 }
 
-.viewer-wrapper {
+.viewer-inner {
   height: 100%;
   border-radius: 0.8rem;
   border: 1px solid rgba(148, 163, 184, 0.7);
-  background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
+  background: radial-gradient(circle at top, #020617 0, #020617 45%, #000 100%);
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.viewer-header {
-  padding: 0.45rem 0.6rem;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.6);
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 0.6rem;
-  background: rgba(15, 23, 42, 0.98);
+  justify-content: center;
+  padding: 0.8rem;
 }
 
-.viewer-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.08rem;
+.viewer-placeholder,
+.viewer-empty {
+  text-align: center;
+  max-width: 480px;
 }
 
 .viewer-title {
-  margin: 0;
-  font-size: 0.88rem;
-  font-weight: 500;
+  font-size: 0.9rem;
+  margin: 0 0 0.25rem;
 }
 
-.viewer-subtitle {
-  margin: 0;
+.viewer-text {
   font-size: 0.8rem;
+  color: #cbd5e1;
+  margin: 0 0 0.2rem;
+}
+
+.viewer-meta {
+  font-size: 0.75rem;
   color: #9ca3af;
 }
 
-.viewer-actions {
+/* правая колонка – статус и действия */
+.right-panel {
+  width: 260px;
+  min-width: 220px;
+  max-width: 320px;
+  border-left: 1px solid rgba(148, 163, 184, 0.5);
+  padding-left: 0.7rem;
   display: flex;
-  gap: 0.25rem;
+  flex-direction: column;
+  gap: 0.6rem;
 }
 
-.viewer-btn {
-  border-radius: 999px;
-  border: 1px solid rgba(59, 130, 246, 0.9);
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
-  color: #f9fafb;
+.side-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.status-block {
+  border-radius: 0.6rem;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  padding: 0.4rem 0.5rem;
   font-size: 0.78rem;
+  background: rgba(15, 23, 42, 0.96);
+}
+
+.status-line {
+  margin: 0.1rem 0;
+  display: flex;
+  gap: 0.25rem;
+  align-items: baseline;
+}
+
+.status-value {
+  color: #e5e7eb;
+}
+
+.status-tag {
+  color: #cbd5e1;
+}
+
+.side-section {
+  font-size: 0.78rem;
+}
+
+.side-label {
+  margin: 0 0 0.15rem;
+  color: #cbd5e1;
+}
+
+.side-note {
+  font-size: 0.76rem;
+  color: #9ca3af;
+  margin: 0.25rem 0 0;
+}
+
+.tips-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #9ca3af;
+}
+.tips-list li {
+  margin-bottom: 0.15rem;
+}
+
+/* общие кнопки */
+.small-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.8);
+  background: rgba(15, 23, 42, 0.96);
+  color: #e5e7eb;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.6rem;
+  cursor: pointer;
+}
+
+.ghost-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.8);
+  background: transparent;
+  color: #e5e7eb;
+  font-size: 0.75rem;
   padding: 0.18rem 0.7rem;
   cursor: pointer;
 }
 
-.viewer-btn.secondary {
-  border-color: rgba(148, 163, 184, 0.8);
-  background: rgba(15, 23, 42, 0.98);
-  color: #e5e7eb;
+.ghost-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
-.viewer-shell {
-  flex: 1;
-  min-height: 0;
-  position: relative;
-  padding: 0.4rem;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-}
-
-.viewer-canvas-container {
-  flex: 1;
-  min-height: 0;
-}
-
-.import-overlay {
-  position: absolute;
-  inset: 0.4rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.import-overlay.hidden {
-  display: none;
-}
-
-.import-card {
-  max-width: 420px;
-  width: 100%;
-  padding: 1rem 1.2rem;
-  border-radius: 0.9rem;
-  border: 1px solid rgba(148, 163, 184, 0.8);
-  background: radial-gradient(circle at top, rgba(15, 23, 42, 0.98) 0, #020617 60%);
-  text-align: center;
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.9);
-}
-
-.import-icon {
-  font-size: 2.2rem;
-  margin-bottom: 0.4rem;
-  color: #64748b;
-}
-
-.import-title {
-  margin: 0 0 0.25rem;
-  font-size: 0.9rem;
-}
-
-.import-text {
-  margin: 0;
+.primary-btn {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.35rem 0.9rem;
   font-size: 0.8rem;
-  color: #9ca3af;
-}
-
-.import-text.small {
-  margin-top: 0.15rem;
-}
-
-.import-btn {
-  margin-top: 0.6rem;
-  border-radius: 0.7rem;
-  border: 1px solid rgba(59, 130, 246, 0.9);
+  cursor: pointer;
   background: linear-gradient(135deg, #3b82f6, #6366f1);
   color: #f9fafb;
-  font-size: 0.82rem;
-  padding: 0.3rem 0.9rem;
-  cursor: pointer;
 }
-
-.file-input {
-  display: none;
+.primary-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 </style>

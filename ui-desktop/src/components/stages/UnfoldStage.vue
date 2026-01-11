@@ -1,546 +1,308 @@
 <template>
-  <div class="unfold-root">
-    <div class="unfold-inner">
-      <header class="unfold-header">
-        <div class="header-left">
-          <h2 class="header-title">Развёртка на листы (Paper)</h2>
-          <p class="header-subtitle">
-            Настройте авторазвёртку, масштаб и компоновку деталей на листах бумаги.
+  <div class="stage-root">
+    <section class="left-panel">
+      <header class="panel-header">
+        <h2 class="panel-title">Бумажная развёртка</h2>
+        <p class="panel-subtitle">
+          Просмотр раскроя по листам. Полноценное редактирование пока в разработке.
+        </p>
+      </header>
+
+      <div class="paper-settings">
+        <p class="group-title">Параметры бумаги</p>
+
+        <label class="field">
+          <span class="field-label">Формат листа</span>
+          <select v-model="paperFormat" class="select">
+            <option value="A4">A4 (210×297 мм)</option>
+            <option value="A3">A3 (297×420 мм)</option>
+            <option value="Letter">Letter (8.5×11")</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field-label">Поля</span>
+          <div class="field-inline">
+            <input
+              v-model.number="marginMm"
+              type="number"
+              class="input"
+              min="0"
+              max="30"
+            />
+            <span class="field-suffix">мм</span>
+          </div>
+        </label>
+
+        <label class="field">
+          <span class="field-label">Масштаб</span>
+          <div class="field-inline">
+            <input
+              v-model.number="scalePercent"
+              type="number"
+              class="input"
+              min="10"
+              max="400"
+            />
+            <span class="field-suffix">%</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="actions-group">
+        <p class="group-title">Действия раскроя (в разработке)</p>
+        <div class="group-buttons">
+          <button class="ghost-btn" :disabled="!hasUnfold" @click="stub('repack')">
+            Переразложить острова
+          </button>
+          <button class="ghost-btn" :disabled="!hasUnfold" @click="stub('move')">
+            Ручное перемещение
+          </button>
+          <button class="ghost-btn" :disabled="!hasUnfold" @click="stub('tabs')">
+            Клапаны и линии сгиба
+          </button>
+        </div>
+      </div>
+
+      <div class="actions-group">
+        <p class="group-title">Экспорт</p>
+        <div class="group-buttons">
+          <button class="primary-btn" :disabled="!hasUnfold" @click="stub('export-pdf')">
+            Экспорт в PDF (заглушка)
+          </button>
+          <button class="ghost-btn" :disabled="!hasUnfold" @click="stub('export-png')">
+            Экспорт PNG (заглушка)
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="center-panel">
+      <header class="sub-header">
+        <div class="sub-titles">
+          <h3 class="sub-title">Предпросмотр листов</h3>
+          <p class="sub-subtitle">
+            Здесь будет реальный раскрой по листам. Сейчас отображается только заглушка.
           </p>
         </div>
-        <div class="header-right" v-if="hasModel">
-          <div class="model-meta">
-            <div class="meta-row">
-              <span class="meta-label">Файл:</span>
-              <span class="meta-value">{{ project.threeD.sourcePath || '—' }}</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-label">Формат:</span>
-              <span class="meta-value">{{ project.threeD.format || '—' }}</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-label">Граней:</span>
-              <span class="meta-value">{{ project.threeD.faces ?? '—' }}</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-label">Частей:</span>
-              <span class="meta-value">{{ project.threeD.parts ?? '—' }}</span>
-            </div>
-          </div>
+
+        <div class="pages-info">
+          <span class="pages-count">
+            Листы: {{ sheetsText }}
+          </span>
+          <span class="pages-count">
+            Острова: {{ patchesText }}
+          </span>
         </div>
       </header>
 
-      <section class="unfold-body">
-        <aside class="settings-panel">
-          <h3 class="panel-title">Параметры развёртки</h3>
-
-          <div class="panel-section">
-            <h4 class="section-title">Состояние</h4>
-            <p class="status-line">
-              Статус:
-              <span
-                class="status-chip"
-                :class="`status-${unfoldStatus}`"
-              >
-                {{ statusLabel }}
-              </span>
-            </p>
-            <p class="status-description">
-              {{ statusDescription }}
-            </p>
-            <p v-if="unfoldError" class="status-error-text">
-              {{ unfoldError }}
-            </p>
-          </div>
-
-          <div class="panel-section">
-            <h4 class="section-title">Листы</h4>
-            <div class="field">
-              <label class="field-label">Формат бумаги</label>
-              <select
-                v-model="paperFormat"
-                class="field-input"
-              >
-                <option value="A4">A4 (210 × 297 мм)</option>
-                <option value="A3">A3 (297 × 420 мм)</option>
-                <option value="Letter">Letter (8.5 × 11")</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label class="field-label">Отступы по краям</label>
-              <div class="field-inline">
-                <input
-                  v-model.number="marginMm"
-                  type="number"
-                  min="0"
-                  max="50"
-                  class="field-input"
-                />
-                <span class="field-suffix">мм</span>
+      <div class="viewer">
+        <div class="viewer-inner">
+          <div v-if="hasUnfold" class="viewer-grid">
+            <div
+              v-for="n in sheetCount"
+              :key="n"
+              class="sheet-placeholder"
+            >
+              <div class="sheet-header">
+                Лист {{ n }}
               </div>
-            </div>
-
-            <div class="field">
-              <label class="field-label">Максимум листов</label>
-              <div class="field-inline">
-                <input
-                  v-model.number="maxSheets"
-                  type="number"
-                  min="1"
-                  max="200"
-                  class="field-input"
-                />
-                <span class="field-suffix">шт</span>
+              <div class="sheet-body">
+                <p class="sheet-text">
+                  Здесь будет раскладка островов для листа {{ n }}.
+                </p>
               </div>
             </div>
           </div>
-
-          <div class="panel-section">
-            <h4 class="section-title">Масштаб</h4>
-            <div class="field">
-              <label class="field-label">Масштаб модели</label>
-              <div class="field-inline">
-                <input
-                  v-model.number="scale"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max="100"
-                  class="field-input"
-                />
-                <span class="field-suffix">×</span>
-              </div>
-            </div>
+          <div v-else class="viewer-empty">
+            <p>Развёртка ещё не построена. Получите 3D‑модель и запустите расчёт раскроя на стороне backend.</p>
           </div>
+        </div>
+      </div>
+    </section>
 
-          <div class="panel-section buttons">
-            <button
-              type="button"
-              class="primary-btn"
-              :disabled="!hasModel || unfoldStatus === 'running'"
-              @click="onRunAutoUnfold"
-            >
-              Авторазвёртка
-            </button>
-            <button
-              type="button"
-              class="ghost-btn"
-              :disabled="unfoldStatus !== 'ready'"
-              @click="onRefreshPreview"
-            >
-              Обновить превью
-            </button>
-            <button
-              type="button"
-              class="ghost-btn"
-              :disabled="unfoldStatus !== 'ready' || !unfold.result"
-              @click="onExportPdf"
-            >
-              Сохранить PDF развёртки
-            </button>
-          </div>
+    <aside class="right-panel">
+      <h3 class="side-title">Состояние раскроя</h3>
 
-          <p v-if="!hasModel" class="hint-text">
-            Загрузите 3D‑модель на предыдущем этапе, чтобы выполнить развёртку.
-          </p>
-        </aside>
+      <div class="status-block">
+        <p class="status-line">
+          Статус:
+          <span
+            class="status-tag"
+            :class="{
+              ok: unfoldStatus === 'ready',
+              bad: unfoldStatus === 'error',
+              idle: unfoldStatus !== 'ready' && unfoldStatus !== 'error'
+            }"
+          >
+            {{ unfoldStatusLabel }}
+          </span>
+        </p>
+        <p class="status-line">
+          Острова:
+          <span class="status-value">
+            {{ patchesText }}
+          </span>
+        </p>
+        <p class="status-line">
+          Листы:
+          <span class="status-value">
+            {{ sheetsText }}
+          </span>
+        </p>
+      </div>
 
-        <main class="preview-panel">
-          <header class="preview-header">
-            <div class="preview-text">
-              <h3 class="preview-title">
-                Превью листов бумаги
-              </h3>
-              <p class="preview-subtitle">
-                {{
-                  hasModel
-                    ? 'Просмотрите расположение деталей на листах и при необходимости измените параметры.'
-                    : 'Нет загруженной модели. Развёртка недоступна.'
-                }}
-              </p>
-            </div>
-            <div class="preview-meta" v-if="hasModel && totalSheets > 0">
-              <span class="pill">
-                {{ totalSheets }} лист(ов)
-              </span>
-              <span class="pill">
-                {{ totalParts }} деталей
-              </span>
-            </div>
-          </header>
+      <div class="side-section">
+        <p class="side-label">Связь с 3D</p>
+        <p class="side-note">
+          {{ hasThreeD ? '3D‑модель готова, развёртка может быть пересчитана при изменениях.' : '3D‑модели нет — развёртка будет недоступна.' }}
+        </p>
+      </div>
 
-          <div class="preview-content">
-            <div
-              v-if="!hasModel"
-              class="preview-empty"
-            >
-              <p class="empty-title">Нет развёртки</p>
-              <p class="empty-text">
-                Вернитесь на вкладку 3D, загрузите модель и запустите авторазвёртку.
-              </p>
-            </div>
-
-            <div
-              v-else-if="unfoldStatus === 'running'"
-              class="preview-empty"
-            >
-              <p class="empty-title">Выполняется развёртка…</p>
-              <p class="empty-text">
-                Пожалуйста, подождите. Для сложных моделей это может занять немного времени.
-              </p>
-            </div>
-
-            <div
-              v-else-if="unfoldStatus === 'error'"
-              class="preview-empty"
-            >
-              <p class="empty-title">Ошибка развёртки</p>
-              <p class="empty-text">
-                {{ unfoldError || 'При развёртке произошла ошибка.' }}
-              </p>
-            </div>
-
-            <div
-              v-else-if="unfoldStatus === 'ready' && sheets.length === 0"
-              class="preview-empty"
-            >
-              <p class="empty-title">Нет листов</p>
-              <p class="empty-text">
-                Движок не вернул ни одного листа. Попробуйте изменить параметры или модель.
-              </p>
-            </div>
-
-            <div
-              v-else
-              class="sheets-grid"
-            >
-              <div
-                v-for="sheet in sheets"
-                :key="sheet.id"
-                class="sheet-card"
-              >
-                <div class="sheet-header">
-                  <span class="sheet-title">Лист {{ sheet.index }}</span>
-                  <span class="sheet-meta">
-                    {{ sheet.parts.length }} деталей
-                  </span>
-                </div>
-                <div class="sheet-preview">
-                  <div
-                    v-for="part in sheet.parts"
-                    :key="part.id"
-                    class="piece"
-                    :style="pieceStyle(sheet, part)"
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </main>
-      </section>
-    </div>
+      <div class="side-section">
+        <p class="side-label">Подсказки по печати</p>
+        <ul class="tips-list">
+          <li>Учитывайте поля принтера, чтобы линии не обрезались.</li>
+          <li>Проверяйте масштаб по тестовому квадрату 10×10 мм.</li>
+          <li>Для больших моделей лучше использовать A3 или печать в масштабе &lt; 100%.</li>
+        </ul>
+      </div>
+    </aside>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { invoke } from '@tauri-apps/api/tauri'
 import { useProjectStore } from '@/stores/project'
-import { useUnfoldStore } from '@/stores/unfoldStore'
+import { useTauriModelLoader } from '@/composables/useTauriModelLoader'
 
 const project = useProjectStore()
-const unfold = useUnfoldStore()
+const { showMessage } = useTauriModelLoader()
 
-const hasModel = computed(() => !!project.threeD.workingPath)
+const unfoldStatus = computed(() => project.unfold.status)
+
+const unfoldStatusLabel = computed(() => {
+  switch (unfoldStatus.value) {
+    case 'ready':
+      return 'развёртка готова'
+    case 'calculating':
+      return 'идёт расчёт'
+    case 'error':
+      return 'ошибка расчёта'
+    default:
+      return 'нет данных'
+  }
+})
+
+const hasUnfold = computed(() => unfoldStatus.value === 'ready')
+
+const hasThreeD = computed(() => project.threeD.status === 'ready')
+
+const patchesText = computed(() =>
+  project.unfold.estimatedPatches != null
+    ? `${project.unfold.estimatedPatches} островов`
+    : '—'
+)
+
+const sheetsText = computed(() =>
+  project.unfold.estimatedSheets != null
+    ? `${project.unfold.estimatedSheets} листов`
+    : '—'
+)
+
+const sheetCount = computed(() =>
+  project.unfold.estimatedSheets != null ? project.unfold.estimatedSheets : 0
+)
 
 const paperFormat = ref<'A4' | 'A3' | 'Letter'>('A4')
-const marginMm = ref<number>(5)
-const maxSheets = ref<number>(20)
-const scale = ref<number>(1)
+const marginMm = ref(5)
+const scalePercent = ref(100)
 
-const unfoldStatus = computed(() => unfold.status)
-const unfoldError = computed(() => unfold.errorMessage)
-const sheets = computed(() => unfold.result?.sheets ?? [])
-const totalSheets = computed(() => unfold.totalSheets)
-const totalParts = computed(() => unfold.totalParts)
-
-const statusLabel = computed(() => {
-  switch (unfoldStatus.value) {
-    case 'idle':
-      return 'Ожидание'
-    case 'running':
-      return 'Выполняется...'
-    case 'ready':
-      return 'Готово'
-    case 'error':
-      return 'Ошибка'
-  }
-})
-
-const statusDescription = computed(() => {
-  switch (unfoldStatus.value) {
-    case 'idle':
-      return 'Запустите авторазвёртку, чтобы получить шаблоны листов.'
-    case 'running':
-      return 'Выполняется развёртка. Это может занять несколько секунд для сложных моделей.'
-    case 'ready':
-      return 'Развёртка выполнена. Проверьте превью листов и при необходимости измените параметры.'
-    case 'error':
-      return 'При развёртке произошла ошибка. Попробуйте изменить параметры или модель.'
-  }
-})
-
-function onRunAutoUnfold() {
-  if (!hasModel.value) return
-
-  unfold.runAutoUnfold({
-    paperFormat: paperFormat.value,
-    marginMm: marginMm.value,
-    maxSheets: maxSheets.value,
-    scale: scale.value,
-  })
-}
-
-function onRefreshPreview() {
-  if (unfoldStatus.value === 'ready' && unfold.result) {
-    const jitter = (value: number) => {
-      const delta = (Math.random() - 0.5) * 6
-      return Math.min(85, Math.max(5, value + delta))
-    }
-
-    unfold.result.sheets.forEach(sheet => {
-      sheet.parts.forEach(part => {
-        part.bounds.x = jitter(part.bounds.x)
-        part.bounds.y = jitter(part.bounds.y)
-      })
-    })
-  }
-}
-
-async function onExportPdf() {
-  if (!unfold.result) return
-
-  try {
-    await invoke('export_unfold_pdf', {
-      unfold: unfold.result,
-    })
-  } catch (e) {
-    console.error('[PepakuraNext] export_unfold_pdf failed', e)
-  }
-}
-
-function pieceStyle(sheet: (typeof sheets.value)[number], part: any) {
-  const usableWidth = sheet.width_mm - sheet.margin_mm * 2
-  const usableHeight = sheet.height_mm - sheet.margin_mm * 2
-
-  const xRel = (part.bounds.x - sheet.margin_mm) / usableWidth
-  const yRel = (part.bounds.y - sheet.margin_mm) / usableHeight
-  const wRel = part.bounds.width / usableWidth
-  const hRel = part.bounds.height / usableHeight
-
-  const xPercent = Math.max(0, Math.min(1, xRel)) * 100
-  const yPercent = Math.max(0, Math.min(1, yRel)) * 100
-  const wPercent = Math.max(2, Math.min(1, wRel)) * 100
-  const hPercent = Math.max(2, Math.min(1, hRel)) * 100
-
-  return {
-    width: `${wPercent}%`,
-    height: `${hPercent}%`,
-    left: `${xPercent}%`,
-    top: `${yPercent}%`,
+function stub(kind: 'repack' | 'move' | 'tabs' | 'export-pdf' | 'export-png') {
+  switch (kind) {
+    case 'repack':
+      showMessage('Переразложение островов по листам пока в разработке.', 'info')
+      break
+    case 'move':
+      showMessage('Интерактивное перемещение островов пока в разработке.', 'info')
+      break
+    case 'tabs':
+      showMessage('Редактирование клапанов и линий сгиба пока в разработке.', 'info')
+      break
+    case 'export-pdf':
+      showMessage('Экспорт развёртки в PDF пока в разработке.', 'info')
+      break
+    case 'export-png':
+      showMessage('Экспорт листов в PNG пока в разработке.', 'info')
+      break
   }
 }
 </script>
 
 <style scoped>
-.unfold-root {
+.stage-root {
   flex: 1;
   display: flex;
+  padding: 0.75rem;
+  gap: 0.75rem;
   min-height: 0;
-}
-
-.unfold-inner {
-  flex: 1;
   border-radius: 0.9rem;
   border: 1px solid rgba(148, 163, 184, 0.7);
   background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
-  padding: 0.75rem;
+}
+
+/* левая панель – параметры и действия */
+.left-panel {
+  width: 260px;
+  min-width: 220px;
+  max-width: 320px;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
 
-.unfold-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.8rem;
-  padding-bottom: 0.45rem;
+.panel-header {
+  padding-bottom: 0.3rem;
   border-bottom: 1px solid rgba(148, 163, 184, 0.5);
 }
 
-.header-left {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-
-.header-title {
-  margin: 0;
+.panel-title {
   font-size: 0.95rem;
   font-weight: 500;
+  margin: 0 0 0.15rem;
 }
 
-.header-subtitle {
-  margin: 0;
+.panel-subtitle {
   font-size: 0.8rem;
   color: #9ca3af;
+  margin: 0;
 }
 
-.header-right {
-  max-width: 320px;
-}
-
-.model-meta {
-  font-size: 0.78rem;
-  background: rgba(15, 23, 42, 0.96);
+.paper-settings {
   border-radius: 0.6rem;
   border: 1px solid rgba(148, 163, 184, 0.6);
-  padding: 0.45rem 0.6rem;
-}
-
-.meta-row {
-  display: flex;
-  gap: 0.3rem;
-}
-
-.meta-label {
-  color: #9ca3af;
-}
-
-.meta-value {
-  color: #e5e7eb;
-}
-
-.unfold-body {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  gap: 0.75rem;
-  margin-top: 0.3rem;
-}
-
-.settings-panel {
-  border-radius: 0.8rem;
-  border: 1px solid rgba(148, 163, 184, 0.7);
-  background: radial-gradient(circle at top, #020617 0, #020617 40%, #020617 100%);
-  padding: 0.6rem 0.7rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.panel-title {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.panel-section {
-  border-top: 1px solid rgba(148, 163, 184, 0.5);
-  padding-top: 0.45rem;
-  margin-top: 0.3rem;
-}
-
-.panel-section.buttons {
-  border-top: none;
-  padding-top: 0.2rem;
-  margin-top: 0.2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.section-title {
-  margin: 0 0 0.3rem;
-  font-size: 0.82rem;
-  color: #e5e7eb;
-}
-
-.status-line {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #e5e7eb;
-}
-
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 0.3rem;
-  padding: 0.05rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.74rem;
-  border: 1px solid transparent;
-}
-
-.status-idle {
-  border-color: rgba(148, 163, 184, 0.8);
+  padding: 0.4rem 0.5rem;
   background: rgba(15, 23, 42, 0.96);
-  color: #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
-.status-running {
-  border-color: rgba(234, 179, 8, 0.9);
-  background: rgba(161, 98, 7, 0.2);
-  color: #facc15;
-}
-
-.status-ready {
-  border-color: rgba(34, 197, 94, 0.9);
-  background: rgba(22, 163, 74, 0.2);
-  color: #bbf7d0;
-}
-
-.status-error {
-  border-color: rgba(248, 113, 113, 0.9);
-  background: rgba(185, 28, 28, 0.2);
-  color: #fecaca;
-}
-
-.status-description {
-  margin: 0.25rem 0 0;
+.group-title {
   font-size: 0.78rem;
-  color: #9ca3af;
-}
-
-.status-error-text {
-  margin: 0.25rem 0 0;
-  font-size: 0.76rem;
-  color: #fecaca;
+  color: #cbd5e1;
+  margin: 0 0 0.35rem;
 }
 
 .field {
-  margin-bottom: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .field-label {
-  display: block;
   font-size: 0.78rem;
   color: #cbd5e1;
-  margin-bottom: 0.15rem;
-}
-
-.field-input {
-  width: 100%;
-  background: rgba(15, 23, 42, 0.96);
-  border-radius: 0.4rem;
-  border: 1px solid rgba(148, 163, 184, 0.8);
-  padding: 0.18rem 0.35rem;
-  font-size: 0.8rem;
-  color: #e5e7eb;
 }
 
 .field-inline {
@@ -554,152 +316,231 @@ function pieceStyle(sheet: (typeof sheets.value)[number], part: any) {
   color: #9ca3af;
 }
 
-.primary-btn,
-.ghost-btn {
-  width: 100%;
-  border-radius: 0.7rem;
-  padding: 0.3rem 0.6rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
-.primary-btn {
-  border: 1px solid rgba(59, 130, 246, 0.9);
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
-  color: #f9fafb;
-}
-
-.primary-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.ghost-btn {
+.select,
+.input {
+  border-radius: 0.5rem;
   border: 1px solid rgba(148, 163, 184, 0.8);
   background: rgba(15, 23, 42, 0.98);
   color: #e5e7eb;
-}
-
-.hint-text {
-  margin: 0.2rem 0 0;
-  font-size: 0.76rem;
-  color: #9ca3af;
-}
-
-.preview-panel {
-  border-radius: 0.8rem;
-  border: 1px solid rgba(148, 163, 184, 0.7);
-  background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.preview-header {
-  padding: 0.45rem 0.6rem;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.6);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.7rem;
-}
-
-.preview-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.08rem;
-}
-
-.preview-title {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.preview-subtitle {
-  margin: 0;
   font-size: 0.8rem;
-  color: #9ca3af;
+  padding: 0.25rem 0.5rem;
 }
 
-.preview-meta {
+.actions-group {
+  border-radius: 0.6rem;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  padding: 0.4rem 0.5rem;
+  background: rgba(15, 23, 42, 0.96);
+  margin-top: 0.3rem;
+}
+
+.group-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.3rem;
 }
 
-.pill {
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.8);
-  padding: 0.12rem 0.5rem;
-  font-size: 0.78rem;
-  color: #e5e7eb;
+/* центр – viewer листов */
+.center-panel {
+  flex: 1.6;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
 }
 
-.preview-content {
+.sub-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: flex-start;
+}
+
+.sub-titles {
+  max-width: 70%;
+}
+
+.sub-title {
+  font-size: 0.9rem;
+  margin: 0 0 0.1rem;
+}
+
+.sub-subtitle {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.pages-info {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+}
+
+.viewer {
   flex: 1;
   min-height: 0;
-  padding: 0.6rem;
 }
 
-.preview-empty {
-  margin: auto;
-  text-align: center;
-  max-width: 360px;
-  color: #e5e7eb;
+.viewer-inner {
+  height: 100%;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  background: radial-gradient(circle at top, #020617 0, #020617 45%, #000 100%);
+  padding: 0.8rem;
+  overflow: auto;
 }
 
-.empty-title {
-  font-size: 0.9rem;
-  margin-bottom: 0.2rem;
-}
-
-.empty-text {
-  font-size: 0.8rem;
-  color: #9ca3af;
-}
-
-.sheets-grid {
+.viewer-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 0.6rem;
 }
 
-.sheet-card {
-  border-radius: 0.6rem;
-  border: 1px solid rgba(148, 163, 184, 0.7);
-  background: radial-gradient(circle at top, #020617 0, #020617 70%, #020617 100%);
-  padding: 0.4rem;
+.sheet-placeholder {
+  border-radius: 0.4rem;
+  border: 1px dashed rgba(148, 163, 184, 0.8);
+  background: rgba(15, 23, 42, 0.96);
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  min-height: 140px;
 }
 
 .sheet-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.5);
   font-size: 0.78rem;
   color: #cbd5e1;
 }
 
-.sheet-preview {
-  position: relative;
-  margin-top: 0.15rem;
-  width: 100%;
-  padding-top: 141.4%;
-  border-radius: 0.4rem;
-  background: radial-gradient(circle at top left, #020617 0, #020617 35%, #000 100%);
-  overflow: hidden;
+.sheet-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
 }
 
-.piece {
-  position: absolute;
-  border-radius: 0.15rem;
-  border: 1px solid rgba(148, 163, 184, 0.9);
-  background: linear-gradient(
-    135deg,
-    rgba(59, 130, 246, 0.18),
-    rgba(129, 140, 248, 0.28)
-  );
+.sheet-text {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  text-align: center;
+  margin: 0;
+}
+
+.viewer-empty {
+  text-align: center;
+  max-width: 520px;
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+/* правая панель – статус и подсказки */
+.right-panel {
+  width: 260px;
+  min-width: 220px;
+  max-width: 320px;
+  border-left: 1px solid rgba(148, 163, 184, 0.5);
+  padding-left: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.side-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.status-block {
+  border-radius: 0.6rem;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  padding: 0.4rem 0.5rem;
+  font-size: 0.78rem;
+  background: rgba(15, 23, 42, 0.96);
+}
+
+.status-line {
+  margin: 0.1rem 0;
+  display: flex;
+  gap: 0.25rem;
+  align-items: baseline;
+}
+
+.status-tag {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+}
+.status-tag.ok {
+  color: #bbf7d0;
+  border-color: rgba(22, 163, 74, 0.9);
+}
+.status-tag.bad {
+  color: #fecaca;
+  border-color: rgba(239, 68, 68, 0.9);
+}
+.status-tag.idle {
+  color: #9ca3af;
+}
+
+.status-value {
+  color: #e5e7eb;
+}
+
+.side-section {
+  font-size: 0.78rem;
+}
+
+.side-label {
+  margin: 0 0 0.15rem;
+  color: #cbd5e1;
+}
+
+.side-note {
+  font-size: 0.76rem;
+  color: #9ca3af;
+  margin: 0.25rem 0 0;
+}
+
+.tips-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #9ca3af;
+}
+.tips-list li {
+  margin-bottom: 0.15rem;
+}
+
+/* кнопки */
+.primary-btn {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: #f9fafb;
+}
+.primary-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ghost-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.8);
+  background: transparent;
+  color: #e5e7eb;
+  font-size: 0.75rem;
+  padding: 0.18rem 0.7rem;
+  cursor: pointer;
+}
+.ghost-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 </style>
