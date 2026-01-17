@@ -1,0 +1,19 @@
+
+node_modules\pepakura-shared\src\composables\useModelLoader.ts:8:// Заглушка для функции загрузки
+node_modules\pepakura-shared\src\composables\useModelLoader.ts:11:  console.log('useModelLoader: Запрошена загрузка модели по пути (заглушка):', path);
+src\components\layout\LeftToolbar.vue:98:  showMessage('Открыта справка (заглушка)', 'info')
+src\components\layout\TopBar.vue:75:  showMessage(`Локальный поиск: "${q}" (заглушка)`, 'info')
+src\components\layout\TopBar.vue:85:  showMessage(`AI поиск по запросу: "${q}" (заглушка)`, 'info')
+src\components\layout\TopBar.vue:100:  showMessage('Создание нового проекта (заглушка)', 'info')
+src\components\stages\ThreeDStage.vue:155:                  Перейти к развёртке (заглушка)
+src\components\stages\TwoDStage.vue:15:            Добавить изображение (заглушка)
+src\components\stages\TwoDStage.vue:96:              Здесь будет реальное 2D‑изображение/чертёж. Пока заглушка для предпросмотра.
+src\components\stages\TwoDStage.vue:103:            <p>Выберите референс слева или добавьте новый (пока заглушка).</p>
+src\components\stages\TwoDStage.vue:140:          Использовать референсы для 3D (заглушка)
+src\components\stages\TwoDStage.vue:210:    'Пока добавляется только заглушка референса. Загрузка файлов и реальных изображений будет подключена позже.',
+src\components\stages\TwoDStage.vue:233:        'Передача 2D‑референсов в 3D‑этап будет добавлена позже. Сейчас это только заглушка действия.',
+src\components\stages\UnfoldStage.vue:71:            Экспорт в PDF (заглушка)
+src\components\stages\UnfoldStage.vue:74:            Экспорт PNG (заглушка)
+src\components\stages\UnfoldStage.vue:85:            Здесь будет реальный раскрой по листам. Сейчас отображается только заглушка.
+src\composables\useTauriModelLoader.ts:53:    // Заглушка: считаем, что workingPath = имя OBJ
+

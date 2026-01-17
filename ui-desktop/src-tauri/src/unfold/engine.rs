@@ -1,7 +1,9 @@
 //! Основной движок развёртки 3D-моделей
-
+ 
 use crate::unfold::types::*;
-
+use crate::unfold::face_unfolder::FaceUnfolder;
+use crate::unfold::layout_optimizer::LayoutOptimizer;
+ 
 /// Основной движок развёртки
 pub struct UnfoldEngine;
 
@@ -13,85 +15,35 @@ impl UnfoldEngine {
 
     /// Выполняет развёртку 3D-модели в 2D-шаблоны
     pub fn unfold_model(&self, model: &Model3D, params: &UnfoldParams) -> UnfoldResult {
-        // TODO: Реализовать реальный алгоритм развёртки
-        // Пока используем заглушку для демонстрации
+        let face_unfolder = FaceUnfolder::new();
+        let mut parts = Vec::new();
         
-        // Создаём тестовую развёртку с несколькими листами
-        let (width_mm, height_mm) = Self::get_paper_dimensions(¶ms.paper_format);
-        
-        let sheet_count = params.max_sheets.min(4).max(1);
-        let mut sheets = Vec::new();
-
-        for i in 0..sheet_count {
-            let id = i + 1;
-            let mut parts = Vec::new();
-
-            // Создаём несколько тестовых деталей на листе
-            let part_count = 6 + (i as u32) * 2;
-            for j in 0..part_count {
-                let part_id = j + 1;
-                let bounds = Rect {
-                    x: 10.0 + (j as f32 * 8.0) % (width_mm * 0.6),
-                    y: 10.0 + (j as f32 * 12.0) % (height_mm * 0.6),
-                    width: 30.0 + (j % 3) as f32 * 5.0,
-                    height: 20.0 + (j % 2) as f32 * 5.0,
+        // Развертываем каждую грань модели
+        for (face_index, _face) in model.faces.iter().enumerate() {
+            if let Ok(unfolded) = face_unfolder.unfold_face(model, face_index as u32) {
+                // Добавляем клапаны к линиям
+                let mut lines_with_tabs = Vec::new();
+                for line in &unfolded.lines {
+                    let mut tab_lines = face_unfolder.add_glue_tab(line, 5.0); // Ширина клапана 5мм
+                    lines_with_tabs.append(&mut tab_lines);
+                }
+                
+                let part = Part2D {
+                    id: unfolded.face_id,
+                    name: Some(format!("Face {}", unfolded.face_id)),
+                    bounds: unfolded.bounds,
+                    lines: lines_with_tabs,
                 };
-
-                let x1 = bounds.x;
-                let y1 = bounds.y;
-                let x2 = bounds.x + bounds.width;
-                let y2 = bounds.y + bounds.height;
-
-                // Создаём линии контура детали
-                let lines = vec![
-                    Line2D {
-                        x1,
-                        y1,
-                        x2,
-                        y2: y1,
-                        kind: LineKind::Cut,
-                    },
-                    Line2D {
-                        x1: x2,
-                        y1,
-                        x2,
-                        y2,
-                        kind: LineKind::Cut,
-                    },
-                    Line2D {
-                        x1: x2,
-                        y1: y2,
-                        x2: x1,
-                        y2,
-                        kind: LineKind::Cut,
-                    },
-                    Line2D {
-                        x1,
-                        y1: y2,
-                        x2: x1,
-                        y2: y1,
-                        kind: LineKind::Cut,
-                    },
-                ];
-
-                parts.push(Part2D {
-                    id: part_id,
-                    name: Some(format!("Part {}-{}", id, part_id)),
-                    bounds,
-                    lines,
-                });
+                
+                parts.push(part);
             }
-
-            sheets.push(Sheet {
-                id,
-                index: id,
-                width_mm,
-                height_mm,
-                margin_mm: params.margin_mm,
-                parts,
-            });
         }
-
+        
+        // Оптимизируем размещение деталей на листах
+        let (width_mm, height_mm) = Self::get_paper_dimensions(&params.paper_format);
+        let optimizer = LayoutOptimizer::new();
+        let sheets = optimizer.optimize_layout(parts, width_mm, height_mm, params.margin_mm);
+        
         UnfoldResult { sheets }
     }
 

@@ -1,7 +1,7 @@
 //! Оптимизатор раскладки деталей на листах
 
 use crate::unfold::types::*;
-use std::f32::consts::PI;
+// use std::f32::consts::PI;
 
 /// Оптимизатор раскладки деталей
 pub struct LayoutOptimizer;
@@ -133,7 +133,7 @@ impl LayoutOptimizer {
     }
 
     /// Оптимизирует распределение деталей по листам
-    fn optimize_sheet_distribution(&self, result: &mut UnfoldResult) {
+    fn optimize_sheet_distribution(&self, _result: &mut UnfoldResult) {
         // Пока просто оставляем структуру для будущей реализации
         // Здесь можно реализовать алгоритмы перераспределения деталей
         // между листами для лучшего использования пространства

@@ -1,4 +1,11 @@
 //! Типы данных для движка развёртки
+ 
+/// Точка в 2D пространстве
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Point2D {
+    pub x: f32,
+    pub y: f32,
+}
 
 use serde::{Deserialize, Serialize};
 
@@ -76,6 +83,7 @@ pub struct Vertex3D {
 /// Грань (треугольник) в 3D-модели
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Face3D {
+    pub id: u32,            // уникальный идентификатор грани
     pub vertices: [u32; 3], // индексы вершин
     pub normal: [f32; 3],    // нормаль грани
 }

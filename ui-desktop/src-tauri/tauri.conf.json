@@ -21,6 +21,9 @@
         "decorations": true,
         "dragDropEnabled": false
       }
-    ]
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost"
+    }
   }
 }

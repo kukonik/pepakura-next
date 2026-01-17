@@ -1,0 +1,6 @@
+
+node_modules\pepakura-shared\src\components\PepakuraLayout.vue:218:        <span id="performanceStatus">Режим: Авто (AI доступен)</span>
+src\components\layout\AppMainLayout.vue:49:        <span class="mode-chip">Режим: Авто (AI доступен)</span>
+src\components\layout\AppShell.vue:41:        <span class="top-hint">Режим: Авто (AI доступен)</span>
+src\components\stages\TxtStage.vue:38:              Режим: Авто (AI доступен). Далее появится связка:
+
