@@ -1,29 +1,53 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "pepakura-next",
-  "version": "0.1.0",
-  "identifier": "com.yourcompany.pepakura_next",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../dist",
-    "devUrl": "http://localhost:5174"
+    "devPath": "http://localhost:5174",
+    "distDir": "../dist"
   },
-  "app": {
+  "package": {
+    "productName": "pepakura-next",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "fs": {
+        "scope": ["$APPDATA/*", "$DESKTOP/*"]
+      },
+      "shell": {
+        "open": true
+      },
+      "window": {
+        "close": true,
+        "minimize": true,
+        "maximize": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "com.pepakura.next",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ]
+    },
+    "security": {
+      "csp": "default-src 'self'"
+    },
     "windows": [
       {
-        "label": "main",
         "title": "Pepakura Next",
-        "width": 1280,
+        "width": 1200,
         "height": 800,
         "resizable": true,
         "fullscreen": false,
-        "decorations": true,
-        "dragDropEnabled": false
+        "decorations": true
       }
-    ],
-    "security": {
-      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost"
-    }
+    ]
   }
 }

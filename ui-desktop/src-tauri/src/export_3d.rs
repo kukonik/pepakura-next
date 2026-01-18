@@ -6,7 +6,7 @@ use std::path::Path;
 use crate::unfold::types::{UnfoldResult, UnfoldParams};
 
 /// Экспортирует исходную 3D модель в STL файл
-pub fn export_to_stl(result: &UnfoldResult, _params: &UnfoldParams, output_dir: &str) {
+pub fn export_to_stl(_result: &UnfoldResult, _params: &UnfoldParams, output_dir: &str) {
     let path = Path::new(output_dir).join("model.stl");
     let file = File::create(&path).expect("Не удалось создать STL файл");
     let mut writer = BufWriter::new(file);
@@ -29,7 +29,7 @@ pub fn export_to_stl(result: &UnfoldResult, _params: &UnfoldParams, output_dir: 
 }
 
 /// Экспортирует исходную 3D модель в OBJ файл
-pub fn export_to_obj(result: &UnfoldResult, _params: &UnfoldParams, output_dir: &str) {
+pub fn export_to_obj(_result: &UnfoldResult, _params: &UnfoldParams, output_dir: &str) {
     let path = Path::new(output_dir).join("model.obj");
     let file = File::create(&path).expect("Не удалось создать OBJ файл");
     let mut writer = BufWriter::new(file);

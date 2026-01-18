@@ -1,4 +1,6 @@
-//! Основной движок развёртки 3D-моделей
+#![allow(dead_code)]
+#[allow(dead_code)]
+/// Основной движок развёртки 3D-моделей
  
 use crate::unfold::types::*;
 use crate::unfold::face_unfolder::FaceUnfolder;

@@ -1,4 +1,6 @@
-//! Типы данных для движка развёртки
+#![allow(dead_code)]
+#[allow(dead_code)]
+/// Типы данных для движка развёртки
  
 /// Точка в 2D пространстве
 #[derive(Debug, Clone, Serialize, Deserialize)]

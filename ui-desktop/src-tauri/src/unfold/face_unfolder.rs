@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Модуль для развертки отдельных граней 3D модели в 2D полигоны
 
 use crate::unfold::types::{Line2D, LineKind, Model3D, Point2D, Rect, Vertex3D};

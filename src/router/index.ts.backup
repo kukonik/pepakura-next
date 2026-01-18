@@ -1,0 +1,82 @@
+import { createRouter, createWebHashHistory } from 'vue-router'
+import type { RouteRecordRaw } from 'vue-router'
+
+const routes: RouteRecordRaw[] = [
+  {
+    path: '/',
+    name: 'Home',
+    component: () => import('@views/HomeView.vue'),
+    meta: {
+      title: 'Pepakura Next - Главная',
+      requiresAuth: false
+    }
+  },
+  {
+    path: '/editor/:projectId?',
+    name: 'Editor',
+    component: () => import('@views/EditorView.vue'),
+    meta: {
+      title: 'Редактор - Pepakura Next',
+      requiresAuth: false,
+      isEditor: true
+    }
+  },
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('@views/SettingsView.vue'),
+    meta: {
+      title: 'Настройки - Pepakura Next',
+      requiresAuth: false
+    }
+  },
+  {
+    path: '/assistant',
+    name: 'Assistant',
+    component: () => import('@views/AssistantView.vue'),
+    meta: {
+      title: 'AI Помощник - Pepakura Next',
+      requiresAuth: false
+    }
+  },
+  {
+    path: '/about',
+    name: 'About',
+    component: () => import('@views/AboutView.vue'),
+    meta: {
+      title: 'О программе - Pepakura Next',
+      requiresAuth: false
+    }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@views/NotFoundView.vue'),
+    meta: {
+      title: 'Страница не найдена'
+    }
+  }
+]
+
+const router = createRouter({
+  history: createWebHashHistory(),
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    } else {
+      return { top: 0 }
+    }
+  }
+})
+
+// Глобальные хуки
+router.beforeEach((to, from, next) => {
+  // Безопасное обновление заголовка
+  const title = (to.meta.title as string) ?? 'Pepakura Next'
+  document.title = title
+  
+  next()
+})
+
+export default router

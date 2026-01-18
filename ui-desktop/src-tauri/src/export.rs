@@ -42,7 +42,7 @@ pub fn export_to_all_formats(result: &crate::unfold::types::UnfoldResult,
     export_to_png(result, params, output_dir);
     export_to_jpg(result, params, output_dir);
     crate::export_svg::export_to_svg(result, params, output_dir);
-    crate::export_pdf::export_to_pdf(result, params, output_dir);
+    let _ = crate::export_pdf::export_to_pdf(result, params, output_dir);
     crate::export_3d::export_to_stl(result, params, output_dir);
     crate::export_3d::export_to_obj(result, params, output_dir);
     

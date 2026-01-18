@@ -1,4 +1,6 @@
-//! Оптимизатор раскладки деталей на листах
+#![allow(dead_code)]
+#[allow(dead_code)]
+/// Оптимизатор раскладки деталей на листах
 
 use crate::unfold::types::*;
 // use std::f32::consts::PI;

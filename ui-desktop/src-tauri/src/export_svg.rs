@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-use crate::unfold::types::{LineKind, Part2D, Sheet, UnfoldParams, UnfoldResult};
+use crate::unfold::types::{LineKind, Sheet, UnfoldParams, UnfoldResult};
 
 /// Экспортирует результат развёртки в SVG файлы
 pub fn export_to_svg(result: &UnfoldResult, _params: &UnfoldParams, output_dir: &str) {

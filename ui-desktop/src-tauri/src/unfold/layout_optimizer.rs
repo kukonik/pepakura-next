@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Оптимизатор размещения деталей на листах
 
 use crate::unfold::types::{Part2D, Rect, Sheet};
