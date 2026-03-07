@@ -1,15 +1,15 @@
 {
-  "name": "pepakura-shared",
-  "version": "0.0.1",
+  "name": "@pepakura/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
   "type": "module",
-  "exports": {
-    "./*": "./src/*"
-  },
   "files": [
     "src"
   ],
   "dependencies": {
-    "vue": "^3.4.0",
-    "three": "^0.182.0"
+    "idb-keyval": "^6.2.2",
+    "three": "^0.160.0",
+    "@types/three": "^0.160.0"
   }
 }

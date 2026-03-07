@@ -1,4 +1,10 @@
 packages:
-  - 'shared'
-  - 'ui-web'
-  - 'ui-desktop'
+  - "core"
+  - "ui-desktop"
+  - "packages/*"
+  - "shared"
+  - "src"
+
+ignoredBuiltDependencies:
+  - esbuild
+  - vue-demi

@@ -1,0 +1,13 @@
+version 1.0
+timestamp 1769329087316
+modelPath D:\Dev\pepakura-next\models\head.obj
+camera position 1 0 0
+camera target 0 0 0
+model scale 1
+lights ambient 0.5
+lights dir 0.8
+matrix 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1
+seams 10 20 30
+meshes position 0 0 0 1 0 0 0 1 0 0
+meshes uv 0 0 1 0 0 1 1
+materials color ffffff

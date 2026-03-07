@@ -109,7 +109,7 @@ function cleanup() {
     if (scene) scene.remove(mesh3d);
     if (mesh3d.geometry) mesh3d.geometry.dispose();
     if (Array.isArray(mesh3d.material)) {
-      mesh3d.material.forEach(m => m.dispose());
+      mesh3d.material.forEach((m: THREE.Material) => m.dispose());
     } else if (mesh3d.material) {
       mesh3d.material.dispose();
     }
@@ -136,7 +136,7 @@ function renderMesh(modelData: MeshData) {
     scene.remove(mesh3d);
     if (mesh3d.geometry) mesh3d.geometry.dispose();
     if (Array.isArray(mesh3d.material)) {
-      mesh3d.material.forEach(m => m.dispose());
+      mesh3d.material.forEach((m: THREE.Material) => m.dispose());
     } else if (mesh3d.material) {
       mesh3d.material.dispose();
     }
@@ -203,10 +203,9 @@ function renderMesh(modelData: MeshData) {
     // Если есть несколько материалов, создаем массив материалов
     if (modelData.materials.length > 1) {
       material = modelData.materials.map(mat => {
+        const diffuse = mat.diffuseColor;
         return new THREE.MeshPhongMaterial({
-          color: new THREE.Color(mat.diffuse.r, mat.diffuse.g, mat.diffuse.b),
-          specular: new THREE.Color(mat.specular.r, mat.specular.g, mat.specular.b),
-          shininess: mat.shininess || 30,
+          color: new THREE.Color(diffuse[0], diffuse[1], diffuse[2]),
           side: THREE.DoubleSide,
           wireframe: false
         });
@@ -214,10 +213,10 @@ function renderMesh(modelData: MeshData) {
     } else {
       // Один материал
       const mat = modelData.materials[0];
+      if (!mat) return; // Проверка на undefined
+      const diffuse = mat.diffuseColor;
       material = new THREE.MeshPhongMaterial({
-        color: new THREE.Color(mat.diffuse.r, mat.diffuse.g, mat.diffuse.b),
-        specular: new THREE.Color(mat.specular.r, mat.specular.g, mat.specular.b),
-        shininess: mat.shininess || 30,
+        color: new THREE.Color(diffuse[0], diffuse[1], diffuse[2]),
         side: THREE.DoubleSide,
         wireframe: false
       });

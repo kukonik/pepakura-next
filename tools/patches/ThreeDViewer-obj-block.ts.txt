@@ -1,0 +1,43 @@
+    if (mtlFile) {
+      const mtlUrl = URL.createObjectURL(mtlFile)
+
+      mtlLoader.load(
+        mtlUrl,
+        (materials) => {
+          materials.preload()
+          objLoader.setMaterials(materials)
+
+          objLoader.load(
+            fileUrl,
+            (obj) => {
+              // Конвертируем в унифицированный формат
+              const pepaScene = convertOBJToPepaScene(obj)
+              const pepaObject = createThreeObjectFromPepa(pepaScene)
+
+              cleanupScene()
+              scene.add(pepaObject)
+              model = pepaObject
+
+              console.log('✅ OBJ модель с текстурами загружена (через PepaScene)')
+              URL.revokeObjectURL(mtlUrl)
+              resolve()
+            },
+            undefined,
+            (error) => {
+              console.error('❌ Ошибка загрузки OBJ:', error)
+              URL.revokeObjectURL(mtlUrl)
+              reject(error)
+            }
+          )
+        },
+        undefined,
+        (error) => {
+          console.warn('⚠️ MTL не найден или ошибка загрузки, загружаем без текстур')
+          URL.revokeObjectURL(mtlUrl)
+          loadOBJWithoutMTL(fileUrl, resolve, reject)
+        }
+      )
+    } else {
+      console.log('ℹ️ MTL файл не найден, загружаем без текстур')
+      loadOBJWithoutMTL(fileUrl, resolve, reject)
+    }

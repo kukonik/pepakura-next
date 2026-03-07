@@ -1,0 +1,12 @@
+{
+  "header": {
+    "version": 1,
+    "modelPath": "model.obj"
+  },
+  "seams": [
+    [
+      null,
+      null
+    ]
+  ]
+}

@@ -1,19 +1,20 @@
 {
-  "types": "./src/index.ts",
-  "name": "pepakura-shared",
-  "peerDependencies": {
-    "vue": "^3.3.0",
-    "three": "^0.168.0"
-  },
-  "type": "module",
-  "version": "0.1.0",
-  "main": "./src/index.ts",
+  "name": "shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "types": "index.ts",
   "exports": {
-    "./composables/*": "./src/composables/*",
-    ".": {
-      "import": "./src/index.ts"
-    },
-    "./components/*": "./src/components/*",
-    "./i18n": "./src/i18n/index.ts"
+    "./*": "./*.ts"
+  },
+  "dependencies": {
+    "vue": "^3.3.0",
+    "pinia": "^2.1.0"
+  },
+  "peerDependencies": {
+    "vue-router": "^4.0.0"
+  },
+  "devDependencies": {
+    "vue-router": "^4.0.0"
   }
 }

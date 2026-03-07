@@ -1,25 +1,55 @@
-<!-- src/App.vue -->
 <template>
   <div id="app">
-    <AppHeader v-if="!route.meta.hideHeader" />
-    <main :class="{ 'no-header': route.meta.hideHeader }">
-      <router-view v-slot="{ Component }">
-        <Suspense>
-          <component :is="Component" />
-          <template #fallback>
-            <AppLoading />
-          </template>
-        </Suspense>
-      </router-view>
+    <header>
+      <h1>Pepakura Next - AI 3D Model Generator</h1>
+    </header>
+    <main>
+      <AIGenerator />
+      <div class="model-viewer-section">
+        <ModelViewer3D ref="modelViewer" />
+        <UnfoldButton />
+      </div>
+      <div class="sheet-preview-section">
+        <SheetPreview />
+      </div>
     </main>
   </div>
 </template>
 
-<script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import AppHeader from '@/components/layout/AppHeader.vue'
-import AppLoading from '@/components/ui/AppLoading.vue'
+<script setup>
+import AIGenerator from '@/components/AIGenerator.vue'
+import ModelViewer3D from '@/components/ModelViewer3D.vue'
+import SheetPreview from '@/components/SheetPreview.vue'
+import UnfoldButton from '@/components/UnfoldButton.vue'
+import { ref } from 'vue'
 
-const route = useRoute()
+const modelViewer = ref(null)
 </script>
+
+<style>
+#app {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  color: #2c3e50;
+  margin-top: 60px;
+}
+
+header {
+  background-color: #2c3e50;
+  color: white;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.model-viewer-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 20px 0;
+}
+
+.sheet-preview-section {
+  margin: 20px 0;
+  height: 500px;
+}
+</style>

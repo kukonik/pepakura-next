@@ -1,0 +1,70 @@
+import { defineStore } from "pinia";
+import { ref, computed } from "vue";
+
+export const useProjectStore = defineStore("project", () => {
+  const modelPath = ref<string | null>(null);
+  const svgContent = ref<string>('');
+  const partTransforms = ref<Map<string, any>>(new Map());
+  const selectedPartId = ref<string | null>(null);
+  const isEditMode = ref<boolean>(false);
+  
+  const setModelPath = (path: string) => {
+    modelPath.value = path;
+  };
+  
+  const setSvgContent = (content: string) => {
+    svgContent.value = content;
+  };
+  
+  const setPartTransform = (payload: { id: string; transform: any }) => {
+    partTransforms.value.set(payload.id, payload.transform);
+  };
+
+  const setSelectedPartId = (id: string | null) => {
+    selectedPartId.value = id;
+  };
+
+  const setEditMode = (mode: boolean) => {
+    isEditMode.value = mode;
+  };
+
+  // Новые методы для работы с импортом и разверткой
+  const importModel = async (filePath: string) => {
+    // В реальной реализации здесь будет вызов Tauri команды
+    setModelPath(filePath);
+    return true;
+  };
+
+  const unfoldModel = async () => {
+    if (!modelPath.value) {
+      throw new Error("Нет загруженной 3D модели для развертки");
+    }
+    
+    // В реальной реализации здесь будет вызов Tauri команды для развертки
+    // Пока используем моковые данные
+    const mockSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+      <rect x="50" y="50" width="300" height="200" fill="#4d4dff" stroke="#00f3ff" stroke-width="2"/>
+      <circle cx="200" cy="150" r="50" fill="none" stroke="#ff00ff" stroke-width="3"/>
+      <line x1="50" y1="50" x2="350" y2="250" stroke="#00f3ff" stroke-width="2"/>
+      <text x="200" y="30" text-anchor="middle" fill="#00f3ff" font-family="Arial" font-size="16">2D Развёртка</text>
+    </svg>`;
+    
+    setSvgContent(mockSvg);
+    return true;
+  };
+
+  return {
+    modelPath,
+    svgContent,
+    partTransforms,
+    selectedPartId,
+    isEditMode,
+    setModelPath,
+    setSvgContent,
+    setPartTransform,
+    setSelectedPartId,
+    setEditMode,
+    importModel,
+    unfoldModel
+  };
+});

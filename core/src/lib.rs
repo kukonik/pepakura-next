@@ -1,27 +1,32 @@
-//! Pepakura Next Core Engine
-//! 
-//! Complete 3D paper unfolding and layout engine with optimization algorithms.
-//! Handles mesh processing, unfolding, layout, and PDF export.
-
-pub mod geometry;
-pub mod mesh;
+pub mod model;
 pub mod unfold;
-pub mod layout;
-pub mod engine;
-pub mod errors;
-pub mod types;
+pub mod export;
+pub mod util;
 
-pub use engine::{PepakuraEngine, UnfoldResult, LayoutResult};
-pub use types::{Vec2, Vec3, Triangle, Mesh};
-pub use errors::{PepakuraError, Result};
+pub use model::Model;
+pub use unfold::{UnfoldResult, UnfoldedFace, Seam, LayoutResult};
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[derive(Debug, Clone)]
+pub struct UnfoldOptions {
+    pub preserve_proportions: bool,
+    pub auto_rotate: bool,
+    pub spacing: f64,
+}
 
-    #[test]
-    fn test_module_imports() {
-        // Basic smoke test to ensure modules are properly initialized
-        let _ = geometry::Vector3::new(0.0, 0.0, 0.0);
+impl Default for UnfoldOptions {
+    fn default() -> Self {
+        UnfoldOptions {
+            preserve_proportions: true,
+            auto_rotate: true,
+            spacing: 10.0,
+        }
     }
+}
+
+pub fn unfold_model(model: &Model, _options: &UnfoldOptions) -> UnfoldResult {
+    unfold::unfold_model(model)
+}
+
+pub fn dummy_function() -> String {
+    "Hello from Pepakura Core".to_string()
 }

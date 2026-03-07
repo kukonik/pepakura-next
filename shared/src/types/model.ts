@@ -10,12 +10,37 @@ export interface Color {
 
 // Тип для материала
 export interface Material {
-  name?: string;
-  ambient: Color;
-  diffuse: Color;
-  specular: Color;
-  shininess: number;
-  diffuse_texture?: string | null;
+  id: number;
+  name: string;
+  diffuseColor: [number, number, number, number];
+  textureId?: number;
+}
+
+// Тип для ограничивающей рамки
+export interface BoundingBox {
+  min: [number, number, number];
+  max: [number, number, number];
+}
+
+// Тип для меша
+export interface PepaMesh {
+  positions: number[];
+  indices: number[];
+  normals: number[];
+  uvs: number[];
+  materialId?: number;
+}
+
+// Тип для сцены проекта Pepakura
+export interface PepaScene {
+  // Версия сцены
+  sceneVersion: string;
+  // Мешы сцены
+  meshes: PepaMesh[];
+  // Материалы сцены
+  materials: Material[];
+  // Ограничивающая рамка
+  boundingBox?: BoundingBox;
 }
 
 // Тип для треугольника

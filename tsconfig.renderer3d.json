@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2019",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "D:\\Dev\\pepakura-next\\src"
+  },
+  "include": [
+    "D:\\Dev\\pepakura-next\\src\\modules\\renderer-3d\\sceneRuntime.ts"
+  ],
+  "exclude": [
+    "D:\\Dev\\pepakura-next\\node_modules"
+  ]
+}

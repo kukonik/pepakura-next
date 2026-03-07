@@ -1,8 +1,0 @@
-# Игнорируемые для hot reload файлы и папки
-output/
-**/*.png
-**/*.jpg
-**/*.svg
-**/*.obj
-**/*.stl
-target/

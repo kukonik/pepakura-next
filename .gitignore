@@ -58,3 +58,5 @@ venv/
 *.bak
 *~
 .~*
+services/backend-python/venv
+services/backend-python/__pycache__

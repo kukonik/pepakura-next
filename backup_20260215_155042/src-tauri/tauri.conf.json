@@ -1,0 +1,30 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "package": {
+    "productName": "Pepakura Next",
+    "version": "0.1.0"
+  },
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "frontendDist": "../dist",
+    "devPath": "http://localhost:5173"
+  },
+  "tauri": {
+    "windows": [
+      {
+        "title": "Pepakura Next",
+        "width": 1200,
+        "height": 800,
+        "resizable": true
+      }
+    ],
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "icon": [
+        "icons/icon.ico"
+      ]
+    }
+  }
+}
