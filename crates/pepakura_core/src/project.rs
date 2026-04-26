@@ -1,9 +1,7 @@
+use pepakura_platform::fs::{FileSystem, FileError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::File; // <--- Поднято наверх
-use std::io::Read; // <--- Поднято наверх
-use std::io::Write; // <--- Поднято наверх
-use chrono; // <--- Поднято наверх
+use chrono;
 
 use crate::pepa_scene_adapter::{PepaScene};
 use crate::nesting::{PaperSettings, NestParams};
@@ -93,19 +91,19 @@ impl PepaProject {
 // ==========================================
 impl PepaProject {
     /// Загрузка проекта из файла
-    pub fn load_from_file(path: &str) -> Result<PepaProject, Box<dyn std::error::Error>> {
-        let mut file = File::open(path)?;
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)?;
-        let project: PepaProject = serde_json::from_str(&contents)?;
+    pub fn load_from_file<F: FileSystem>(fs: &F, path: &str) -> Result<PepaProject, FileError> {
+        let file_data = fs.read_file(path)?;
+        let contents = file_data.as_string()?;
+        let project: PepaProject = serde_json::from_str(&contents)
+            .map_err(|e| FileError::ReadError(format!("JSON deserialize error: {}", e)))?;
         Ok(project)
     }
 
     /// Сохранение проекта в файл
-    pub fn save_to_file(&self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let json = serde_json::to_string_pretty(self)?;
-        let mut file = File::create(path)?;
-        file.write_all(json.as_bytes())?;
+    pub fn save_to_file<F: FileSystem>(&self, fs: &F, path: &str) -> Result<(), FileError> {
+        let json = serde_json::to_string_pretty(self)
+            .map_err(|e| FileError::WriteError(format!("JSON serialize error: {}", e)))?;
+        fs.write_text(path, &json)?;
         Ok(())
     }
     

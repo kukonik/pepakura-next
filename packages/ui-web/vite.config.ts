@@ -16,5 +16,21 @@ export default defineConfig({
   },
   server: {
     port: 3000
+  },
+  worker: {
+    format: 'es',
+  },
+  optimizeDeps: {
+    // Исключаем WASM из оптимизации зависимостей
+    exclude: ['pepakura_core_wasm']
+  },
+  build: {
+    target: 'es2022',
+    rollupOptions: {
+      output: {
+        // Убедимся, что worker файлы правильно обрабатываются
+        manualChunks: undefined
+      }
+    }
   }
 })

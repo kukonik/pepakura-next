@@ -20,7 +20,9 @@
     "src/**/*.ts",
     "src/**/*.d.ts",
     "src/**/*.tsx",
-    "src/**/*.vue"
+    "src/**/*.vue",
+    "frontend/**/*.ts",
+    "frontend/**/*.vue"
   ],
   "references": [
     {

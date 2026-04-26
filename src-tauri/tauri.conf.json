@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.pepakura.next",
   "build": {
-    "beforeDevCommand": "pnpm --dir D:\\Dev\\pepakura-next\\ui-desktop dev",
+    "beforeDevCommand": "pnpm --dir D:\\Dev\\pepakura-next\\packages\\ui-desktop dev",
     "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "pnpm --dir D:\\Dev\\pepakura-next\\ui-desktop build",
-    "frontendDist": "../ui-desktop/src"
+    "beforeBuildCommand": "pnpm --dir D:\\Dev\\pepakura-next\\packages\\ui-desktop build",
+    "frontendDist": "../packages/ui-desktop/dist"
   },
   "app": {
     "windows": [
@@ -18,7 +18,8 @@
         "resizable": true,
         "fullscreen": false
       }
-    ]
+    ],
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,

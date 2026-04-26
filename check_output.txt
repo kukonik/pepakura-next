@@ -1,0 +1,55 @@
+﻿cargo :     Blocking waiting for file lock on package cache
+строка:1 знак:1
++ cargo check 2>&1 | Out-File -FilePath .\check_output.txt -Encoding UT ...
++ ~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Blocking wa...n package cache:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Checking miniz_oxide v0.4.4
+   Compiling wry v0.54.4
+   Compiling paste v1.0.15
+    Checking ring v0.17.14
+   Compiling sha2 v0.10.9
+   Compiling tauri-runtime v2.10.1
+   Compiling xmltree v0.8.0
+    Checking native-tls v0.2.18
+    Checking libc v0.2.183
+    Checking h2 v0.3.27
+    Checking socket2 v0.5.10
+    Checking windows-targets v0.48.5
+    Checking num-rational v0.3.2
+   Compiling ico v0.5.0
+    Checking ahash v0.8.12
+    Checking httparse v1.10.1
+    Checking miniz_oxide v0.3.7
+    Checking deflate v0.8.6
+    Checking http-body v0.4.6
+    Checking jpeg-decoder v0.1.22
+    Checking safe_arch v0.7.4
+   Compiling tauri-plugin-fs v2.4.5
+    Checking num-iter v0.1.45
+    Checking bstr v1.12.1
+   Compiling matrixmultiply v0.3.10
+   Compiling base64 v0.22.1
+   Compiling rustls v0.23.37
+    Checking tower-service v0.3.3
+    Checking httpdate v1.0.3
+   Compiling getrandom v0.3.4
+    Checking option-ext v0.2.0
+   Compiling tauri-runtime-wry v2.10.1
+    Checking dirs-sys v0.5.0
+    Checking hyper v0.14.32
+   Compiling tauri-codegen v2.5.5
+    Checking pom v3.4.0
+    Checking tiff v0.6.1
+    Checking wide v0.7.33
+    Checking png v0.16.8
+    Checking hashbrown v0.14.5
+    Checking windows-sys v0.48.0
+    Checking tao v0.34.8
+    Checking tokio-native-tls v0.3.1
+   Compiling dxf v0.5.0
+    Checking rustls-webpki v0.103.10
+   Compiling libsqlite3-sys v0.28.0

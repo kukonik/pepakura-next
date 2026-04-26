@@ -1,0 +1,189 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Rust тесты
+  rust-tests:
+    name: Rust Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        rust: [stable, beta]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: clippy, rustfmt
+      
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/pepakura_core -> target
+      
+      - name: Build pepakura_core
+        working-directory: crates/pepakura_core
+        run: cargo build --verbose
+      
+      - name: Run tests
+        working-directory: crates/pepakura_core
+        run: cargo test --verbose --all-features
+      
+      - name: Run clippy
+        working-directory: crates/pepakura_core
+        run: cargo clippy -- -D warnings
+      
+      - name: Check formatting
+        working-directory: crates/pepakura_core
+        run: cargo fmt --check
+
+  # Frontend тесты
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ui-desktop/node_modules
+            ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+      
+      - name: Install dependencies
+        working-directory: ui-desktop
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run type check
+        working-directory: ui-desktop
+        run: pnpm typecheck
+      
+      - name: Run lint
+        working-directory: ui-desktop
+        run: pnpm lint
+      
+      - name: Run unit tests
+        working-directory: ui-desktop
+        run: pnpm test:unit
+
+  # Tauri сборка
+  tauri-build:
+    name: Tauri Build
+    runs-on: ${{ matrix.os }}
+    needs: [rust-tests, frontend-tests]
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          toolchain: stable
+      
+      - name: Install system dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      
+      - name: Install frontend dependencies
+        working-directory: ui-desktop
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: ui-desktop
+          args: --debug
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pepakura-next-${{ matrix.os }}
+          path: |
+            ui-desktop/src-tauri/target/release/bundle/**/*
+            ui-desktop/dist/**/*
+
+  # E2E тесты
+  e2e-tests:
+    name: E2E Tests
+    runs-on: windows-latest
+    needs: [tauri-build]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+      
+      - name: Install dependencies
+        working-directory: ui-desktop
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build frontend
+        working-directory: ui-desktop
+        run: pnpm build
+      
+      - name: Run E2E tests
+        working-directory: ui-desktop
+        run: pnpm test:e2e
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results
+          path: ui-desktop/test-results/

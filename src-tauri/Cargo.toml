@@ -14,10 +14,18 @@ tauri = { version = "2.3.5", features = [] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-pepakura_core = { path = "../crates/pepakura_core" }
+pepakura_core = { path = "../crates/pepakura_core", features = ["svg", "pdf", "dxf", "llm"] }
 ai_bridge = { path = "../crates/ai_bridge" }
 byteorder = "1.4"
 flate2 = "1.0"
+ureq = { version = "2.9", features = ["json"] }
+futures = "0.3"
+reqwest = { version = "0.12", features = ["json"] }
+dashmap = "6.1"
+
+# Персистентность
+rusqlite = { version = "0.31", features = ["bundled"] }
+chrono = { version = "0.4", features = ["serde"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-fs = { version = "2.3.5", features = [] }

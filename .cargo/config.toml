@@ -1,0 +1,23 @@
+[build]
+# Целевая архитектура по умолчанию
+target = "x86_64-pc-windows-msvc"
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+# Для WASM сборки
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=--no-entry"]
+
+[alias]
+# Удобные алиасы для разработки
+check-core = "check -p pepakura_core"
+check-wasm = "check -p pepakura_wasm --target wasm32-unknown-unknown"
+check-platform = "check -p pepakura_platform"
+check-addons = "check -p pepakura_addons"
+
+build-wasm = "build -p pepakura_wasm --target wasm32-unknown-unknown"
+build-release = "build --release"
+
+test-all = "test --workspace"
+test-core = "test -p pepakura_core"

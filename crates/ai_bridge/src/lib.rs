@@ -38,7 +38,7 @@ pub struct AiBridge {
 
 impl AiBridge {
     pub fn new(python_path: PathBuf, script_path: PathBuf) -> Self {
-        Self { python_exe: python_path, script_path: script_path }
+        Self { python_exe: python_path, script_path }
     }
 
     pub async fn generate(&self, req: GenerationRequest) -> Result<GenerationResponse, AiError> {

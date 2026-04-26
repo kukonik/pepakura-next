@@ -5,19 +5,19 @@
         <li>
           <router-link to="/unfold/editor">
             <i class="icon icon-unfold"></i>
-            Редактор развёртки
+            {{ $t('unfold.title') }}
           </router-link>
         </li>
         <li>
           <router-link to="/ai/assistant">
             <i class="icon icon-ai"></i>
-            AI Ассистент
+            {{ $t('ai.assistant.title') }}
           </router-link>
         </li>
         <li>
           <router-link to="/settings">
             <i class="icon icon-settings"></i>
-            Настройки
+            {{ $t('settings.title') }}
           </router-link>
         </li>
       </ul>

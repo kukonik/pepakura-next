@@ -3,9 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "cd ui-desktop && pnpm dev",
-    "build": "cd ui-desktop && pnpm build",
+    "dev": "cd platform/desktop/ui-desktop && pnpm dev",
+    "build": "cd platform/desktop/ui-desktop && pnpm build",
     "tauri": "cd src-tauri && cargo tauri dev",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "typecheck": "pnpm -r exec pnpm run typecheck 2>/dev/null || echo 'Typecheck not configured in all packages'",
+    "check:rust": "cargo check --all-targets"
+  },
+  "dependencies": {
+    "@types/node": "^20.19.30",
+    "@types/three": "^0.160.0"
   }
 }

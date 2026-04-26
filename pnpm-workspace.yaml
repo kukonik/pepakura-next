@@ -1,9 +1,9 @@
 packages:
-  - "core"
-  - "ui-desktop"
-  - "packages/*"
+  - "core/*"
+  - "crates/*"
   - "shared"
-  - "src"
+  - "platform/desktop/*"
+  - "addons/*"
 
 ignoredBuiltDependencies:
   - esbuild

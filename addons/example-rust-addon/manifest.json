@@ -1,0 +1,17 @@
+{
+  "name": "example-rust-addon",
+  "version": "0.1.0",
+  "description": "Пример Rust аддона для Pepakura Next",
+  "author": "Pepakura Next Team",
+  "type": "rust-library",
+  "entry_point": "lib.rs",
+  "supported_operations": [
+    "example_operation"
+  ],
+  "capabilities": {
+    "import_formats": [],
+    "export_formats": [],
+    "permissions": []
+  },
+  "license": "MIT"
+}

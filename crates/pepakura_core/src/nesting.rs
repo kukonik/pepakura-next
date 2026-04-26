@@ -1,6 +1,10 @@
 use crate::project::PepaProject;
 use serde::{Deserialize, Serialize};
 
+pub mod genetic;
+
+pub use genetic::{GeneticConfig, GeneticNesting, optimize_nesting_genetic};
+
 /// Параметры бумаги
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaperSettings {
@@ -47,7 +51,7 @@ impl PaperSettings {
 }
 
 /// Результат размещения разверток
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NestResult {
     /// Список листов с размещенными развертками
     pub sheets: Vec<NestSheet>,
@@ -135,7 +139,7 @@ impl Default for NestParams {
 }
 
 /// Метрики качества размещения
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NestMetrics {
     /// Общее количество листов
     pub total_sheets: u32,
@@ -600,7 +604,7 @@ pub fn apply_overrides_to_nest_result(
 }
 
 /// Структура для представления 2D точки
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Point2D {
     pub x: f64,
     pub y: f64,
@@ -671,4 +675,136 @@ pub fn points_to_svg_path(points: &[Point2D]) -> String {
     path.push_str("Z");
 
     path
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_point2d_new() {
+        let point = Point2D::new(5.0, 10.0);
+        assert_eq!(point.x, 5.0);
+        assert_eq!(point.y, 10.0);
+    }
+
+    #[test]
+    fn test_point2d_transform() {
+        let point = Point2D::new(1.0, 0.0);
+        let center = Point2D::new(0.0, 0.0);
+        let position = Point2D::new(0.0, 0.0);
+        
+        // Поворот на 90 градусов
+        let transformed = point.transform(&center, 90.0, &position);
+        
+        assert!((transformed.x - 0.0).abs() < 0.001);
+        assert!((transformed.y - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_point2d_transform_with_translation() {
+        let point = Point2D::new(0.0, 0.0);
+        let center = Point2D::new(0.0, 0.0);
+        let position = Point2D::new(5.0, 10.0);
+        
+        let transformed = point.transform(&center, 0.0, &position);
+        
+        assert_eq!(transformed.x, 5.0);
+        assert_eq!(transformed.y, 10.0);
+    }
+
+    #[test]
+    fn test_transform_points() {
+        let points = vec![
+            Point2D::new(0.0, 0.0),
+            Point2D::new(1.0, 0.0),
+            Point2D::new(1.0, 1.0),
+        ];
+        
+        let center = Point2D::new(0.0, 0.0);
+        let position = Point2D::new(10.0, 10.0);
+        
+        let transformed = transform_points(&points, &center, 0.0, &position);
+        
+        assert_eq!(transformed.len(), 3);
+        assert_eq!(transformed[0].x, 10.0);
+        assert_eq!(transformed[0].y, 10.0);
+        assert_eq!(transformed[1].x, 11.0);
+        assert_eq!(transformed[1].y, 10.0);
+    }
+
+    #[test]
+    fn test_points_to_svg_path_empty() {
+        let points: Vec<Point2D> = vec![];
+        let path = points_to_svg_path(&points);
+        assert_eq!(path, "");
+    }
+
+    #[test]
+    fn test_points_to_svg_path_single_point() {
+        let points = vec![Point2D::new(5.0, 10.0)];
+        let path = points_to_svg_path(&points);
+        assert!(path.contains("M 5.00 10.00"));
+        assert!(path.contains("Z"));
+    }
+
+    #[test]
+    fn test_points_to_svg_path_triangle() {
+        let points = vec![
+            Point2D::new(0.0, 0.0),
+            Point2D::new(10.0, 0.0),
+            Point2D::new(5.0, 10.0),
+        ];
+        let path = points_to_svg_path(&points);
+        
+        assert!(path.contains("M 0.00 0.00"));
+        assert!(path.contains("L 10.00 0.00"));
+        assert!(path.contains("L 5.00 10.00"));
+        assert!(path.contains("Z"));
+    }
+
+    #[test]
+    fn test_points_to_svg_path_rectangle() {
+        let points = vec![
+            Point2D::new(0.0, 0.0),
+            Point2D::new(10.0, 0.0),
+            Point2D::new(10.0, 10.0),
+            Point2D::new(0.0, 10.0),
+        ];
+        let path = points_to_svg_path(&points);
+        
+        assert!(path.contains("M 0.00 0.00"));
+        assert!(path.contains("L 10.00 0.00"));
+        assert!(path.contains("L 10.00 10.00"));
+        assert!(path.contains("L 0.00 10.00"));
+        assert!(path.contains("Z"));
+    }
+
+    #[test]
+    fn test_point2d_copy_clone() {
+        let point1 = Point2D::new(5.0, 10.0);
+        let point2 = point1; // Copy
+        
+        assert_eq!(point1.x, point2.x);
+        assert_eq!(point1.y, point2.y);
+    }
+
+    #[test]
+    fn test_transform_points_rotation() {
+        let points = vec![
+            Point2D::new(1.0, 0.0),
+            Point2D::new(0.0, 1.0),
+        ];
+        
+        let center = Point2D::new(0.0, 0.0);
+        let position = Point2D::new(0.0, 0.0);
+        
+        // Поворот на 180 градусов
+        let transformed = transform_points(&points, &center, 180.0, &position);
+        
+        assert!((transformed[0].x - (-1.0)).abs() < 0.001);
+        assert!((transformed[0].y - 0.0).abs() < 0.001);
+        assert!((transformed[1].x - 0.0).abs() < 0.001);
+        assert!((transformed[1].y - (-1.0)).abs() < 0.001);
+    }
 }

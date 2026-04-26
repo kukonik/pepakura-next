@@ -1,6 +1,7 @@
 # Node.js
 node_modules/
 dist/
+dist-web/
 .env
 .env.local
 
@@ -9,11 +10,16 @@ packages/*/node_modules/
 ui-desktop/node_modules/
 ui-web/node_modules/
 web/node_modules/
+platform/*/node_modules/
 
 # Rust / backend
 target/
 Cargo.lock
 **/*.rs.bk
+
+# WASM
+public/wasm/
+*.wasm
 
 # IDE
 .vscode/
@@ -60,3 +66,11 @@ venv/
 .~*
 services/backend-python/venv
 services/backend-python/__pycache__
+
+# Backup directories
+backup_*/
+_restore/
+*.backup-*
+
+# Addons build
+addons/*/target/

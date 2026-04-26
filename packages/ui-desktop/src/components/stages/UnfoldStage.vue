@@ -176,6 +176,11 @@
           <li>Для больших моделей лучше использовать A3 или печать в масштабе &lt; 100%.</li>
         </ul>
       </div>
+
+      <div class="side-section">
+        <p class="side-label">Список деталей</p>
+        <PartsPanel />
+      </div>
     </aside>
   </div>
   </div>
@@ -190,6 +195,7 @@ import { computed, ref } from 'vue'
 import { useProjectStore } from '@/stores/project'
 import { useTauriModelLoader } from '@/composables/useTauriModelLoader'
 import PaperOptimizationModal from '@/components/PaperOptimizationModal.vue'
+import PartsPanel from '@/components/editor/PartsPanel.vue'
 
 const project = useProjectStore()
 const { showMessage } = useTauriModelLoader()

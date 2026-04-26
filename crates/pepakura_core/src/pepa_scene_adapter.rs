@@ -33,120 +33,48 @@ pub struct PepaScene {
 }
 
 use crate::pdo_parser::PdoModel;
+use crate::conversion::{convert_model_to_scene, ConversionConfig};
 
+/// Trait для конвертации PDO → PepaScene
+/// 
+/// Устаревший метод, используйте `convert_model_to_scene` из модуля `conversion`
 pub trait FromPdoModel {
     fn from_pdo_model(pdo: &PdoModel) -> Self;
 }
 
+/// Реализация через новый конвертер с config по умолчанию
 impl FromPdoModel for PepaScene {
     fn from_pdo_model(pdo: &PdoModel) -> Self {
-        // Версия сцены
-        let scene_version = "1.0".to_string();
-        
-        // Вычисляем bounding box
-        let mut min = [f32::MAX, f32::MAX, f32::MAX];
-        let mut max = [f32::MIN, f32::MIN, f32::MIN];
-        
-        for vertex in &pdo.vertices {
-            min[0] = min[0].min(vertex.x);
-            min[1] = min[1].min(vertex.y);
-            min[2] = min[2].min(vertex.z);
-            
-            max[0] = max[0].max(vertex.x);
-            max[1] = max[1].max(vertex.y);
-            max[2] = max[2].max(vertex.z);
-        }
-        
-        // Создаем меш из данных PDO
-        let mut positions = Vec::new();
-        let mut indices = Vec::new();
-        
-        for vertex in &pdo.vertices {
-            positions.push(vertex.x);
-            positions.push(vertex.y);
-            positions.push(vertex.z);
-        }
-        
-        for face in &pdo.faces {
-            // Конвертируем полигоны в треугольники (фан-триангуляция)
-            for i in 1..face.indices.len().saturating_sub(1) {
-                indices.push(face.indices[0]);
-                indices.push(face.indices[i]);
-                indices.push(face.indices[i + 1]);
+        // Используем новый конвертер с config по умолчанию
+        match convert_model_to_scene(pdo, &ConversionConfig::default()) {
+            Ok(scene) => scene,
+            Err(_) => {
+                // Fallback на минимальную сцену при ошибке
+                PepaScene {
+                    scene_version: "1.0".to_string(),
+                    meshes: vec![],
+                    materials: vec![],
+                    bounding_box: None,
+                }
             }
         }
-        
-        // Вычисляем нормали
-        let mut normals = vec![0.0; positions.len()];
-        for i in (0..indices.len()).step_by(3) {
-            let i0 = indices[i] as usize * 3;
-            let i1 = indices[i + 1] as usize * 3;
-            let i2 = indices[i + 2] as usize * 3;
-            
-            let ax = positions[i1] - positions[i0];
-            let ay = positions[i1 + 1] - positions[i0 + 1];
-            let az = positions[i1 + 2] - positions[i0 + 2];
-            
-            let bx = positions[i2] - positions[i0];
-            let by = positions[i2 + 1] - positions[i0 + 1];
-            let bz = positions[i2 + 2] - positions[i0 + 2];
-            
-            let nx = ay * bz - az * by;
-            let ny = az * bx - ax * bz;
-            let nz = ax * by - ay * bx;
-            
-            // Добавляем нормаль к каждой вершине треугольника
-            normals[i0] += nx;
-            normals[i0 + 1] += ny;
-            normals[i0 + 2] += nz;
-            
-            normals[i1] += nx;
-            normals[i1 + 1] += ny;
-            normals[i1 + 2] += nz;
-            
-            normals[i2] += nx;
-            normals[i2 + 1] += ny;
-            normals[i2 + 2] += nz;
+    }
+}
+
+impl PepaScene {
+    /// Создает пустую сцену
+    pub fn empty() -> Self {
+        Self {
+            scene_version: "1.0".to_string(),
+            meshes: vec![],
+            materials: vec![],
+            bounding_box: None,
         }
-        
-        // Нормализуем нормали
-        for i in (0..normals.len()).step_by(3) {
-            let nx = normals[i];
-            let ny = normals[i + 1];
-            let nz = normals[i + 2];
-            let len = (nx * nx + ny * ny + nz * nz).sqrt();
-            
-            if len > 0.0 {
-                normals[i] = nx / len;
-                normals[i + 1] = ny / len;
-                normals[i + 2] = nz / len;
-            }
-        }
-        
-        // Создаем материалы (пока без текстур)
-        let materials = pdo.textures.iter().map(|texture| {
-            PepaMaterial {
-                id: texture.id,
-                name: format!("Texture_{}", texture.id),
-                diffuse_color: [1.0, 1.0, 1.0, 1.0],
-                texture_id: Some(texture.id),
-            }
-        }).collect();
-        
-        // Создаем меш
-        let meshes = vec![PepaMesh {
-            positions,
-            indices,
-            normals,
-            uvs: vec![], // Пока без UV-координат
-            material_id: if pdo.textures.is_empty() { None } else { Some(0) },
-        }];
-        
-        PepaScene {
-            scene_version,
-            meshes,
-            materials,
-            bounding_box: Some(PepaBoundingBox { min, max }),
-        }
+    }
+
+    /// Создает сцену из PDO модели с заданной конфигурацией
+    pub fn from_pdo_model_with_config(pdo: &PdoModel, config: &ConversionConfig) -> Result<Self, String> {
+        convert_model_to_scene(pdo, config)
+            .map_err(|e| e.to_string())
     }
 }

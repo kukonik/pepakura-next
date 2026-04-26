@@ -1,5 +1,6 @@
 torch>=2.0.0
-torchvision>=0.15.0
+shap-e @ git+https://github.com/openai/shap-e.git
 trimesh>=4.0.0
-Pillow>=10.0.0
 numpy>=1.24.0
+Pillow>=9.5.0
+xatlas>=0.1.0

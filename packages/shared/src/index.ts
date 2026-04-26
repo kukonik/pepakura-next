@@ -6,3 +6,25 @@ export { i18n } from './i18n'
 export type { MeshData } from './types/model'
 
 export { useProjectStore } from './stores/useProjectStore';
+
+// Platform Bridge
+export {
+  platformBridge,
+  createPlatformBridge,
+  detectPlatform,
+  TauriBridge,
+  WebBridge,
+  type IPlatformBridge,
+  type CommandResult,
+  type ProjectData,
+  type ProjectSettings,
+  type ExportData,
+  type OpenFileDialogOptions,
+  type OpenDirectoryDialogOptions,
+  type SaveFileDialogOptions,
+  type FileFilter,
+  type UnfoldConfig,
+} from './platform/platform-bridge';
+
+// Platform utils
+export { isTauri, getPlatformName } from './platform/platform';
