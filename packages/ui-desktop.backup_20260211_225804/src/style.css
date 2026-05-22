@@ -1,0 +1,20 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: linear-gradient(155deg, #0b1120 0%, #1a202c 100%);
+  color: #e2e8f0;
+}
+
+#app {
+  height: 100%;
+}

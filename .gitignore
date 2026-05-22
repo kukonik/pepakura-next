@@ -1,0 +1,76 @@
+# Node.js
+node_modules/
+dist/
+dist-web/
+.env
+.env.local
+
+# pnpm / monorepo
+packages/*/node_modules/
+ui-desktop/node_modules/
+ui-web/node_modules/
+web/node_modules/
+platform/*/node_modules/
+
+# Rust / backend
+target/
+Cargo.lock
+**/*.rs.bk
+
+# WASM
+public/wasm/
+*.wasm
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Test & Debug artifacts (SHOULD NOT COMMIT TO MAIN)
+test.obj
+test.mtl
+benchmark_report_low.json
+debug_report.txt
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+.venv/
+venv/
+
+# Temporary files
+*.tmp
+*.bak
+*~
+.~*
+services/backend-python/venv
+services/backend-python/__pycache__
+
+# Backup directories
+backup_*/
+_restore/
+*.backup-*
+
+# Addons build
+addons/*/target/

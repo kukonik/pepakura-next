@@ -1,0 +1,7 @@
+Get-Content : Отказано в доступе по пути "C:\".
+строка:1 знак:1
++ Get-Content -Tail 10 -Path (Get-PsDrive | Where-Object { $_.Provider  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : PermissionDenied: (C:\:String) [Get-Content], UnauthorizedAccessException
+    + FullyQualifiedErrorId : GetContentReaderUnauthorizedAccessError,Microsoft.PowerShell.Commands.GetContentCommand
+ 

@@ -1,0 +1,56 @@
+{
+  "common": {
+    "ok": "ОК",
+    "cancel": "Отмена",
+    "loading": "Загрузка...",
+    "about": "О программе",
+    "dark": "Тёмная",
+    "light": "Светлая",
+    "system": "Системная"
+  },
+  "dashboard": {
+    "title": "Мои проекты",
+    "newProject": "Новый проект",
+    "import": "Импортировать",
+    "open": "Открыть",
+    "settings": "Настройки",
+    "recentProjects": "Недавние проекты",
+    "noProjects": "Нет проектов",
+    "search": "Поиск проектов...",
+    "delete": "Удалить",
+    "export": "Экспорт",
+    "openInEditor": "Открыть в редакторе"
+  },
+  "unfold": {
+    "title": "Развёртка",
+    "export": "Экспорт",
+    "settings": "Настройки развёртки",
+    "algorithm": "Алгоритм",
+    "preserveDetail": "Сохранять детали",
+    "maxIterations": "Макс. итераций",
+    "tolerance": "Допуск"
+  },
+  "export": {
+    "title": "Экспорт",
+    "format": "Формат",
+    "pageSize": "Размер страницы",
+    "scale": "Масштаб",
+    "showVertexIds": "Показывать ID вершин",
+    "showFoldLines": "Показывать линии сгиба",
+    "showCutLines": "Показывать линии реза"
+  },
+  "settings": {
+    "title": "Настройки",
+    "general": "Общие",
+    "language": "Язык",
+    "theme": "Тема",
+    "defaultExportPath": "Путь экспорта по умолчанию",
+    "ai": "AI",
+    "provider": "Провайдер",
+    "model": "Модель",
+    "apiKey": "API ключ",
+    "about": "О программе",
+    "version": "Версия",
+    "license": "Лицензия"
+  }
+}

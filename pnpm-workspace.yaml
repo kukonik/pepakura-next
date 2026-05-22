@@ -1,0 +1,10 @@
+packages:
+  - "core/*"
+  - "crates/*"
+  - "shared"
+  - "platform/desktop/*"
+  - "addons/*"
+
+ignoredBuiltDependencies:
+  - esbuild
+  - vue-demi

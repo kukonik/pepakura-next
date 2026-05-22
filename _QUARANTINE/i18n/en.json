@@ -1,0 +1,56 @@
+{
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "about": "About",
+    "dark": "Dark",
+    "light": "Light",
+    "system": "System"
+  },
+  "dashboard": {
+    "title": "My Projects",
+    "newProject": "New Project",
+    "import": "Import",
+    "open": "Open",
+    "settings": "Settings",
+    "recentProjects": "Recent Projects",
+    "noProjects": "No projects",
+    "search": "Search projects...",
+    "delete": "Delete",
+    "export": "Export",
+    "openInEditor": "Open in Editor"
+  },
+  "unfold": {
+    "title": "Unfold",
+    "export": "Export",
+    "settings": "Unfold Settings",
+    "algorithm": "Algorithm",
+    "preserveDetail": "Preserve detail",
+    "maxIterations": "Max iterations",
+    "tolerance": "Tolerance"
+  },
+  "export": {
+    "title": "Export",
+    "format": "Format",
+    "pageSize": "Page size",
+    "scale": "Scale",
+    "showVertexIds": "Show vertex IDs",
+    "showFoldLines": "Show fold lines",
+    "showCutLines": "Show cut lines"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "language": "Language",
+    "theme": "Theme",
+    "defaultExportPath": "Default export path",
+    "ai": "AI",
+    "provider": "Provider",
+    "model": "Model",
+    "apiKey": "API key",
+    "about": "About",
+    "version": "Version",
+    "license": "License"
+  }
+}

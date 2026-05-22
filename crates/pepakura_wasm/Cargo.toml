@@ -1,0 +1,30 @@
+[package]
+name = "pepakura_wasm"
+version = "0.3.0"
+edition = "2021"
+description = "WASM bindings for Pepakura Core"
+authors = ["Pepakura Next Team"]
+license = "MIT"
+repository = "https://github.com/pepakura-next/pepakura-next"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pepakura_core = { path = "../pepakura_core", default-features = false, features = ["wasm"] }
+pepakura_platform = { path = "../pepakura_platform", default-features = false, features = ["web"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde-wasm-bindgen = "0.6"
+js-sys = "0.3"
+console_error_panic_hook = { version = "0.1", optional = true }
+getrandom = { version = "0.2", features = ["js"] }
+uuid = { version = "0.8", features = ["v4", "wasm-bindgen"] }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[features]
+default = ["console_error_panic_hook"]

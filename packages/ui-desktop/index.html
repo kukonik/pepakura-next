@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pepakura Next Desktop</title>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.ts"></script>
+  <script>
+    // Глобальный перехватчик drag&drop (предотвращает открытие файлов в браузере)
+    document.addEventListener('dragover', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+    }, true)
+    
+    document.addEventListener('drop', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      
+      // Отправляем событие в Vue-приложение
+      const files = e.dataTransfer?.files
+      if (files && files.length > 0) {
+        window.dispatchEvent(new CustomEvent('app:drop-files', {
+          detail: { files: Array.from(files) }
+        }))
+      }
+    }, true)
+  </script>
+</body>
+</html>
+

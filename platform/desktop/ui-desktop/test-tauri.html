@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tauri Test</title>
+</head>
+<body>
+    <h1>Tauri API Test</h1>
+    <pre id="output"></pre>
+    <script>
+        const output = document.getElementById('output');
+        output.textContent = JSON.stringify({
+            hasWindow: typeof window !== 'undefined',
+            hasTauri: typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
+            tauriInternals: window.__TAURI_INTERNALS__,
+            tauriVersion: window.__TAURI__?.version
+        }, null, 2);
+    </script>
+</body>
+</html>
