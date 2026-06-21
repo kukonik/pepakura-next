@@ -1,137 +1,133 @@
-//! Export functionality for the desktop application
 
-use pepakura_core::unfold::UnfoldResult;
+use std::fs::File;
+use std::io::BufWriter;
+#[tauri::command]
+pub fn export_pdf(
+    vertices: Vec<Vec<f64>>,
+    faces: Vec<Vec<usize>>,
+    _island_ids: Vec<usize>,
+    path: String,
+) -> Result<(), String> {
+    use printpdf::{Mm, PdfDocument, Point, Line, Color, Rgb};
 
-/// Export format enumeration
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum ExportFormat {
-    SVG,
-    PNG,
-    JPG,
-    OBJ,
-    STL,
-}
-
-/// Export the unfold result to the specified format
-///
-/// # Arguments
-/// * `result` - The unfold result to export
-/// * `format` - The format to export to
-///
-/// # Returns
-/// * `Vec<u8>` - The exported data
-pub fn export_result(result: &UnfoldResult, format: ExportFormat) -> Vec<u8> {
-    // Заглушки: возвращаем пустые данные
-    match format {
-        ExportFormat::SVG => Vec::new(),
-        ExportFormat::PNG => Vec::new(),
-        ExportFormat::JPG => Vec::new(),
-        ExportFormat::OBJ => Vec::new(),
-        ExportFormat::STL => Vec::new(),
+    if vertices.is_empty() || faces.is_empty() {
+        return Err("No data to export".into());
     }
-}
 
-/// Get the file extension for the specified format
-/// 
-/// # Arguments
-/// * `format` - The format to get the extension for
-/// 
-/// # Returns
-/// * `&'static str` - The file extension
-pub fn get_file_extension(format: &ExportFormat) -> &'static str {
-    match format {
-        ExportFormat::SVG => "svg",
-        ExportFormat::PNG => "png",
-        ExportFormat::JPG => "jpg",
-        ExportFormat::OBJ => "obj",
-        ExportFormat::STL => "stl",
-    }
-}
+    // BBOX по всем вершинам
+    let mut min_x = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
 
-/// Get the MIME type for the specified format
-/// 
-/// # Arguments
-/// * `format` - The format to get the MIME type for
-/// 
-/// # Returns
-/// * `&'static str` - The MIME type
-pub fn get_mime_type(format: &ExportFormat) -> &'static str {
-    match format {
-        ExportFormat::SVG => "image/svg+xml",
-        ExportFormat::PNG => "image/png",
-        ExportFormat::JPG => "image/jpeg",
-        ExportFormat::OBJ => "application/octet-stream",
-        ExportFormat::STL => "model/stl",
+    for v in &vertices {
+        if v.len() < 2 {
+            continue;
+        }
+        let x = v[0];
+        let y = v[1];
+        if x < min_x { min_x = x; }
+        if x > max_x { max_x = x; }
+        if y < min_y { min_y = y; }
+        if y > max_y { max_y = y; }
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use pepakura_core::unfold::{UnfoldResult, UnfoldedFace, Seam, LayoutResult, PlacedFace, Point2D};
-    
-    #[test]
-    fn test_export_format_extensions() {
-        assert_eq!(get_file_extension(&ExportFormat::SVG), "svg");
-        assert_eq!(get_file_extension(&ExportFormat::PNG), "png");
-        assert_eq!(get_file_extension(&ExportFormat::JPG), "jpg");
-        assert_eq!(get_file_extension(&ExportFormat::OBJ), "obj");
-        assert_eq!(get_file_extension(&ExportFormat::STL), "stl");
+    if !min_x.is_finite() || !max_x.is_finite() || !min_y.is_finite() || !max_y.is_finite() {
+        return Err("Invalid vertex coordinates".into());
     }
-    
-    #[test]
-    fn test_export_format_mime_types() {
-        assert_eq!(get_mime_type(&ExportFormat::SVG), "image/svg+xml");
-        assert_eq!(get_mime_type(&ExportFormat::PNG), "image/png");
-        assert_eq!(get_mime_type(&ExportFormat::JPG), "image/jpeg");
-        assert_eq!(get_mime_type(&ExportFormat::OBJ), "application/octet-stream");
-        assert_eq!(get_mime_type(&ExportFormat::STL), "model/stl");
+
+    let width_model = max_x - min_x;
+    let height_model = max_y - min_y;
+    if width_model <= 0.0 || height_model <= 0.0 {
+        return Err("Degenerate bounding box".into());
     }
-    
-    #[test]
-    fn test_export_functions() {
-        let result = UnfoldResult {
-            faces: vec![
-                UnfoldedFace {
-                    vertices_2d: vec![Point2D { x: 0.0, y: 0.0 }, Point2D { x: 1.0, y: 0.0 }, Point2D { x: 1.0, y: 1.0 }, Point2D { x: 0.0, y: 1.0 }],
-                    center: Point2D { x: 0.5, y: 0.5 },
-                    original_face_index: 0,
-                    tabs: Vec::new(),
-                }
-            ],
-            seams: vec![
-                Seam {
-                    id: 0,
-                    start: Point2D { x: 0.0, y: 0.0 },
-                    end: Point2D { x: 1.0, y: 0.0 },
-                    face1_index: 0,
-                    face2_index: 1,
-                    angle_degrees: 90.0,
-                }
-            ],
-            layout: LayoutResult {
-                faces: vec![
-                    PlacedFace {
-                        face: UnfoldedFace {
-                            vertices_2d: vec![Point2D { x: 0.0, y: 0.0 }, Point2D { x: 1.0, y: 0.0 }, Point2D { x: 1.0, y: 1.0 }, Point2D { x: 0.0, y: 1.0 }],
-                            center: Point2D { x: 0.5, y: 0.5 },
-                            original_face_index: 0,
-                            tabs: Vec::new(),
-                        },
-                        position: Point2D { x: 0.0, y: 0.0 },
-                        rotation: 0.0,
-                    }
-                ],
-                width: 1.0,
-                height: 1.0,
-            },
+
+    // A4 + поля (мм)
+    let page_width_mm: f32 = 210.0;
+    let page_height_mm: f32 = 297.0;
+    let margin_mm: f32 = 10.0;
+
+    let printable_width_mm: f32 = page_width_mm - 2.0 * margin_mm;
+    let printable_height_mm: f32 = page_height_mm - 2.0 * margin_mm;
+
+    if printable_width_mm <= 0.0 || printable_height_mm <= 0.0 {
+        return Err("Invalid page margins".into());
+    }
+
+    // масштаб (double -> float)
+    let scale_x: f32 = (printable_width_mm as f64 / width_model) as f32;
+    let scale_y: f32 = (printable_height_mm as f64 / height_model) as f32;
+    let scale: f32 = scale_x.min(scale_y);
+
+    let (doc, page1, layer1) = PdfDocument::new(
+        "Pepakura Next Export",
+        Mm(page_width_mm),
+        Mm(page_height_mm),
+        "Layer 1",
+    );
+    let current_layer = doc.get_page(page1).get_layer(layer1);
+
+    // модель -> страница
+    let transform_point = |vx: f64, vy: f64| -> Point {
+        let nx: f32 = (((vx - min_x) as f64) * (scale as f64) + (margin_mm as f64)) as f32;
+        let ny: f32 = (((vy - min_y) as f64) * (scale as f64) + (margin_mm as f64)) as f32;
+        Point::new(Mm(nx), Mm(ny))
+    };
+
+    let line_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None));
+    let line_width_mm: f32 = 0.25;
+
+    current_layer.set_outline_color(line_color);
+    current_layer.set_outline_thickness(line_width_mm);
+
+    for face in &faces {
+        if face.len() < 3 {
+            continue;
+        }
+        let i0 = face[0];
+        let i1 = face[1];
+        let i2 = face[2];
+
+        let v0 = match vertices.get(i0) {
+            Some(v) if v.len() >= 2 => v,
+            _ => continue,
         };
-        
-        // Test that export functions return empty data (since they are stubs)
-        assert!(export_result(&result, ExportFormat::SVG).is_empty());
-        assert!(export_result(&result, ExportFormat::PNG).is_empty());
-        assert!(export_result(&result, ExportFormat::JPG).is_empty());
-        assert!(export_result(&result, ExportFormat::OBJ).is_empty());
-        assert!(export_result(&result, ExportFormat::STL).is_empty());
+        let v1 = match vertices.get(i1) {
+            Some(v) if v.len() >= 2 => v,
+            _ => continue,
+        };
+        let v2 = match vertices.get(i2) {
+            Some(v) if v.len() >= 2 => v,
+            _ => continue,
+        };
+
+        let p0 = transform_point(v0[0], v0[1]);
+        let p1 = transform_point(v1[0], v1[1]);
+        let p2 = transform_point(v2[0], v2[1]);
+
+        let line: Line = vec![
+            (p0, false),
+            (p1, false),
+            (p2, false),
+            (p0, false),
+        ]
+        .into_iter()
+        .collect();
+
+        let mut line = line;
+        line.set_closed(true);
+        current_layer.add_line(line);
     }
+
+    let file = File::create(&path).map_err(|e: std::io::Error| e.to_string())?;
+    let mut writer = BufWriter::new(file);
+    doc.save(&mut writer).map_err(|e: printpdf::Error| e.to_string())?;
+
+    Ok(())
 }
+
+
+
+
+
+

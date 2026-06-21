@@ -102,10 +102,10 @@ impl LocalLlmRouter {
         match self.client.get(&format!("{}/api/tags", self.config.url)).call() {
             Ok(response) => {
                 if let Ok(json) = response.into_json::<serde_json::Value>() {
-                    if let Some(models) = json.get("models").and_then(|m| m.as_array()) {
+                    if let Some(models) = json.get("models").and_then(|m: &serde_json::Value| m.as_array()) {
                         let model_names: Vec<String> = models
                             .iter()
-                            .filter_map(|m| m.get("name").and_then(|n| n.as_str()).map(String::from))
+                            .filter_map(|m: &serde_json::Value| m.get("name").and_then(|n: &serde_json::Value| n.as_str()).map(String::from))
                             .collect();
 
                         // Попытка получить версию через /api/version
@@ -113,8 +113,8 @@ impl LocalLlmRouter {
                             .get(&format!("{}/api/version", self.config.url))
                             .call()
                             .ok()
-                            .and_then(|r| r.into_json::<serde_json::Value>().ok())
-                            .and_then(|v| v.get("version").and_then(|s| s.as_str()).map(String::from));
+                            .and_then(|r: ureq::Response| r.into_json::<serde_json::Value>().ok())
+                            .and_then(|v: serde_json::Value| v.get("version").and_then(|s: &serde_json::Value| s.as_str()).map(String::from));
 
                         return LlmStatus {
                             available: true,
@@ -183,13 +183,13 @@ impl LocalLlmRouter {
 
         let text = json
             .get("response")
-            .and_then(|r| r.as_str())
+            .and_then(|r: &serde_json::Value| r.as_str())
             .unwrap_or("")
             .to_string();
 
         let tokens = json
             .get("eval_count")
-            .and_then(|c| c.as_u64())
+            .and_then(|c: &serde_json::Value| c.as_u64())
             .unwrap_or(0) as u32;
 
         let generation_time = start.elapsed().as_millis() as u64;
@@ -260,3 +260,5 @@ mod tests {
         assert_eq!(router.model(), "llama3:8b");
     }
 }
+
+

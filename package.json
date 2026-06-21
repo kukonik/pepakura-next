@@ -11,7 +11,11 @@
     "check:rust": "cargo check --all-targets"
   },
   "dependencies": {
+    "@tauri-apps/plugin-dialog": "^2.7.1",
     "@types/node": "^20.19.30",
     "@types/three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@vue/tsconfig": "^0.9.1"
   }
 }

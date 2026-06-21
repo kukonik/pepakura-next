@@ -1,4 +1,4 @@
-//! # Mesh Analyzer
+﻿//! # Mesh Analyzer
 //!
 //! Анализатор мешей с использованием LLM для рекомендаций.
 //!
@@ -32,10 +32,8 @@
 //! ```
 
 use crate::geometry::Mesh;
-use crate::ai::prompts::{
+#[cfg(feature = "llm")] use crate::ai::prompts::{
     MeshStatsPrompt,
-    MeshIssue,
-    Recommendation,
     create_difficulty_prompt,
     DIFFICULTY_SYSTEM_PROMPT,
 };
@@ -57,6 +55,22 @@ pub struct AnalysisResult {
     pub error: Option<String>,
 }
 
+/// Проблема, найденная при анализе меша
+#[derive(Debug, Clone)]
+pub struct MeshIssue {
+    pub code: String,
+    pub message: String,
+    pub severity: String,
+    pub count: u32,
+}
+
+/// Рекомендация по улучшению меша
+#[derive(Debug, Clone)]
+pub struct Recommendation {
+    pub text: String,
+    pub priority: String,
+    pub category: String,
+}
 /// Результат LLM-анализа
 #[derive(Debug, Clone)]
 pub struct AiAnalysisResult {
@@ -454,3 +468,6 @@ mod tests {
         assert!(hash > 0);
     }
 }
+
+
+

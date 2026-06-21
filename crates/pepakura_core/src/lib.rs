@@ -43,6 +43,7 @@
 pub mod compat;
 pub mod error;
 pub mod geometry;
+pub mod import;
 pub mod unfold;
 pub mod export;
 pub mod plugins;
@@ -60,6 +61,7 @@ pub mod conversion;
 pub mod sanitize;
 
 // Ре-экспорт основных типов
+pub use import::parse_obj_str;
 pub use error::{PepakuraError, Result};
 pub use geometry::{Mesh, Vertex, Face, BoundingBox, MeshMetadata, MeshError};
 pub use unfold::{UnfoldedMesh as UnfoldResult, UnfoldConfig, UnfoldMetadata, UnfoldError, UnfoldAlgorithm};
@@ -130,3 +132,5 @@ pub fn parse_pdo_to_pepa_core(data: &[u8]) -> ParsePdoResult {
         },
     }
 }
+
+

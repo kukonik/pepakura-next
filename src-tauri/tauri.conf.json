@@ -19,7 +19,12 @@
         "fullscreen": false
       }
     ],
-    "withGlobalTauri": true
+    "withGlobalTauri": true,
+    "security": {
+      "capabilities": [
+        "default"
+      ]
+    }
   },
   "bundle": {
     "active": true,

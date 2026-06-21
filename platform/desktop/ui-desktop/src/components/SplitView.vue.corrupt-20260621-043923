@@ -1,0 +1,447 @@
+  async function draw2D() {
+    const canvas2d = document.getElementById('canvas2d');
+    if (!canvas2d) return;
+    const ctx = canvas2d.getContext('2d');
+    if (!ctx) return;
+    const W = canvas2d.width;
+    const H = canvas2d.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#f0f0f0';
+    ctx.fillRect(0, 0, W, H);
+
+    if (!vertices2D || vertices2D.length === 0 || !faces2D || faces2D.length === 0) return;
+
+    const isDead = (v) => !v || (v[0] === 0 && v[1] === 0);
+
+    const edgeMap = new Map();
+    for (let fIdx = 0; fIdx < faces2D.length; fIdx++) {
+      const f = faces2D[fIdx];
+      const v0 = vertices2D[f[0]];
+      const v1 = vertices2D[f[1]];
+      const v2 = vertices2D[f[2]];
+      
+      if (isDead(v0) || isDead(v1) || isDead(v2)) continue;
+
+      const edges = [
+        [Math.min(f[0], f[1]), Math.max(f[0], f[1])],
+        [Math.min(f[1], f[2]), Math.max(f[1], f[2])],
+        [Math.min(f[0], f[2]), Math.max(f[0], f[2])]
+      ];
+      for (const e of edges) {
+        const key = e[0] + ':' + e[1];
+        if (!edgeMap.has(key)) edgeMap.set(key, []);
+        edgeMap.get(key).push(fIdx);
+      }
+    }
+
+    class DSU {
+      constructor(n) { this.p = Array.from({length: n}, (_, i) => i); }
+      find(x) { if (this.p[x] !== x) this.p[x] = this.find(this.p[x]); return this.p[x]; }
+      union(a, b) { this.p[this.find(a)] = this.find(b); }
+    }
+    const dsu = new DSU(faces2D.length);
+    for (const [, faces] of edgeMap.entries()) {
+      if (faces.length === 2) {
+        dsu.union(faces[0], faces[1]);
+      }
+    }
+
+    const boundaryEdges = [];
+    const foldEdges = [];
+    const glueEdges = [];
+
+    for (const [key, faces] of edgeMap.entries()) {
+      const parts = key.split(':');
+      const p0 = vertices2D[parseInt(parts[0], 10)];
+      const p1 = vertices2D[parseInt(parts[1], 10)];
+      const edgeData = { x1: p0[0], y1: p0[1], x2: p1[0], y2: p1[1] };
+
+      if (faces.length === 1) {
+        boundaryEdges.push(edgeData);
+      } else if (faces.length === 2) {
+        if (dsu.find(faces[0]) === dsu.find(faces[1])) {
+          foldEdges.push(edgeData);
+        } else {
+          glueEdges.push(edgeData);
+        }
+      }
+    }
+
+    const validVerts = vertices2D.filter(v => !isDead(v));
+    if (validVerts.length === 0) return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const v of validVerts) {
+      if (v[0] < minX) minX = v[0];
+      if (v[1] < minY) minY = v[1];
+      if (v[0] > maxX) maxX = v[0];
+      if (v[1] > maxY) maxY = v[1];
+    }
+    const dataW = maxX - minX || 1;
+    const dataH = maxY - minY || 1;
+    const padding = 40;
+    const zoom = Math.min((W - padding * 2) / dataW, (H - padding * 2) / dataH);
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-cx, -cy);
+
+    if (foldEdges.length > 0) {
+      ctx.beginPath();
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = '#aaaaaa';
+      ctx.lineWidth = 1.0 / zoom;
+      for (const e of foldEdges) {
+        ctx.moveTo(e.x1, e.y1);
+        ctx.lineTo(e.x2, e.y2);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    ctx.beginPath();
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2.5 / zoom;
+    for (const e of boundaryEdges) {
+      ctx.moveTo(e.x1, e.y1);
+      ctx.lineTo(e.x2, e.y2);
+    }
+    for (const e of glueEdges) {
+      ctx.moveTo(e.x1, e.y1);
+      ctx.lineTo(e.x2, e.y2);
+    }
+    ctx.stroke();
+
+    if (showWireframe2D.value && glueEdges.length > 0) {
+      ctx.beginPath();
+      ctx.strokeStyle = '#ff3333';
+      ctx.lineWidth = 3.0 / zoom;
+      for (const e of glueEdges) {
+        ctx.moveTo(e.x1, e.y1);
+        ctx.lineTo(e.x2, e.y2);
+      }
+      ctx.stroke();
+    }
+
+    if (showIslands2D.value) {
+      const islandRoots = new Map();
+      for (let fIdx = 0; fIdx < faces2D.length; fIdx++) {
+        const f = faces2D[fIdx];
+        if (isDead(vertices2D[f[0]]) || isDead(vertices2D[f[1]]) || isDead(vertices2D[f[2]])) continue;
+        const root = dsu.find(fIdx);
+        if (!islandRoots.has(root)) islandRoots.set(root, []);
+        islandRoots.get(root).push(fIdx);
+      }
+      const colors = ['rgba(100,149,237,0.15)', 'rgba(255,165,0,0.15)', 'rgba(50,205,50,0.15)', 'rgba(255,99,71,0.15)', 'rgba(148,103,189,0.15)'];
+      let cIdx = 0;
+      for (const [, fIds] of islandRoots.entries()) {
+        ctx.fillStyle = colors[cIdx % colors.length];
+        ctx.beginPath();
+        for (const fIdx of fIds) {
+          const f = faces2D[fIdx];
+          const p0 = vertices2D[f[0]], p1 = vertices2D[f[1]], p2 = vertices2D[f[2]];
+          ctx.moveTo(p0[0], p0[1]);
+          ctx.lineTo(p1[0], p1[1]);
+          ctx.lineTo(p2[0], p2[1]);
+          ctx.closePath();
+        }
+        ctx.fill();
+        cIdx++;
+      }
+    }
+
+    ctx.restore();
+  }
+
+
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+
+const objData = ref('');
+const rustResult = ref('');
+const rustError = ref('');
+const aiResult = ref('');
+const aiError = ref('');
+const isUnfolding = ref(false);
+const isAiThinking = ref(false);
+
+const canvas2D = ref<HTMLCanvasElement | null>(null);
+const mtlData = ref<string | null>(null)
+const textureMap = ref<Record<string, string>>({})
+const showWireframe2D = ref(true);
+const showIslands2D = ref(true);
+
+let vertices2D: number[][] = [];
+let faces2D: number[][] = [];
+let islandIds: number[] = [];
+let degenerateIslands: number[] = [];
+
+let lastMetrics = {
+  vertex_count: 0,
+  face_count: 0,
+  islands: 0,
+  total_area: 0
+};
+
+const handleLoadObj = async () => {
+  rustError.value = ''; rustResult.value = ''; aiError.value = ''; aiResult.value = '';
+  try {
+    const filePath = await open({
+      multiple: false,
+      filters: [{ name: '3D Models', extensions: ['obj'] }]
+    });
+    if (!filePath) return;
+    const text = await readTextFile(filePath as string);
+    objData.value = text;
+    const mtlMatch = text.match(/mtllib\s+(.+)/);
+    if (mtlMatch) {
+        const objDir = (filePath as string).substring(
+          0,
+          Math.max(
+            (filePath as string).lastIndexOf('\\'),
+            (filePath as string).lastIndexOf('/')
+          ) + 1
+        );
+      const mtlPath = objDir + mtlMatch[1].trim();
+      try {
+        const mtlText = await readTextFile(mtlPath);
+        const lines = mtlText.split(/\r?\n/);
+        let currentMtl: string | null = null;
+        const texCache: Record<string, string> = {};
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line || line.startsWith('#')) continue;
+          const newMtlMatch = line.match(/^newmtl\s+(.+)/i);
+          if (newMtlMatch) {
+            currentMtl = newMtlMatch[1].trim();
+            continue;
+          }
+          const mapMatch = line.match(/^map_Kd\s+(.+)/i);
+          if (mapMatch && currentMtl) {
+            const texName = mapMatch[1].trim();
+            if (!texCache[texName]) {
+              const texPath = objDir + texName;
+              const texBytes = await readFile(texPath);
+              texCache[texName] = 'data:image/png;base64,' + arrayBufferToBase64(texBytes);
+            }
+            textureMap.value[currentMtl] = texCache[texName];
+          }
+        }
+        mtlData.value = mtlText;
+
+      } catch (e) {
+        console.error('Ошибка загрузки MTL/текстур:', e);
+      }
+    }
+    rustResult.value = 'Файл загружен. Длина: ' + text.length + ' символов';
+  } catch (e: any) {
+    rustError.value = 'Ошибка загрузки: ' + e.toString();
+  }
+};
+
+const doUnfold = async () => {
+  if (!objData.value) return;
+  isUnfolding.value = true;
+  rustError.value = ''; rustResult.value = ''; aiError.value = ''; aiResult.value = '';
+
+  try {
+    rustResult.value = 'Выполняю MST-Seam развёртку...\n';
+
+    const resultStr = await invoke<string>('unfold_mesh', {
+      objData: objData.value,
+      config: { algorithm: 'smart' }
+    });
+
+    const r = JSON.parse(resultStr);
+    if (r.success) {
+      lastMetrics = { vertex_count: r.vertex_count, face_count: r.face_count, islands: r.islands, total_area: r.total_area };
+      rustResult.value += '✅ ' + r.message + '\nАлгоритм: ' + r.algorithm_used + '\nВершин: ' + r.vertex_count + '\nГраней: ' + r.face_count + '\nОстровов: ' + r.islands + '\nПлощадь: ' + r.total_area + ' кв. ед.\nДеградированных: ' + (r.degenerate_islands ? r.degenerate_islands.length : 0);
+      vertices2D = r.vertices_2d;
+      faces2D = r.faces.map((f: any) => f.vertices);
+      islandIds = r.island_ids;
+      degenerateIslands = r.degenerate_islands || [];
+      await nextTick();
+draw2D();
+    } else {
+      rustError.value = r.message;
+    }
+  } catch (e: any) {
+    rustError.value = 'Ошибка Rust:\n' + e.toString();
+    rustResult.value = '';
+  } finally { isUnfolding.value = false; }
+};
+
+const islandColors = [
+  'rgba(0, 122, 204, 0.5)', 'rgba(204, 0, 122, 0.5)', 'rgba(122, 204, 0, 0.5)',
+  'rgba(204, 122, 0, 0.5)', 'rgba(0, 204, 204, 0.5)', 'rgba(204, 204, 0, 0.5)',
+  'rgba(122, 0, 204, 0.5)', 'rgba(0, 204, 122, 0.5)', 'rgba(204, 80, 80, 0.5)',
+  'rgba(80, 204, 80, 0.5)'
+];
+
+const draw2D = () => {
+  if (!canvas2D.value || vertices2D.length === 0 || faces2D.length === 0) return;
+  const canvas = canvas2D.value;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * window.devicePixelRatio;
+  canvas.height = rect.height * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        initCam(ctx.canvas, () => requestAnimationFrame(draw2D));
+  const width = rect.width;
+  const height = rect.height;
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+
+  // BBox ТОЛЬКО по вершинам, входящим в грани (исключаем висячие [0,0])
+  const validVerts = new Set<number>();
+  const edgeCounts = calcEdgeCounts(faces2D);
+  for (const face of faces2D) {
+    for (const vi of face) validVerts.add(vi);
+  }
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const vi of validVerts) {
+    const v = vertices2D[vi];
+    const x = Array.isArray(v) ? v[0] : (v?.x ?? NaN); if (!isNaN(x) && x < minX) minX = x; if (!isNaN(x) && x > maxX) maxX = x;
+    const y = Array.isArray(v) ? v[1] : (v?.y ?? NaN); if (!isNaN(y) && y < minY) minY = y; if (!isNaN(y) && y > maxY) maxY = y;
+  }
+
+  const margin = 30;
+  const rangeX = maxX - minX || 1;
+  const rangeY = maxY - minY || 1;
+        applyCam(ctx, width, height, minX, minY, rangeX, rangeY);
+        const mapX = (x: number) => x;
+        const mapY = (y: number) => y;
+
+  for (const face of faces2D) {
+    if (face.length < 3) continue;
+    ctx.beginPath();
+    ctx.moveTo(mapX(vertices2D[face[0]][0]), mapY(vertices2D[face[0]][1]));
+    for (let i = 1; i < face.length; i++) {
+      ctx.lineTo(mapX(vertices2D[face[i]][0]), mapY(vertices2D[face[i]][1]));
+    }
+    ctx.closePath();
+      ctx.fillStyle = '#eeeeee';
+      ctx.fill();
+
+    if (showIslands2D.value) {
+      const islandId = islandIds[face[0]];
+      if (degenerateIslands.includes(islandId)) {
+        ctx.fillStyle = 'rgba(255, 50, 50, 0.6)';
+      } else {
+        ctx.fillStyle = islandColors[islandId % islandColors.length];
+      }
+      // ctx.fill(); // Режим чистой бумаги
+    }
+
+    if (showWireframe2D.value) {
+      drawSeams(ctx, vertices2D, face, edgeCounts, mapX, mapY);
+    }
+  }
+};
+
+const callOrchestrator = async () => {
+  if (!objData.value) return;
+  isAiThinking.value = true;
+  aiError.value = ''; aiResult.value = 'Запрос к AI Orchestrator (localhost:3000/api/analyze)...';
+
+  try {
+    const meshStats = 'Vertices: ' + lastMetrics.vertex_count + ', Faces: ' + lastMetrics.face_count + ', Islands: ' + lastMetrics.islands + ', Area: ' + lastMetrics.total_area;
+    const userPrompt = "Analyze this papercraft unfolding. Why does it have " + lastMetrics.islands + " islands? How to optimize for paper crafting?";
+
+    const response = await fetch('http://127.0.0.1:3000/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mesh_stats: meshStats, user_prompt: userPrompt })
+    });
+
+    if (!response.ok) throw new Error('HTTP error! status: ' + response.status);
+    const data = await response.json();
+
+    if (data.ai_advice) {
+      aiResult.value = data.ai_advice;
+    } else if (data.error) {
+      aiError.value = data.error;
+    } else {
+      aiResult.value = JSON.stringify(data, null, 2);
+    }
+  } catch (e: any) {
+    aiError.value = 'Ошибка подключения:\n' + e.toString() + '\n\nУбедитесь, что запущен AI Orchestrator.';
+    aiResult.value = '';
+  } finally {
+    isAiThinking.value = false;
+  }
+};
+
+
+const handleExport = async () => {
+  try {
+    console.log('[Export] vertices2D length:', vertices2D.length, 'faces2D length:', faces2D.length);
+    if (vertices2D.length === 0 || faces2D.length === 0) {
+      alert('Нет данных развёртки для экспорта.');
+      return;
+    }
+    console.log('[Export] sample vertices2D[0..2]:', vertices2D.slice(0,3));
+    console.log('[Export] sample faces2D[0..2]:', faces2D.slice(0,3));
+    const filePath = await save({
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      defaultPath: 'unfold.pdf'
+    });
+    if (!filePath) return;
+    console.log('[Export] invoking export_pdf with path:', filePath);
+    await invoke('export_pdf', { 
+      vertices: vertices2D, 
+      faces: faces2D, 
+      islandIds: islandIds,
+      path: filePath 
+    });
+    console.log('[Export] invoke succeeded');
+    alert('PDF сохранён: ' + filePath);
+  } catch (e) {
+    console.error('[Export] invoke error:', e);
+    alert('Ошибка экспорта: ' + e);
+  }
+};
+</script>
+
+<style scoped>
+canvas { display: block; }
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-//! # Mesh Statistics
+﻿//! # Mesh Statistics
 //!
 //! Вычисление статистики 3D меша для анализа.
 //!
@@ -381,6 +381,7 @@ impl MeshStats {
         )
     }
 
+    #[cfg(feature = "llm")]
     /// Конвертировать в промпт для LLM
     pub fn to_prompt(&self) -> String {
         use crate::ai::prompts::MeshStatsPrompt;
@@ -484,3 +485,4 @@ mod tests {
         assert!(summary.contains("S="));
     }
 }
+

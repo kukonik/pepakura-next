@@ -16,6 +16,8 @@ tauri-build = { version = "2.3.5", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 tauri = { version = "2.3.5", features = [] }
+printpdf = "0.7"
+tauri-plugin-dialog = "2"
 tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 log = "0.4"
@@ -25,9 +27,11 @@ dashmap = "5.5"
 gltf = "1.0"
 
 # Pepakura Core
-pepakura_core = { path = "../../../../crates/pepakura_core", features = ["svg", "pdf", "dxf", "llm"] }
+pepakura_core = { path = "../../../../crates/pepakura_core", features = ["dxf", "pdf", "llm"] }
 pepakura_platform = { path = "../../../../crates/pepakura_platform" }
 ai_bridge = { path = "../../../../crates/ai_bridge" }
+axum = "0.7.9"
+tower-http = { version = "0.6.11", features = ["cors"] }
 
 # Tauri plugins
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
@@ -39,3 +43,7 @@ tauri-plugin-store = "2.0"
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
+
+
+

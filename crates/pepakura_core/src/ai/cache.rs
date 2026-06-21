@@ -167,7 +167,7 @@ impl AiCache {
     fn hash_prompt(&self, prompt: &str) -> String {
         let mut hasher = Sha256::new();
         hasher.update(prompt.as_bytes());
-        format!("{:x}", hasher.finalize())
+        hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect::<String>()
     }
     
     /// Возвращает процент попаданий (hit rate).
@@ -369,3 +369,4 @@ mod tests {
         assert!(cache.contains("prompt 4"));
     }
 }
+

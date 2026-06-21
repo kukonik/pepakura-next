@@ -1,33 +1,25 @@
 {
   "private": true,
   "devDependencies": {
-    "@tauri-apps/cli": "^1.6.1",
-    "@types/node": "^20.19.30",
+    "@tauri-apps/cli": "^2.0.0",
     "@vitejs/plugin-vue": "^5.2.4",
     "typescript": "^5.7.2",
-    "vite": "^6.4.1"
+    "vite": "^6.4.2"
   },
   "dependencies": {
-    "@tauri-apps/api": "^1.6.0",
-    "@tauri-apps/plugin-dialog": "^2.0.1",
-    "@tauri-apps/plugin-fs": "^2.0.1",
-    "@tauri-apps/plugin-shell": "^2.3.4",
-    "@types/three": "^0.182.0",
-    "dexie": "^4.4.1",
-    "lz-string": "^1.5.0",
-    "pinia": "^2.2.4",
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.0.0",
+    "@tauri-apps/plugin-fs": "^2.0.0",
+    "@tauri-apps/plugin-shell": "^2.0.0",
     "three": "^0.160.1",
-    "vue": "^3.4.4",
-    "vue-i18n": "^9.9.1",
-    "vue-router": "^4.6.4",
-    "vue-virtual-scroller": "2.0.0-beta.8"
+    "vue": "^3.4.4"
   },
   "version": "0.1.0",
   "type": "module",
   "name": "@pepakura/ui-desktop",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "node ../../node_modules/.pnpm/vite@5.4.21_@types+node@20.19.41/node_modules/vite/bin/vite.js",
+    "build": "node ../../node_modules/.pnpm/vite@5.4.21_@types+node@20.19.41/node_modules/vite/bin/vite.js build",
+    "preview": "node ../../node_modules/.pnpm/vite@5.4.21_@types+node@20.19.41/node_modules/vite/bin/vite.js preview"
   }
 }

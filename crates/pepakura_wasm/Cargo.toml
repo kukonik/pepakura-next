@@ -11,7 +11,7 @@ repository = "https://github.com/pepakura-next/pepakura-next"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-pepakura_core = { path = "../pepakura_core", default-features = false, features = ["wasm"] }
+pepakura_core = { path = "../pepakura_core", features = ["wasm"] }
 pepakura_platform = { path = "../pepakura_platform", default-features = false, features = ["web"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
@@ -28,3 +28,7 @@ wasm-bindgen-test = "0.3"
 
 [features]
 default = ["console_error_panic_hook"]
+
+
+
+
