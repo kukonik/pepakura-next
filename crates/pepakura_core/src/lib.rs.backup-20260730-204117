@@ -1,0 +1,290 @@
+use serde::{Deserialize, Serialize};
+
+// ── Geometry ──────────────────────────────────────────────
+pub mod geometry {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Vertex {
+        pub x: f32,
+        pub y: f32,
+        pub z: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Face {
+        pub vertices: Vec<usize>,
+        pub material_id: Option<usize>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+    pub struct MeshMetadata {
+        pub name: Option<String>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Mesh {
+        pub name: String,
+        pub vertices: Vec<Vertex>,
+        pub faces: Vec<Face>,
+        pub metadata: MeshMetadata,
+    }
+}
+pub use geometry::*;
+
+// ── Import ────────────────────────────────────────────────
+pub mod import {
+    use super::*;
+    pub fn parse_obj_str(data: &str) -> Result<Mesh, String> {
+        let mut vertices = Vec::new();
+        let mut faces = Vec::new();
+
+        for line in data.lines() {
+            let line = line.trim();
+            if line.starts_with("v ") || line.starts_with("V ") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 4 {
+                    let x = parts[1].parse::<f32>().map_err(|e| e.to_string())?;
+                    let y = parts[2].parse::<f32>().map_err(|e| e.to_string())?;
+                    let z = parts[3].parse::<f32>().map_err(|e| e.to_string())?;
+                    vertices.push(Vertex { x, y, z });
+                }
+            } else if line.starts_with("f ") || line.starts_with("F ") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 4 {
+                    let parse_idx = |s: &str| -> Result<usize, String> {
+                        s.split('/').next().unwrap_or("0")
+                         .parse::<usize>()
+                         .map(|i| if i == 0 { 0 } else { i - 1 })
+                         .map_err(|e| e.to_string())
+                    };
+                    let mut fv = Vec::new();
+                    for &p in &parts[1..] {
+                        match parse_idx(p) {
+                            Ok(idx) => fv.push(idx),
+                            Err(_) => continue,
+                        }
+                    }
+                    if fv.len() >= 3 {
+                        for i in 1..fv.len() - 1 {
+                            faces.push(Face { vertices: vec![fv[0], fv[i], fv[i+1]], material_id: None });
+                        }
+                    }
+                }
+            }
+        }
+
+        if vertices.is_empty() || faces.is_empty() {
+            return Err("No vertices or faces found in OBJ data".to_string());
+        }
+
+        Ok(Mesh {
+            name: String::from("imported"),
+            vertices,
+            faces,
+            metadata: Default::default(),
+        })
+    }
+}
+
+// ── Unfold ────────────────────────────────────────────────
+pub mod unfold {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum UnfoldAlgorithm { Lscm, Mds }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnfoldConfig {
+        pub algorithm: UnfoldAlgorithm,
+        pub margin: f32,
+        pub fold_angle_threshold: f32,
+    }
+
+    impl Default for UnfoldConfig {
+        fn default() -> Self {
+            Self { algorithm: UnfoldAlgorithm::Lscm, margin: 10.0, fold_angle_threshold: 5.0 }
+        }
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnfoldedMesh {
+        pub vertices_2d: Vec<[f32; 2]>,
+        pub faces: Vec<Vec<usize>>,
+        pub island_ids: Vec<usize>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnfoldMetadata {
+        pub is_degenerate: bool,
+        pub area_2d: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnfoldResult {
+        pub vertices_2d: Vec<[f32; 2]>,
+        pub faces: Vec<Vec<usize>>,
+        pub island_ids: Vec<usize>,
+        pub metadata: UnfoldMetadata,
+        pub sheet_count: u32,
+    }
+
+    impl UnfoldResult {
+        pub fn empty() -> Self {
+            UnfoldResult { vertices_2d: vec![], faces: vec![], island_ids: vec![], metadata: UnfoldMetadata { is_degenerate: false, area_2d: 0.0 }, sheet_count: 1 }
+        }
+    }
+
+    pub fn unfold_lscm(_mesh: &Mesh, _config: &UnfoldConfig) -> UnfoldResult { UnfoldResult::empty() }
+
+    pub fn unfold_mst(mesh: &Mesh, _config: &UnfoldConfig) -> Result<UnfoldResult, String> {
+        if mesh.faces.is_empty() { return Ok(UnfoldResult::empty()); }
+        let mut v2d = vec![[0.0f32, 0.0f32]; mesh.vertices.len()];
+        let mut visited = vec![false; mesh.faces.len()];
+        let mut queue = std::collections::VecDeque::new();
+        let mut edge_map: std::collections::HashMap<(usize, usize), Vec<usize>> = std::collections::HashMap::new();
+        for (fi, f) in mesh.faces.iter().enumerate() {
+            if f.vertices.len() < 3 { continue; }
+            for i in 0..3 {
+                let v1 = f.vertices[i]; let v2 = f.vertices[(i + 1) % 3];
+                let key = if v1 < v2 { (v1, v2) } else { (v2, v1) };
+                edge_map.entry(key).or_default().push(fi);
+            }
+        }
+        let root_f = &mesh.faces[0];
+        if root_f.vertices.len() >= 3 {
+            for &vi in &root_f.vertices { let v = &mesh.vertices[vi]; v2d[vi] = [v.x, v.y]; }
+            visited[0] = true; queue.push_back(0);
+        }
+        while let Some(fi) = queue.pop_front() {
+            let f = &mesh.faces[fi]; if f.vertices.len() < 3 { continue; }
+            for i in 0..3 {
+                let v1 = f.vertices[i]; let v2 = f.vertices[(i + 1) % 3];
+                let key = if v1 < v2 { (v1, v2) } else { (v2, v1) };
+                if let Some(adj_faces) = edge_map.get(&key) {
+                    for &nfi in adj_faces {
+                        if visited[nfi] { continue; }
+                        visited[nfi] = true; let nf = &mesh.faces[nfi];
+                        let mut v3_idx = 0;
+                        for &vi in &nf.vertices { if vi != v1 && vi != v2 { v3_idx = vi; break; } }
+                        let v3_3d = &mesh.vertices[v3_idx];
+                        let v_other_idx = *f.vertices.iter().find(|&&v| v != v1 && v != v2).unwrap();
+                        let vo3 = &mesh.vertices[v_other_idx];
+                        let e3 = [mesh.vertices[v2].x - mesh.vertices[v1].x, mesh.vertices[v2].y - mesh.vertices[v1].y, mesh.vertices[v2].z - mesh.vertices[v1].z];
+                        let u3 = [v3_3d.x - mesh.vertices[v1].x, v3_3d.y - mesh.vertices[v1].y, v3_3d.z - mesh.vertices[v1].z];
+                        let wo3 = [vo3.x - mesh.vertices[v1].x, vo3.y - mesh.vertices[v1].y, vo3.z - mesh.vertices[v1].z];
+                        let cross_eu = [e3[1]*u3[2] - e3[2]*u3[1], e3[2]*u3[0] - e3[0]*u3[2], e3[0]*u3[1] - e3[1]*u3[0]];
+                        let cross_ew = [e3[1]*wo3[2] - e3[2]*wo3[1], e3[2]*wo3[0] - e3[0]*wo3[2], e3[0]*wo3[1] - e3[1]*wo3[0]];
+                        let sign = (cross_eu[0]*cross_ew[0] + cross_eu[1]*cross_ew[1] + cross_eu[2]*cross_ew[2]).signum();
+                        let len_e = (e3[0]*e3[0] + e3[1]*e3[1] + e3[2]*e3[2]).sqrt();
+                        let len_u = (u3[0]*u3[0] + u3[1]*u3[1] + u3[2]*u3[2]).sqrt();
+                        let cos_t = if len_e > 1e-8 && len_u > 1e-8 { (e3[0]*u3[0] + e3[1]*u3[1] + e3[2]*u3[2]) / (len_e * len_u) } else { 1.0 };
+                        let cross_len = (cross_eu[0]*cross_eu[0] + cross_eu[1]*cross_eu[1] + cross_eu[2]*cross_eu[2]).sqrt();
+                        let sin_t = if len_e > 1e-8 && len_u > 1e-8 { cross_len / (len_e * len_u) * sign } else { 0.0 };
+                        let ux = len_u * cos_t;
+                        let uy = len_u * sin_t;
+                        let a0 = v2d[v1]; let a1 = v2d[v2];
+                        let e2x = a1[0] - a0[0]; let e2y = a1[1] - a0[1];
+                        let len_e2 = (e2x*e2x + e2y*e2y).sqrt();
+                        let dx = if len_e2 > 1e-8 { e2x / len_e2 } else { 1.0 };
+                        let dy = if len_e2 > 1e-8 { e2y / len_e2 } else { 0.0 };
+                        v2d[v3_idx] = [a0[0] + ux * dx - uy * dy, a0[1] + ux * dy + uy * dx];
+                        queue.push_back(nfi);
+                    }
+                }
+            }
+        }
+        let faces_2d: Vec<Vec<usize>> = mesh.faces.iter().map(|f| f.vertices.clone()).collect();
+        let mut area = 0.0;
+        for f in &mesh.faces {
+            if f.vertices.len() == 3 {
+                let v0 = v2d[f.vertices[0]]; let v1 = v2d[f.vertices[1]]; let v2 = v2d[f.vertices[2]];
+                area += ((v1[0]-v0[0])*(v2[1]-v0[1]) - (v1[1]-v0[1])*(v2[0]-v0[0])).abs() * 0.5;
+            }
+        }
+        Ok(UnfoldResult { vertices_2d: v2d, faces: faces_2d, island_ids: vec![0; mesh.faces.len()], metadata: UnfoldMetadata { is_degenerate: area < 0.0001, area_2d: area }, sheet_count: 1 })
+    }
+
+    pub mod seam_cut {
+        use super::*;
+        pub struct SeamCutResult { pub islands: Vec<Vec<usize>>, pub seam_count: usize }
+        pub fn compute_seam_islands(_mesh: &Mesh, _target_islands: usize) -> SeamCutResult {
+            SeamCutResult { islands: vec![(0.._mesh.faces.len()).collect()], seam_count: 0 }
+        }
+    }
+}
+pub use unfold::*;
+
+// ── Sanitize ──────────────────────────────────────────────
+pub mod sanitize {
+    #[derive(Debug, Clone)]
+    pub struct SanitizeOptions { pub remove_degenerate: bool }
+    impl Default for SanitizeOptions {
+        fn default() -> Self { Self { remove_degenerate: true } }
+    }
+    pub fn simplify_mesh(mesh: &super::Mesh, _options: &SanitizeOptions) -> Result<super::Mesh, String> {
+        Ok(mesh.clone())
+    }
+}
+pub use sanitize::*;
+
+// ── unwrap_types ─────────────────────────────────────────
+pub mod unwrap_types {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Point2D { pub x: f32, pub y: f32 }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Polygon { pub points: Vec<Point2D>, pub holes: Vec<Vec<Point2D>> }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct FoldLine { pub start: Point2D, pub end: Point2D, pub fold_type: FoldType, pub angle: f32 }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum FoldType { Mountain, Valley }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Tab { pub poly: Vec<Point2D>, pub glue_to_piece_id: usize, pub glue_edge_index: usize }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Piece {
+        pub id: u32, pub name: String, pub label: Option<String>, pub outline: Polygon,
+        pub folds: Vec<FoldLine>, pub tabs: Vec<Tab>, pub area: f32, pub perimeter: f32, pub page_number: u32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Page { pub page_number: usize, pub piece_ids: Vec<usize>, pub utilization_percent: f32 }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+    pub struct UnwrapMetrics {
+        pub total_pieces: u32, pub total_pages: u32, pub total_folds: u32, pub total_tabs: u32, pub complexity_score: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnwrapResult {
+        pub engine_used: String, pub vertices_2d: Vec<[f64; 2]>, pub faces: Vec<Vec<usize>>, pub total_area: f64, pub total_perimeter: f64,
+        pub pieces: Vec<Piece>, pub pages: Vec<Page>, pub metrics: UnwrapMetrics,
+        pub sheet_width: f32, pub sheet_height: f32, pub margin: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+    pub enum EdgeType { Cut, Mountain, Valley, Glue }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Edge2D { pub v1: [f64; 2], pub v2: [f64; 2], pub edge_type: EdgeType, pub piece_id: usize }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Flap2D { pub vertices: Vec<[f64; 2]>, pub target_piece_id: usize, pub edge_index: usize }
+}
+
+// ── Papercraft adapter ────────────────────────────────────
+pub mod papercraft_adapter {
+    use super::unwrap_types::UnwrapResult;
+    pub fn run_papercraft(_obj_data: &str) -> Result<UnwrapResult, String> {
+        Ok(UnwrapResult { faces: vec![],
+            engine_used: "Papercraft".into(), vertices_2d: vec![], total_area: 0.0, total_perimeter: 0.0,
+            pieces: vec![], pages: vec![], metrics: Default::default(), sheet_width: 0.0, sheet_height: 0.0, margin: 0.0,
+        })
+    }
+}

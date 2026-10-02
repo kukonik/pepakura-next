@@ -1,0 +1,267 @@
+pub mod geometry {
+    #[derive(Clone)]
+    pub struct Vertex {
+        pub id: usize,
+        pub position: [f64; 3],
+    }
+
+    #[derive(Clone)]
+    pub struct Face {
+        pub vertices: [usize; 3],
+    }
+
+    #[derive(Clone)]
+    pub struct Mesh {
+        pub name: String,
+        pub vertices: Vec<Vertex>,
+        pub faces: Vec<Face>,
+    }
+
+    impl Vertex {
+        pub fn new(id: usize, position: [f64; 3]) -> Self {
+            Self { id, position }
+        }
+    }
+
+    impl Face {
+        pub fn new(v0: usize, v1: usize, v2: usize) -> Self {
+            Self {
+                vertices: [v0, v1, v2],
+            }
+        }
+    }
+
+    impl Mesh {
+        pub fn new(name: &str) -> Self {
+            Self {
+                name: name.to_string(),
+                vertices: Vec::new(),
+                faces: Vec::new(),
+            }
+        }
+
+        pub fn add_vertex(&mut self, v: Vertex) {
+            self.vertices.push(v);
+        }
+
+        pub fn add_face(&mut self, f: Face) {
+            self.faces.push(f);
+        }
+    }
+}
+
+pub mod unfold {
+    use super::geometry::{Face, Mesh};
+
+    #[derive(Clone, Copy)]
+    pub enum UnfoldAlgorithm {
+        MDS,
+        LSCM,
+    }
+
+    #[derive(Clone)]
+    pub struct UnfoldConfig {
+        pub algorithm: UnfoldAlgorithm,
+        pub max_iterations: usize,
+        pub tolerance: f64,
+        pub preserve_detail: bool,
+    }
+
+    #[derive(Clone)]
+    pub struct UnfoldedMesh {
+        pub vertices_2d: Vec<[f64; 2]>,
+        pub faces: Vec<Face>,
+        pub source_mesh: Mesh,
+        pub metadata: serde_json::Value,
+        pub uv_coords: Option<Vec<[f64; 2]>>,
+    }
+
+    pub fn unfold_mds(mesh: &Mesh, _config: &UnfoldConfig) -> Result<UnfoldedMesh, String> {
+        // Простая заглушка: проецируем вершины на XY-плоскость.
+        let vertices_2d: Vec<[f64; 2]> = mesh
+            .vertices
+            .iter()
+            .map(|v| [v.position[0], v.position[1]])
+            .collect();
+
+        Ok(UnfoldedMesh {
+            vertices_2d,
+            faces: mesh.faces.clone(),
+            source_mesh: mesh.clone(),
+            metadata: serde_json::json!({ "algorithm": "mds" }),
+            uv_coords: None,
+        })
+    }
+}
+
+pub use unfold::UnfoldedMesh;
+
+pub fn unfold_lscm(mesh: &geometry::Mesh) -> Result<unfold::UnfoldedMesh, String> {
+    // Заглушка: используем тот же результат что и MDS, но с другим метаданным.
+    let mut result = unfold::unfold_mds(
+        mesh,
+        &unfold::UnfoldConfig {
+            algorithm: unfold::UnfoldAlgorithm::LSCM,
+            max_iterations: 100,
+            tolerance: 1e-6,
+            preserve_detail: true,
+        },
+    )?;
+    result.metadata = serde_json::json!({ "algorithm": "lscm" });
+    Ok(result)
+}
+
+pub mod export {
+    use super::geometry::Face;
+    use super::unfold::UnfoldedMesh;
+
+    #[derive(Clone, Copy)]
+    pub enum PageSize {
+        A4,
+        A3,
+        A2,
+        A1,
+    }
+
+    pub struct SvgExportConfig {
+        pub page_size: PageSize,
+        pub scale: f64,
+        pub show_vertex_ids: bool,
+        pub show_fold_lines: bool,
+        pub show_cut_lines: bool,
+        pub show_part_numbers: bool,
+    }
+
+    pub fn export_svg(unfolded: &UnfoldedMesh, _config: &SvgExportConfig) -> Result<String, String> {
+        // Очень простой SVG: выводим точки и треугольники.
+        let mut svg = String::new();
+        svg.push_str(r#"<svg xmlns="http://www.w3.org/2000/svg">"#);
+
+        for (i, v) in unfolded.vertices_2d.iter().enumerate() {
+            svg.push_str(&format!(
+                r#"<circle cx="{:.3}" cy="{:.3}" r="0.5" fill="black" data-id="{}" />"#,
+                v[0], v[1], i
+            ));
+        }
+
+        for f in &unfolded.faces {
+            let vs = &f.vertices;
+            svg.push_str(&format!(
+                r#"<polygon points="{:.3},{:.3} {:.3},{:.3} {:.3},{:.3}" fill="none" stroke="black" />"#,
+                unfolded.vertices_2d[vs[0]][0],
+                unfolded.vertices_2d[vs[0]][1],
+                unfolded.vertices_2d[vs[1]][0],
+                unfolded.vertices_2d[vs[1]][1],
+                unfolded.vertices_2d[vs[2]][0],
+                unfolded.vertices_2d[vs[2]][1],
+            ));
+        }
+
+        svg.push_str("</svg>");
+        Ok(svg)
+    }
+}
+
+pub mod nesting {
+    use super::project::PepaProject;
+
+    #[derive(Clone)]
+    pub struct PaperSettings {
+        pub width_mm: f32,
+        pub height_mm: f32,
+    }
+
+    impl PaperSettings {
+        pub fn from_format(format: &str) -> Self {
+            match format {
+                "A3" => Self {
+                    width_mm: 297.0,
+                    height_mm: 420.0,
+                },
+                "A2" => Self {
+                    width_mm: 420.0,
+                    height_mm: 594.0,
+                },
+                "A1" => Self {
+                    width_mm: 594.0,
+                    height_mm: 841.0,
+                },
+                _ => Self {
+                    width_mm: 210.0,
+                    height_mm: 297.0,
+                },
+            }
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct NestPart {
+        pub id: u32,
+        pub name: Option<String>,
+        pub unfolded_face_index: usize,
+        pub x_mm: f32,
+        pub y_mm: f32,
+        pub width_mm: f32,
+        pub height_mm: f32,
+        pub rotation: f32,
+    }
+
+    #[derive(Clone)]
+    pub struct NestParams {
+        pub paper: PaperSettings,
+        pub max_sheets: u32,
+        pub scale: f32,
+        pub rotation_step_deg: f32,
+    }
+
+    pub struct NestMetrics {
+        pub total_parts: usize,
+        pub avg_fill_rate: f32,
+        pub total_sheets_area: f32,
+        pub total_parts_area: f32,
+    }
+
+    pub struct NestResult {
+        pub sheets: Vec<Vec<NestPart>>,
+        pub metrics: NestMetrics,
+    }
+
+    pub fn nest_unfolds(_project: &PepaProject, params: &NestParams) -> NestResult {
+        // Простейшая заглушка: кладём все детали на один лист.
+        let sheets = vec![Vec::new()];
+        let metrics = NestMetrics {
+            total_parts: 0,
+            avg_fill_rate: 0.0,
+            total_sheets_area: params.paper.width_mm * params.paper.height_mm,
+            total_parts_area: 0.0,
+        };
+        NestResult { sheets, metrics }
+    }
+}
+
+pub mod project {
+    use super::PepaScene;
+
+    #[derive(Clone)]
+    pub struct PepaProject {
+        pub name: String,
+        pub scene: PepaScene,
+    }
+
+    impl PepaProject {
+        pub fn new(name: String, scene: PepaScene) -> Self {
+            Self { name, scene }
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct PepaScene {
+    // Здесь могут быть реальные поля сцены; пока оставим пустым.
+}
+
+impl PepaScene {
+    pub fn empty() -> Self {
+        PepaScene {}
+    }
+}

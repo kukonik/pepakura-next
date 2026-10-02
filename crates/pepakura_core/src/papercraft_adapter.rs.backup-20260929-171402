@@ -1,0 +1,102 @@
+use crate::Mesh;
+use crate::unwrap_types::{UnwrapResult, Piece, Polygon, Point2D, UnwrapMetrics, Page};
+use crate::paper::model::formats::Importer;
+use crate::paper::model::{Vertex, VertexIndex, MaterialIndex, Texture};
+use crate::paper::craft::{Papercraft, IslandKey};
+use cgmath::{Vector3, Vector2};
+
+/// Структура-адаптер, которая реализует трейт Importer для передачи нашего Mesh в движок papercraft
+struct PepakuraImporter<'a> {
+    mesh: &'a Mesh,
+}
+
+impl<'a> Importer for PepakuraImporter<'a> {
+    type VertexId = usize;
+
+    fn vertex_map(&self, i_v: VertexIndex) -> Self::VertexId {
+        usize::from(i_v)
+    }
+
+    fn build_vertices(&self) -> (bool, Vec<Vertex>) {
+        let vertices = self.mesh.vertices.iter().map(|v| Vertex {
+            pos: Vector3::new(v.x, v.y, v.z),
+            normal: Vector3::new(0.0, 0.0, 0.0), // Нормали пока не передаём
+            uv: Vector2::new(0.0, 0.0),
+        }).collect();
+        (false, vertices)
+    }
+
+    fn face_count(&self) -> usize {
+        self.mesh.faces.len()
+    }
+
+    fn faces(&self) -> impl Iterator<Item = (Vec<VertexIndex>, MaterialIndex)> + '_ {
+        self.mesh.faces.iter().map(|f| {
+            let verts: Vec<VertexIndex> = f.vertices.iter().map(|&i| VertexIndex::from(i)).collect();
+            (verts, MaterialIndex::default())
+        })
+    }
+
+    fn build_textures(&self) -> Vec<Texture> {
+        vec![]
+    }
+}
+
+pub fn unfold_with_papercraft(mesh: &Mesh) -> Result<UnwrapResult, String> {
+    if mesh.faces.is_empty() {
+        return Err("Mesh is empty".to_string());
+    }
+
+    // 1. Создаём импортер и передаём его в движок
+    let mut importer = PepakuraImporter { mesh };
+    let mut papercraft = crate::paper::craft::file::import(&mut importer);
+
+    // 2. Склеиваем рёбра (auto-join) и упаковываем островки (pack)
+    // Получаем ключи всех островков
+    let island_keys: Vec<IslandKey> = papercraft.islands().map(|(k, _)| k).collect();
+    for key in island_keys {
+        papercraft.auto_join_edges(key);
+    }
+    papercraft.pack_islands();
+
+    // 3. Извлекаем 2D-островки (пока в упрощённом виде, чтобы проверить работоспособность)
+    let mut pieces = Vec::new();
+    for (key, island) in papercraft.islands() {
+        let bbox = papercraft.island_best_bounding_box(island);
+        let (min, max) = bbox.1;
+        
+        // Упрощённый контур (Bounding Box) просто для отрисовки
+        let points = vec![
+            Point2D { x: min.x, y: min.y },
+            Point2D { x: max.x, y: min.y },
+            Point2D { x: max.x, y: max.y },
+            Point2D { x: min.x, y: max.y },
+        ];
+
+        pieces.push(Piece {
+            id: key.data() as u32,
+            name: format!("Island_{}", key.data()),
+            label: None,
+            outline: Polygon { points, holes: vec![] },
+            folds: vec![],
+            tabs: vec![],
+            area: 0.0,
+            perimeter: 0.0,
+            page_number: 0,
+        });
+    }
+
+    Ok(UnwrapResult {
+        engine_used: "papercraft_native_engine".to_string(),
+        vertices_2d: vec![], // Движок хранит вершины внутри себя
+        faces: vec![],
+        total_area: 0.0,
+        total_perimeter: 0.0,
+        pieces,
+        pages: vec![Page { page_number: 0, piece_ids: vec![], utilization_percent: 0.0 }],
+        metrics: UnwrapMetrics { total_pieces: pieces.len() as u32, total_pages: 1, total_folds: 0, total_tabs: 0, complexity_score: 0.0 },
+        sheet_width: 1000.0,
+        sheet_height: 1000.0,
+        margin: 10.0,
+    })
+}

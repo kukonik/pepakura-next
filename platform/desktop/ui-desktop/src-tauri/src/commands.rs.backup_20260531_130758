@@ -1,0 +1,205 @@
+use serde::{Deserialize, Serialize};
+use tauri::command;
+use std::collections::HashMap;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnfoldConfig {
+    pub algorithm: Option<String>,
+}
+
+#[derive(Serialize)]
+struct FaceDto { vertices: Vec<usize> }
+
+#[derive(Serialize)]
+struct UnfoldResponse {
+    success: bool,
+    algorithm_used: String,
+    message: String,
+    vertex_count: usize,
+    face_count: usize,
+    islands: usize,
+    total_area: f64,
+    vertices_2d: Vec<[f64; 2]>,
+    faces: Vec<FaceDto>,
+    island_ids: Vec<usize>,
+}
+
+fn sanitize_obj(text: &str) -> String {
+    text.lines()
+        .map(|line| {
+            if line.starts_with("V ") { format!("v{}", &line[1..]) }
+            else if line.starts_with("F ") { format!("f{}", &line[1..]) }
+            else { line.to_string() }
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+struct UnionFind { parent: Vec<usize> }
+
+impl UnionFind {
+    fn new(size: usize) -> Self { UnionFind { parent: (0..size).collect() } }
+    fn find(&mut self, i: usize) -> usize {
+        if self.parent[i] == i { i }
+        else { self.parent[i] = self.find(self.parent[i]); self.parent[i] }
+    }
+    fn union(&mut self, i: usize, j: usize) {
+        let root_i = self.find(i); let root_j = self.find(j);
+        if root_i != root_j { self.parent[root_i] = root_j; }
+    }
+}
+
+fn calculate_metrics(vertices_2d: &Vec<[f64; 2]>, faces: &Vec<FaceDto>) -> (usize, f64, Vec<usize>) {
+    let n_verts = vertices_2d.len();
+    let mut uf = UnionFind::new(n_verts);
+    let mut total_area = 0.0;
+
+    for face in faces {
+        if face.vertices.len() >= 2 {
+            for i in 1..face.vertices.len() { uf.union(face.vertices[i-1], face.vertices[i]); }
+        }
+        if face.vertices.len() == 3 {
+            let v0 = vertices_2d[face.vertices[0]];
+            let v1 = vertices_2d[face.vertices[1]];
+            let v2 = vertices_2d[face.vertices[2]];
+            total_area += ((v1[0] - v0[0]) * (v2[1] - v0[1]) - (v1[1] - v0[1]) * (v2[0] - v0[0])).abs() * 0.5;
+        }
+    }
+
+    let mut island_ids = vec![0; n_verts];
+    let mut root_map = HashMap::new();
+    let mut next_id = 0;
+    for i in 0..n_verts {
+        let root = uf.find(i);
+        let id = *root_map.entry(root).or_insert_with(|| { let id = next_id; next_id += 1; id });
+        island_ids[i] = id;
+    }
+    (next_id, total_area, island_ids)
+}
+
+#[command]
+pub async fn unfold_mesh(obj_data: String, _config: Option<UnfoldConfig>) -> Result<String, String> {
+    println!("[unfold] Получен OBJ размером {} байт", obj_data.len());
+
+    let handle = tokio::task::spawn_blocking(move || {
+        let sanitized = sanitize_obj(&obj_data);
+        let mesh = pepakura_core::import::parse_obj_str(&sanitized)
+            .map_err(|e| format!("Ошибка парсинга OBJ: {:?}", e))?;
+
+        println!("[unfold] Меш распарсен: {} вершин, {} граней", mesh.vertices.len(), mesh.faces.len());
+
+        let start_time = std::time::Instant::now();
+        
+        let angle_threshold = 30.0; 
+        let islands_faces = pepakura_core::unfold::seam_cut::cut_by_sharp_edges(&mesh, angle_threshold);
+        println!("[unfold] Smart Cut: найдено {} островов", islands_faces.len());
+
+        let mut all_vertices_2d = vec![[0.0, 0.0]; mesh.vertices.len()];
+        
+        // 2D Раскладка (Grid Packing)
+        let mut current_x = 0.0;
+        let mut current_y = 0.0;
+        let mut row_max_height = 0.0;
+        let padding = 20.0;
+        let max_row_width = 1000.0; // Максимальная ширина "листа", потом перенос на новую строку
+
+        for (island_idx, face_indices) in islands_faces.iter().enumerate() {
+            if face_indices.is_empty() { continue; }
+
+            let mut sub_vertices = Vec::new();
+            let mut inv_vertex_map = Vec::new(); 
+            let mut vertex_map = HashMap::new(); 
+            let mut sub_faces = Vec::new();
+
+            for &fi in face_indices {
+                let orig_face = &mesh.faces[fi];
+                let mut new_face = pepakura_core::geometry::Face { vertices: [0, 0, 0], material_id: orig_face.material_id.clone() };
+                for i in 0..3 {
+                    let orig_vi = orig_face.vertices[i];
+                    let sub_vi = *vertex_map.entry(orig_vi).or_insert_with(|| {
+                        let idx = sub_vertices.len();
+                        sub_vertices.push(mesh.vertices[orig_vi].clone());
+                        inv_vertex_map.push(orig_vi);
+                        idx
+                    });
+                    new_face.vertices[i] = sub_vi;
+                }
+                sub_faces.push(new_face);
+            }
+
+            let sub_mesh = pepakura_core::geometry::Mesh {
+                vertices: sub_vertices,
+                faces: sub_faces,
+                name: format!("island_{}", island_idx),
+                metadata: Default::default(),
+            };
+
+            // Используем ТОЛЬКО LSCM для точной развёртки
+            let unfolded_island = match pepakura_core::unfold_lscm(&sub_mesh) {
+                Ok(u) => u,
+                Err(e) => {
+                    println!("[unfold] LSCM не смог развернуть остров {}. Пропуск. Ошибка: {:?}", island_idx, e);
+                    continue; // Пропускаем кривые острова вместо того чтобы делать из них полосы
+                }
+            };
+
+            // Вычисляем Bounding Box острова
+            let mut min_x = f64::MAX; let mut max_x = f64::MIN;
+            let mut min_y = f64::MAX; let mut max_y = f64::MIN;
+            for v in &unfolded_island.vertices_2d {
+                if v[0] < min_x { min_x = v[0]; }
+                if v[0] > max_x { max_x = v[0]; }
+                if v[1] < min_y { min_y = v[1]; }
+                if v[1] > max_y { max_y = v[1]; }
+            }
+            let w = max_x - min_x;
+            let h = max_y - min_y;
+
+            // Перенос на новую строку, если не влезает по ширине
+            if current_x + w > max_row_width && current_x > 0.0 {
+                current_x = 0.0;
+                current_y += row_max_height + padding;
+                row_max_height = 0.0;
+            }
+
+            let shift_x = current_x - min_x + padding;
+            let shift_y = current_y - min_y + padding;
+
+            for (sub_vi, &v2d) in unfolded_island.vertices_2d.iter().enumerate() {
+                let orig_vi = inv_vertex_map[sub_vi];
+                all_vertices_2d[orig_vi] = [v2d[0] + shift_x, v2d[1] + shift_y];
+            }
+            
+            current_x += w + padding;
+            if h > row_max_height { row_max_height = h; }
+        }
+
+        let elapsed = start_time.elapsed().as_secs_f64() * 1000.0;
+        let algorithm_used = format!("Smart Cut + LSCM/Grid ({:.0}ms)", elapsed);
+        
+        let faces_dto: Vec<FaceDto> = mesh.faces.iter().map(|f| FaceDto { vertices: f.vertices.to_vec() }).collect();
+        let (islands, total_area, island_ids) = calculate_metrics(&all_vertices_2d, &faces_dto);
+
+        let response = UnfoldResponse {
+            success: true,
+            algorithm_used,
+            message: format!("Профессиональная развёртка выполнена. Островов: {}", islands),
+            vertex_count: mesh.vertices.len(),
+            face_count: mesh.faces.len(),
+            islands,
+            total_area: if total_area.is_finite() { total_area.round() } else { 0.0 },
+            vertices_2d: all_vertices_2d,
+            faces: faces_dto,
+            island_ids,
+        };
+
+        Ok::<String, String>(serde_json::to_string(&response).map_err(|e| format!("Сериализация: {}", e))?)
+    });
+
+    match handle.await {
+        Ok(Ok(res)) => Ok(res),
+        Ok(Err(e)) => Err(format!("Ошибка вычислений: {}", e)),
+        Err(e) => Err(format!("Поток выполнения упал: {}", e)),
+    }
+}

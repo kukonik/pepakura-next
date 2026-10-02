@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pepakura WASM Test</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2em;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 2em;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .section {
+            margin: 2em 0;
+            padding: 1em;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 0.75em 1.5em;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-right: 1em;
+        }
+        button:hover {
+            background: #005a9e;
+        }
+        pre {
+            background: #f8f8f8;
+            padding: 1em;
+            border-radius: 4px;
+            overflow: auto;
+            max-height: 300px;
+        }
+        .error {
+            color: #d00;
+        }
+        .success {
+            color: #090;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2em;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Pepakura WASM Test</h1>
+        <p>Testing WebAssembly bindings for Pepakura Next core.</p>
+
+        <div class="grid">
+            <div class="section">
+                <h2>1. Load WASM</h2>
+                <p>First, load the WebAssembly module.</p>
+                <button id="loadWasm">Load Module</button>
+                <div id="loadStatus">Not loaded</div>
+            </div>
+
+            <div class="section">
+                <h2>2. Test Functions</h2>
+                <p>Test basic arithmetic (test_add).</p>
+                <button id="testAdd">Test Add</button>
+                <div id="addResult"></div>
+            </div>
+
+            <div class="section">
+                <h2>3. Unfold MDS</h2>
+                <p>Unfold a simple cube mesh using MDS.</p>
+                <button id="unfoldMds">Unfold Cube</button>
+                <div id="unfoldResult"></div>
+            </div>
+
+            <div class="section">
+                <h2>4. Unfold LSCM</h2>
+                <p>Unfold the same cube using LSCM.</p>
+                <button id="unfoldLscm">Unfold LSCM</button>
+                <div id="unfoldLscmResult"></div>
+            </div>
+
+            <div class="section">
+                <h2>5. Export SVG</h2>
+                <p>Export unfolded mesh to SVG.</p>
+                <button id="exportSvg">Export SVG</button>
+                <div id="svgResult"></div>
+            </div>
+
+            <div class="section">
+                <h2>6. Parse PDO</h2>
+                <p>Parse a sample PDO file (requires file).</p>
+                <input type="file" id="pdoFile" accept=".pdo">
+                <button id="parsePdo">Parse PDO</button>
+                <div id="pdoResult"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Log</h2>
+            <pre id="log"></pre>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { test_add, unfold_mds_wasm, unfold_lscm_wasm, export_svg_wasm, parse_pdo_wasm, version } from './pkg/pepakura_wasm.js';
+
+        const log = document.getElementById('log');
+        function appendLog(msg, className = '') {
+            const line = document.createElement('div');
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            if (className) line.className = className;
+            log.appendChild(line);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        let wasmModule = null;
+
+        document.getElementById('loadWasm').addEventListener('click', async () => {
+            try {
+                appendLog('Loading WASM module...');
+                wasmModule = await init();
+                appendLog(`WASM loaded. Version: ${version()}`, 'success');
+                document.getElementById('loadStatus').innerHTML = '<span class="success">Loaded successfully</span>';
+            } catch (e) {
+                appendLog(`Failed to load WASM: ${e}`, 'error');
+                document.getElementById('loadStatus').innerHTML = `<span class="error">${e}</span>`;
+            }
+        });
+
+        document.getElementById('testAdd').addEventListener('click', () => {
+            if (!wasmModule) {
+                appendLog('WASM not loaded', 'error');
+                return;
+            }
+            const result = test_add(5, 7);
+            appendLog(`test_add(5, 7) = ${result}`);
+            document.getElementById('addResult').textContent = `Result: ${result}`;
+        });
+
+        // Simple cube mesh
+        const cubeMesh = {
+            vertices: [
+                [0,0,0], [1,0,0], [1,1,0], [0,1,0],
+                [0,0,1], [1,0,1], [1,1,1], [0,1,1]
+            ],
+            faces: [
+                [0,1,2], [0,2,3], // bottom
+                [4,5,6], [4,6,7], // top
+                [0,1,5], [0,5,4], // front
+                [1,2,6], [1,6,5], // right
+                [2,3,7], [2,7,6], // back
+                [3,0,4], [3,4,7]  // left
+            ],
+            name: "Cube"
+        };
+
+        document.getElementById('unfoldMds').addEventListener('click', async () => {
+            if (!wasmModule) {
+                appendLog('WASM not loaded', 'error');
+                return;
+            }
+            try {
+                appendLog('Unfolding cube with MDS...');
+                const result = await unfold_mds_wasm(cubeMesh, 100, 1e-6);
+                appendLog(`MDS unfolded, vertices: ${result.vertices_2d.length}`, 'success');
+                document.getElementById('unfoldResult').innerHTML = `
+                    <span class="success">Success!</span>
+                    <br>Vertices: ${result.vertices_2d.length}
+                    <br>Algorithm: ${result.algorithm}
+                `;
+            } catch (e) {
+                appendLog(`MDS error: ${e}`, 'error');
+                document.getElementById('unfoldResult').innerHTML = `<span class="error">${e}</span>`;
+            }
+        });
+
+        document.getElementById('unfoldLscm').addEventListener('click', async () => {
+            if (!wasmModule) {
+                appendLog('WASM not loaded', 'error');
+                return;
+            }
+            try {
+                appendLog('Unfolding cube with LSCM...');
+                const result = await unfold_lscm_wasm(cubeMesh);
+                appendLog(`LSCM unfolded, vertices: ${result.vertices_2d.length}`, 'success');
+                document.getElementById('unfoldLscmResult').innerHTML = `
+                    <span class="success">Success!</span>
+                    <br>Vertices: ${result.vertices_2d.length}
+                    <br>Algorithm: ${result.algorithm}
+                `;
+            } catch (e) {
+                appendLog(`LSCM error: ${e}`, 'error');
+                document.getElementById('unfoldLscmResult').innerHTML = `<span class="error">${e}</span>`;
+            }
+        });
+
+        document.getElementById('exportSvg').addEventListener('click', async () => {
+            if (!wasmModule) {
+                appendLog('WASM not loaded', 'error');
+                return;
+            }
+            try {
+                appendLog('Exporting SVG...');
+                // First unfold with MDS
+                const unfolded = await unfold_mds_wasm(cubeMesh, 100, 1e-6);
+                const svg = export_svg_wasm(unfolded, {});
+                appendLog('SVG generated', 'success');
+                document.getElementById('svgResult').innerHTML = `
+                    <span class="success">SVG length: ${svg.length} chars</span>
+                    <pre>${svg.substring(0, 200)}...</pre>
+                `;
+            } catch (e) {
+                appendLog(`SVG export error: ${e}`, 'error');
+                document.getElementById('svgResult').innerHTML = `<span class="error">${e}</span>`;
+            }
+        });
+
+        document.getElementById('parsePdo').addEventListener('click', async () => {
+            if (!wasmModule) {
+                appendLog('WASM not loaded', 'error');
+                return;
+            }
+            const fileInput = document.getElementById('pdoFile');
+            if (!fileInput.files.length) {
+                appendLog('No file selected', 'error');
+                return;
+            }
+            const file = fileInput.files[0];
+            appendLog(`Parsing PDO: ${file.name} (${file.size} bytes)`);
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const buffer = e.target.result;
+                const bytes = new Uint8Array(buffer);
+                try {
+                    const result = parse_pdo_wasm(bytes);
+                    appendLog(`PDO parse success: ${result.success}`, 'success');
+                    document.getElementById('pdoResult').innerHTML = `
+                        <span class="success">Success: ${result.success}</span>
+                        <br>Error: ${result.error || 'none'}
+                        <br>Scene: ${result.scene ? 'present' : 'none'}
+                    `;
+                } catch (e) {
+                    appendLog(`PDO parse error: ${e}`, 'error');
+                    document.getElementById('pdoResult').innerHTML = `<span class="error">${e}</span>`;
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    </script>
+</body>
+</html>

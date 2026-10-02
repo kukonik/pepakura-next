@@ -1,0 +1,160 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Checking zerofrom v0.1.7
+   Compiling displaydoc v0.2.5
+    Checking yoke v0.8.2
+    Checking zerovec v0.11.6
+   Compiling zerocopy-derive v0.8.48
+    Checking zerocopy v0.8.48
+    Checking mio v1.2.0
+    Checking socket2 v0.6.3
+   Compiling tokio-macros v2.7.0
+    Checking tokio v1.52.1
+    Checking tinystr v0.8.3
+   Compiling serde_core v1.0.228
+    Checking icu_locale_core v2.2.0
+    Checking zerotrie v0.2.4
+    Checking potential_utf v0.1.5
+   Compiling futures-macro v0.3.32
+    Checking icu_collections v2.2.0
+    Checking futures-util v0.3.32
+    Checking icu_provider v2.2.0
+   Compiling serde v1.0.228
+   Compiling serde_derive v1.0.228
+    Checking icu_normalizer v2.2.0
+    Checking icu_properties v2.2.0
+    Checking tokio-util v0.7.18
+    Checking schannel v0.1.29
+   Compiling serde_json v1.0.149
+    Checking either v1.15.0
+    Checking rayon v1.12.0
+    Checking h2 v0.3.27
+    Checking native-tls v0.2.18
+    Checking idna_adapter v1.2.1
+    Checking ahash v0.8.12
+   Compiling thiserror-impl v1.0.69
+    Checking hyper v0.14.32
+    Checking hashbrown v0.14.5
+    Checking thiserror v1.0.69
+    Checking jpeg-decoder v0.3.2
+    Checking idna v1.1.0
+    Checking tokio-native-tls v0.3.1
+    Checking ppv-lite86 v0.2.21
+    Checking half v2.7.1
+    Checking num-integer v0.1.46
+    Checking bitflags v2.11.1
+    Checking exr v1.74.0
+    Checking num-rational v0.4.2
+    Checking serde_urlencoded v0.7.1
+    Checking rand_chacha v0.3.1
+    Checking hyper-tls v0.5.0
+    Checking url v2.5.8
+    Checking tiff v0.9.1
+    Checking hashlink v0.9.1
+    Checking futures-executor v0.3.32
+   Compiling nalgebra-macros v0.2.2
+    Checking reqwest v0.11.27
+    Checking nalgebra v0.32.6
+    Checking rusqlite v0.31.0
+    Checking image v0.24.9
+    Checking futures v0.3.32
+    Checking meshopt v0.2.1
+    Checking pepakura_platform v0.1.0 (D:\Dev\pepakura-next\crates\pepakura_platform)
+    Checking rand v0.8.6
+    Checking uuid v0.8.2
+    Checking chrono v0.4.44
+    Checking tokio-stream v0.1.18
+    Checking pepakura_core v0.1.0 (D:\Dev\pepakura-next\crates\pepakura_core)
+error[E0432]: unresolved import `crate::ai::prompts`
+   --> crates\pepakura_core\src\analysis\mesh_stats.rs:386:24
+    |
+386 |         use crate::ai::prompts::MeshStatsPrompt;
+    |                        ^^^^^^^ could not find `prompts` in `ai`
+    |
+note: found an item that was configured out
+   --> crates\pepakura_core\src\ai\mod.rs:32:9
+    |
+ 31 | #[cfg(feature = "llm")]
+    |       --------------- the item is gated behind the `llm` feature
+ 32 | pub mod prompts;
+    |         ^^^^^^^
+
+error[E0432]: unresolved import `crate::ai::prompts`
+  --> crates\pepakura_core\src\analysis\mesh_analyzer.rs:35:16
+   |
+35 | use crate::ai::prompts::{
+   |                ^^^^^^^ could not find `prompts` in `ai`
+   |
+note: found an item that was configured out
+  --> crates\pepakura_core\src\ai\mod.rs:32:9
+   |
+31 | #[cfg(feature = "llm")]
+   |       --------------- the item is gated behind the `llm` feature
+32 | pub mod prompts;
+   |         ^^^^^^^
+
+warning: unused import: `SanitizeOptions`
+ --> crates\pepakura_core\src\plugins\builtin.rs:9:38
+  |
+9 | use crate::sanitize::{sanitize_mesh, SanitizeOptions};
+  |                                      ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Vertex`
+ --> crates\pepakura_core\src\sanitize\mod.rs:4:29
+  |
+4 | use crate::geometry::{Mesh, Vertex, Face};
+  |                             ^^^^^^
+
+error[E0061]: this function takes 6 arguments but 5 arguments were supplied
+  --> crates\pepakura_core\src\sanitize\mod.rs:58:29
+   |
+58 |       let optimized_indices = meshopt::simplify(
+   |  _____________________________^^^^^^^^^^^^^^^^^-
+59 | |         &indices,
+60 | |         &vertices_flat,
+61 | |         mesh.vertices.len(),
+62 | |         opts.target_face_count,
+   | |         ---------------------- unexpected argument #4 of type `usize`
+63 | |         opts.error_threshold,
+64 | |     );
+   | |_____- two arguments of type `SimplifyOptions` and `std::option::Option<&mut f32>` are missing
+   |
+note: expected `&VertexDataAdapter<'_>`, found `&Vec<f32>`
+  --> crates\pepakura_core\src\sanitize\mod.rs:60:9
+   |
+60 |         &vertices_flat,
+   |         ^^^^^^^^^^^^^^
+   = note: expected reference `&VertexDataAdapter<'_>`
+              found reference `&Vec<f32>`
+note: function defined here
+  --> D:\Dev\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\meshopt-0.2.1\src\simplify.rs:24:8
+   |
+24 | pub fn simplify(
+   |        ^^^^^^^^
+help: did you mean
+   |
+58 ~     let optimized_indices = meshopt::simplify(
+59 +         &indices,
+60 +         /* &VertexDataAdapter<'_> */,
+61 +         mesh.vertices.len(),
+62 +         opts.error_threshold,
+63 +         /* SimplifyOptions */,
+64 +         /* std::option::Option<&mut f32> */,
+65 ~     );
+   |
+
+warning: unused variable: `url`
+   --> crates\pepakura_core\src\analysis\mesh_analyzer.rs:101:25
+    |
+101 |     pub fn with_backend(url: &str) -> Self {
+    |                         ^^^ help: if this is intentional, prefix it with an underscore: `_url`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0061, E0432.
+For more information about an error, try `rustc --explain E0061`.
+warning: `pepakura_core` (lib) generated 3 warnings
+error: could not compile `pepakura_core` (lib) due to 3 previous errors; 3 warnings emitted

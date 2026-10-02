@@ -1,0 +1,147 @@
+use printpdf::*;
+use std::fs::File;
+use std::io::BufWriter;
+use std::collections::HashMap;
+
+#[tauri::command]
+pub fn export_pdf(
+    vertices: Vec<Vec<f64>>,
+    faces: Vec<Vec<usize>>,
+    island_ids: Vec<usize>,
+    path: String,
+) -> Result<(), String> {
+    use printpdf::{Mm, Pt, PdfDocument, PdfLayerIndex, PdfLayerReference, PdfPageReference, PdfDocumentReference, Line, LineDashPattern, LineCapStyle, LineJoinStyle, Color};
+    use std::fs::File;
+    use std::io::BufWriter;
+
+    // vertices: [[x, y]], faces: [[i0, i1, i2]]
+    // 1. Проверка входных данных
+    if vertices.is_empty() || faces.is_empty() {
+        return Err("No data to export".into());
+    }
+
+    // 2. Вычисляем общий BBOX по всем вершинам
+    let mut min_x = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
+
+    for v in &vertices {
+        if v.len() < 2 {
+            continue;
+        }
+        let x = v[0];
+        let y = v[1];
+        if x < min_x { min_x = x; }
+        if x > max_x { max_x = x; }
+        if y < min_y { min_y = y; }
+        if y > max_y { max_y = y; }
+    }
+
+    if !min_x.is_finite() || !max_x.is_finite() || !min_y.is_finite() || !max_y.is_finite() {
+        return Err("Invalid vertex coordinates".into());
+    }
+
+    let width_model = max_x - min_x;
+    let height_model = max_y - min_y;
+    if width_model <= 0.0 || height_model <= 0.0 {
+        return Err("Degenerate bounding box".into());
+    }
+
+    // 3. Параметры страницы A4 + поля
+    // Работаем в миллиметрах, потом конвертируем в Mm (printpdf сам переводит в pt) [web:1]
+    let page_width_mm = 210.0;
+    let page_height_mm = 297.0;
+    let margin_mm = 10.0;
+
+    let printable_width_mm = page_width_mm - 2.0 * margin_mm;
+    let printable_height_mm = page_height_mm - 2.0 * margin_mm;
+
+    if printable_width_mm <= 0.0 || printable_height_mm <= 0.0 {
+        return Err("Invalid page margins".into());
+    }
+
+    // 4. Выбор масштаба: максимально возможный, сохраняющий пропорции, чтобы всё влезло в printable area
+    let scale_x = printable_width_mm / width_model;
+    let scale_y = printable_height_mm / height_model;
+    let scale = scale_x.min(scale_y);
+
+    // 5. Создание документа и страницы
+    let (doc, page1, layer1) = PdfDocument::new("Pepakura Next Export", Mm(page_width_mm), Mm(page_height_mm), "Layer 1");
+    let current_layer = doc.get_page(page1).get_layer(layer1);
+
+    // 6. Функция для преобразования координат модели -> координаты страницы (в Mm)
+    let transform_point = |vx: f64, vy: f64| -> (Mm, Mm) {
+        // Нормализуем относительно BBOX и масштабируем
+        let nx = (vx - min_x) * scale + margin_mm;
+        let ny = (vy - min_y) * scale + margin_mm;
+
+        // Внутри printpdf (0,0) в левом нижнем углу,
+        // наши y растут вверх, поэтому не переворачиваем.
+        (Mm(nx), Mm(ny))
+    };
+
+    // 7. Настройка стиля линии
+    let line_color = Color::Rgb(printpdf::Rgb::new(0.0, 0.0, 0.0, None));
+    let line_width = 0.25; // мм — тонкая, но печатабельная линия
+
+    // 8. Рисуем треугольники
+    for face in &faces {
+        if face.len() < 3 {
+            continue;
+        }
+        let i0 = face[0];
+        let i1 = face[1];
+        let i2 = face[2];
+
+        // Безопасный доступ, Face.vertices в ядре [usize; 3], но сюда пришли уже Vec<Vec<usize>>
+        let v0 = match vertices.get(i0) {
+            Some(v) if v.len() >= 2 => v,
+            _ => continue,
+        };
+        let v1 = match vertices.get(i1) {
+            Some(v) if v.len() >= 2 => v,
+            _ => continue,
+        };
+        let v2 = match vertices.get(i2) {
+            Some(v) if v.len() >= 2 => v,
+            _ => continue,
+        };
+
+        let (x0, y0) = transform_point(v0[0], v0[1]);
+        let (x1, y1) = transform_point(v1[0], v1[1]);
+        let (x2, y2) = transform_point(v2[0], v2[1]);
+
+        // Три сегмента: (0->1), (1->2), (2->0)
+        let points = vec![
+            (x0, y0),
+            (x1, y1),
+            (x2, y2),
+            (x0, y0),
+        ];
+
+        let line = Line {
+            points: points.iter().map(|(x, y)| (*x, *y)).collect(),
+            is_closed: true,
+            has_fill: false,
+            has_stroke: true,
+            is_clipping_path: false,
+            dash_pattern: LineDashPattern::default(),
+            line_cap: LineCapStyle::Butt,
+            line_join: LineJoinStyle::Miter,
+            is_transparency_group: false,
+        };
+
+        current_layer.set_outline_color(line_color.clone());
+        current_layer.set_outline_thickness(line_width);
+        current_layer.add_line(line);
+    }
+
+    // 9. Сохранение документа
+    let mut output = BufWriter::new(File::create(&path)?);
+    doc.save(&mut output)?;
+
+    Ok(())
+}
+
+

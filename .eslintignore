@@ -1,0 +1,6 @@
+node_modules
+dist
+src-tauri
+*.config.*
+*.d.ts
+env.d.ts

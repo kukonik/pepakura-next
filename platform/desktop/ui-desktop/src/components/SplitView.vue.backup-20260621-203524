@@ -1,0 +1,535 @@
+<template>
+  <div style="display: flex; height: 100vh; background: #ffffff; color: #ccc; font-family: sans-serif;">
+    <div style="flex: 1; border-right: 1px solid #333;">
+      <ModelViewer3D :meshData="objData" :mtlData="mtlData" :textureMap="textureMap" />
+    </div>
+
+    <div style="flex: 1; border-right: 1px solid #333; display: flex; flex-direction: column; background: #ffffff;">
+      <div style="padding: 10px; border-bottom: 1px solid #333; display: flex; gap: 10px; align-items: center;">
+        <span style="font-size: 14px; font-weight: bold;">2D Развёртка</span>
+        <label style="font-size: 12px; display: flex; align-items: center; gap: 4px;">
+          <input type="checkbox" v-model="showWireframe2D" @change="draw2D"> Сетка
+        </label>
+        <label style="font-size: 12px; display: flex; align-items: center; gap: 4px;">
+          <input type="checkbox" v-model="showIslands2D" @change="draw2D"> Острова
+        </label>
+      </div>
+      <div style="flex: 1; position: relative;">
+        <canvas ref="canvas2D" style="width: 100%; height: 100%;"></canvas>
+      </div>
+    </div>
+
+    <div style="width: 300px; display: flex; flex-direction: column; padding: 20px; background: #252526;">
+      <button @click="handleLoadObj" style="padding: 10px; margin-bottom: 10px; cursor: pointer; background: #0e639c; color: white; border: none; width: 100%;">
+        Загрузить .obj файл
+      </button>
+      <button
+        @click="doUnfold"
+        :disabled="!objData || isUnfolding"
+        style="padding: 10px; margin-bottom: 10px; cursor: pointer; background: #333; color: white; border: 1px solid #555; width: 100%;"
+      >
+        {{ isUnfolding ? 'Обработка...' : 'Развернуть (MST-Seam)' }}
+      </button>
+      <button
+        @click="callOrchestrator"
+        :disabled="!objData || isAiThinking"
+        style="padding: 10px; margin-bottom: 20px; cursor: pointer; background: #5a1e1e; color: white; border: 1px solid #771e1e; width: 100%;"
+      >
+        {{ isAiThinking ? 'AI думает...' : '🤖 AI Анализ геометрии' }}
+      </button>
+      <button
+        @click="handleExport"
+        style="z-index: 9999; pointer-events: auto; padding: 10px; margin-bottom: 20px; cursor: pointer; background: #0e639c; color: white; border: none; width: 100%;"
+      >
+        📄 Экспорт PDF
+      </button>
+
+      <div style="flex: 1; overflow: auto; background: #ffffff; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">
+        <div v-if="rustError" style="color: #f48771; margin-bottom: 10px; white-space: pre-wrap;">Rust Ошибка: {{ rustError }}</div>
+        <div v-if="rustResult" style="color: #9cdcfe; margin-bottom: 10px; white-space: pre-wrap;">{{ rustResult }}</div>
+        <div v-if="aiError" style="color: #f48771; margin-bottom: 10px; white-space: pre-wrap;">AI Ошибка: {{ aiError }}</div>
+        <div v-if="aiResult" style="color: #b5cea8; margin-bottom: 10px; white-space: pre-wrap;">🤖 AI Ответ:\n{{ aiResult }}</div>
+        <div v-if="!objData" style="color: #666;">Файл не загружен</div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, nextTick } from 'vue';
+import { invoke } from '@tauri-apps/api/core';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { readTextFile, readFile } from '@tauri-apps/plugin-fs';
+import ModelViewer3D from './ModelViewer3D.vue';
+import { applyCam, autoFitCam } from '../cam.js';
+import { calcEdgeCounts, drawSeams } from '../seams.js';
+
+function arrayBufferToBase64(buffer: ArrayBuffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+// состояние
+const objData = ref<string>('');
+const rustResult = ref<string>('');
+const rustError = ref<string>('');
+const aiResult = ref<string>('');
+const aiError = ref<string>('');
+const isUnfolding = ref(false);
+const isAiThinking = ref(false);
+
+const canvas2D = ref<HTMLCanvasElement | null>(null);
+const mtlData = ref<string | null>(null);
+const textureMap = ref<Record<string, string>>({});
+const showWireframe2D = ref(true);
+const showIslands2D = ref(false);
+
+// данные развёртки
+let vertices2D: number[][] = [];
+let faces2D: number[][] = [];
+let islandIds: number[] = [];
+let degenerateIslands: number[] = [];
+let userZoom = 1.0;
+
+let lastMetrics = {
+  vertex_count: 0,
+  face_count: 0,
+  islands: 0,
+  total_area: 0
+};
+
+// загрузка OBJ/MTL (как у тебя)
+const handleLoadObj = async () => {
+  rustError.value = '';
+  rustResult.value = '';
+  aiError.value = '';
+  aiResult.value = '';
+
+  try {
+    const filePath = await open({
+      multiple: false,
+      filters: [{ name: '3D Models', extensions: ['obj'] }]
+    });
+    if (!filePath) return;
+
+    const text = await readTextFile(filePath as string);
+    objData.value = text;
+
+    const mtlMatch = text.match(/mtllib\s+(.+)/);
+    if (mtlMatch) {
+      const objDir = (filePath as string).substring(
+        0,
+        Math.max(
+          (filePath as string).lastIndexOf('\\'),
+          (filePath as string).lastIndexOf('/')
+        ) + 1
+      );
+      const mtlPath = objDir + mtlMatch[1].trim();
+      try {
+        const mtlText = await readTextFile(mtlPath);
+        const lines = mtlText.split(/\r?\n/);
+        let currentMtl: string | null = null;
+        const texCache: Record<string, string> = {};
+
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line || line.startsWith('#')) continue;
+
+          const newMtlMatch = line.match(/^newmtl\s+(.+)/i);
+          if (newMtlMatch) {
+            currentMtl = newMtlMatch[1].trim();
+            continue;
+          }
+          const mapMatch = line.match(/^map_Kd\s+(.+)/i);
+          if (mapMatch && currentMtl) {
+            const texName = mapMatch[1].trim();
+            if (!texCache[texName]) {
+              const texPath = objDir + texName;
+              const texBytes = await readFile(texPath);
+              texCache[texName] = 'data:image/png;base64,' + arrayBufferToBase64(texBytes);
+            }
+            textureMap.value[currentMtl] = texCache[texName];
+          }
+        }
+        mtlData.value = mtlText;
+      } catch (e) {
+        console.error('Ошибка загрузки MTL/текстур:', e);
+      }
+    }
+
+    rustResult.value = 'Файл загружен. Длина: ' + text.length + ' символов';
+  } catch (e: any) {
+    rustError.value = 'Ошибка загрузки: ' + e.toString();
+  }
+};
+
+// развёртка через Rust
+const doUnfold = async () => {
+  console.log('doUnfold called');
+
+  if (!objData.value) return;
+  isUnfolding.value = true;
+  rustError.value = '';
+  rustResult.value = '';
+  aiError.value = '';
+  aiResult.value = '';
+
+  try {
+    rustResult.value = 'Выполняю MST-Seam развёртку...\n';
+
+    const resultStr = await invoke<string>('unfold_mesh', {
+      objData: objData.value,
+      config: { algorithm: 'smart' }
+    });
+
+    const r = JSON.parse(resultStr);
+    if (r.success) {
+      lastMetrics = {
+        vertex_count: r.vertex_count,
+        face_count: r.face_count,
+        islands: r.islands,
+        total_area: r.total_area
+      };
+
+      rustResult.value +=
+        '✅ ' + r.message +
+        '\nАлгоритм: ' + r.algorithm_used +
+        '\nВершин: ' + r.vertex_count +
+        '\nГраней: ' + r.face_count +
+        '\nОстровов: ' + r.islands +
+        '\nПлощадь: ' + r.total_area + ' кв. ед.' +
+        '\nДеградированных: ' + (r.degenerate_islands ? r.degenerate_islands.length : 0);
+
+      vertices2D = r.vertices_2d || [];
+      faces2D = r.faces.map((f: any) => f.vertices);
+      islandIds = r.island_ids || [];
+      if (islandIds.length < faces2D.length) {
+        const padding = new Array(faces2D.length - islandIds.length).fill(-1);
+        islandIds = [...islandIds, ...padding];
+      }
+      degenerateIslands = r.degenerate_islands || [];
+
+      console.log('doUnfold vertices2D length', vertices2D.length);
+      console.log('doUnfold faces2D length', faces2D.length);
+      console.log('doUnfold islandIds length', islandIds.length);
+
+      await nextTick();
+      await draw2D();
+    } else {
+      rustError.value = r.message;
+    }
+  } catch (e: any) {
+    rustError.value = 'Ошибка Rust:\n' + e.toString();
+    rustResult.value = '';
+  } finally {
+    isUnfolding.value = false;
+  }
+};
+
+// отрисовка 2D
+async function draw2D() {
+  console.log('=== draw2D ВЫЗВАНА ===');
+
+  try {
+    const canvas = canvas2D.value;
+    console.log('canvas2D.value:', canvas);
+    if (!canvas) {
+      console.error('draw2D: canvas2D.value равен null/undefined');
+      return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.error('draw2D: не удалось получить 2D контекст');
+      return;
+    }
+
+    const w = canvas.clientWidth || canvas.width;
+    const h = canvas.clientHeight || canvas.height;
+    canvas.width = w;
+    canvas.height = h;
+
+    ctx.clearRect(0, 0, w, h);
+
+    if (vertices2D.length === 0 || faces2D.length === 0) {
+      console.log('draw2D: данных нет (vertices2D или faces2D пусты)');
+      // красный крест на пустых данных
+      ctx.strokeStyle = 'red';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(20, 20);
+      ctx.lineTo(w - 20, h - 20);
+      ctx.moveTo(w - 20, 20);
+      ctx.lineTo(20, h - 20);
+      ctx.stroke();
+      return;
+    }
+
+    // --- AABB и трансформация ---
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const v of vertices2D) {
+      const x = v[0];
+      const y = v[1];
+      if (!isFinite(x) || !isFinite(y)) continue;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+
+    if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
+      console.log('draw2D: некорректные координаты');
+      return;
+    }
+
+    const dataW = maxX - minX || 1;
+    const dataH = maxY - minY || 1;
+    const margin = 20;
+    const scale = Math.min(
+      (w - margin * 2) / dataW,
+      (h - margin * 2) / dataH
+    ) * userZoom;
+
+    const offsetX = (w - dataW * scale) / 2 - minX * scale;
+    const offsetY = (h - dataH * scale) / 2 - minY * scale;
+
+    console.log('draw2D bounds:', { minX, minY, maxX, maxY, dataW, dataH, scale, w, h });
+
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
+
+    // --- Заливка островов (по islandIds) ---
+    if (showIslands2D.value) {
+      const islandColors = [
+        'rgba(0, 122, 204, 0.25)',  'rgba(204, 0, 122, 0.25)',
+        'rgba(122, 204, 0, 0.25)',  'rgba(204, 122, 0, 0.25)',
+        'rgba(0, 204, 204, 0.25)',  'rgba(204, 204, 0, 0.25)',
+        'rgba(122, 0, 204, 0.25)',  'rgba(0, 204, 122, 0.25)',
+        'rgba(204, 80, 80, 0.25)',  'rgba(80, 204, 80, 0.25)'
+      ];
+
+      for (let faceIndex = 0; faceIndex < faces2D.length; faceIndex++) {
+        const face = faces2D[faceIndex];
+        if (!face || face.length < 3) continue;
+
+        const vA = vertices2D[face[0]];
+        const vB = vertices2D[face[1]];
+        const vC = vertices2D[face[2]];
+        if (!vA || !vB || !vC) continue;
+
+        const islandId = islandIds[faceIndex] ?? -1;
+        const color = islandId >= 0
+          ? islandColors[islandId % islandColors.length]
+          : 'rgba(128, 128, 128, 0.15)';
+
+        ctx.beginPath();
+        ctx.moveTo(vA[0], vA[1]);
+        ctx.lineTo(vB[0], vB[1]);
+        ctx.lineTo(vC[0], vC[1]);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
+    }
+
+    // --- Построение edgeMap ---
+    type EdgeType = 'boundary' | 'fold' | 'glue';
+    type EdgeInfo = { v1: number; v2: number; type: EdgeType };
+
+    const edgeMap = new Map<string, EdgeInfo>();
+
+    for (let faceIndex = 0; faceIndex < faces2D.length; faceIndex++) {
+      const face = faces2D[faceIndex];
+      if (!face || face.length < 3) continue;
+
+      const a = face[0];
+      const b = face[1];
+      const c = face[2];
+
+      const island = islandIds[faceIndex] ?? -1;
+
+      const edges: [number, number][] = [
+        [a, b],
+        [b, c],
+        [c, a]
+      ];
+
+      for (const [i1, i2] of edges) {
+        const key = i1 < i2 ? `${i1},${i2}` : `${i2},${i1}`;
+
+        let type: EdgeType = 'boundary';
+        if (edgeMap.has(key)) {
+          const prev = edgeMap.get(key)!;
+          const prevIsland = island;
+          if (prevIsland === island) {
+            type = 'fold';
+          } else {
+            type = 'glue';
+          }
+        }
+
+        if (!edgeMap.has(key)) {
+          edgeMap.set(key, { v1: i1, v2: i2, type });
+        } else {
+          const existing = edgeMap.get(key)!;
+          const priority = { boundary: 0, fold: 1, glue: 2 } as const;
+          if (priority[type] > priority[existing.type]) {
+            existing.type = type;
+          }
+        }
+      }
+    }
+
+    if (edgeMap.size === 0) {
+      console.warn('draw2D: edgeMap пуст, fallback: треугольники');
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1.5;
+      for (const face of faces2D) {
+        if (!face || face.length < 3) continue;
+        const vA = vertices2D[face[0]];
+        const vB = vertices2D[face[1]];
+        const vC = vertices2D[face[2]];
+        if (!vA || !vB || !vC) continue;
+
+        ctx.beginPath();
+        ctx.moveTo(vA[0], vA[1]);
+        ctx.lineTo(vB[0], vB[1]);
+        ctx.lineTo(vC[0], vC[1]);
+        ctx.closePath();
+        ctx.stroke();
+      }
+      ctx.restore();
+      return;
+    }
+
+    console.log('draw2D edgeMap size', edgeMap.size);
+
+    const drawEdge = (edge: EdgeInfo, color: string, width: number, dash: number[] = []) => {
+      const p1 = vertices2D[edge.v1];
+      const p2 = vertices2D[edge.v2];
+      if (!p1 || !p2) return;
+
+      ctx.beginPath();
+      ctx.moveTo(p1[0], p1[1]);
+      ctx.lineTo(p2[0], p2[1]);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width; // толщина в пикселях
+      ctx.setLineDash(dash);
+      ctx.stroke();
+    };
+
+    // boundary — толстая чёрная
+    ctx.setLineDash([]);
+    for (const edge of edgeMap.values()) {
+      if (edge.type !== 'boundary') continue;
+      drawEdge(edge, '#000000', 4.0);
+    }
+
+    // fold — серый пунктир
+    ctx.setLineDash([8, 8]);
+    for (const edge of edgeMap.values()) {
+      if (edge.type !== 'fold') continue;
+      drawEdge(edge, '#888888', 2.0);
+    }
+
+    // glue — чёрная или красная
+    ctx.setLineDash([]);
+    const glueColor = showWireframe2D.value ? '#FF0000' : '#000000';
+    for (const edge of edgeMap.values()) {
+      if (edge.type !== 'glue') continue;
+      drawEdge(edge, glueColor, 3.0);
+    }
+
+    ctx.restore();
+    console.log('draw2D: отрисовка завершена');
+  } catch (e) {
+    console.error('Ошибка в draw2D:', e);
+  }
+}
+
+// AI orchestrator — как у тебя
+const callOrchestrator = async () => {
+  if (!objData.value) return;
+  isAiThinking.value = true;
+  aiError.value = '';
+  aiResult.value = 'Запрос к AI Orchestrator (localhost:3000/api/analyze)...';
+
+  try {
+    const meshStats =
+      'Vertices: ' + lastMetrics.vertex_count +
+      ', Faces: ' + lastMetrics.face_count +
+      ', Islands: ' + lastMetrics.islands +
+      ', Area: ' + lastMetrics.total_area;
+
+    const userPrompt =
+      'Analyze this papercraft unfolding. Why does it have ' +
+      lastMetrics.islands +
+      ' islands? How to optimize for paper crafting?';
+
+    const response = await fetch('http://127.0.0.1:3000/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mesh_stats: meshStats, user_prompt: userPrompt })
+    });
+
+    if (!response.ok) throw new Error('HTTP error! status: ' + response.status);
+    const data = await response.json();
+
+    if (data.ai_advice) {
+      aiResult.value = data.ai_advice;
+    } else if (data.error) {
+      aiError.value = data.error;
+    } else {
+      aiResult.value = JSON.stringify(data, null, 2);
+    }
+  } catch (e: any) {
+    aiError.value =
+      'Ошибка подключения:\n' +
+      e.toString() +
+      '\n\nУбедитесь, что запущен AI Orchestrator.';
+    aiResult.value = '';
+  } finally {
+    isAiThinking.value = false;
+  }
+};
+
+// экспорт PDF — как у тебя
+const handleExport = async () => {
+  try {
+    console.log('[Export] vertices2D length:', vertices2D.length, 'faces2D length:', faces2D.length);
+    if (vertices2D.length === 0 || faces2D.length === 0) {
+      alert('Нет данных развёртки для экспорта.');
+      return;
+    }
+
+    const filePath = await save({
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      defaultPath: 'unfold.pdf'
+    });
+    if (!filePath) return;
+
+    await invoke('export_pdf', {
+      vertices: vertices2D,
+      faces: faces2D,
+      islandIds: islandIds,
+      path: filePath
+    });
+
+    alert('PDF сохранён: ' + filePath);
+  } catch (e) {
+    console.error('[Export] invoke error:', e);
+    alert('Ошибка экспорта: ' + e);
+  }
+};
+</script>
+
+<style scoped>
+canvas {
+  display: block;
+}
+</style>

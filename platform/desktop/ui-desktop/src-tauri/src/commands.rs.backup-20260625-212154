@@ -1,0 +1,436 @@
+use pepakura_core::Vertex;
+use serde::{Deserialize, Serialize};
+use tauri::command;
+use std::collections::HashMap;
+use pepakura_core::sanitize::SanitizeOptions;
+
+// ---------- Типы для UnwrapResult ----------
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UnwrapResult {
+    pub pieces: Vec<Piece>,
+    pub sheet_width: f32,
+    pub sheet_height: f32,
+    pub margin: f32,
+    pub num_pages: u32,
+    pub total_area: f32,
+    pub total_perimeter: f32,
+    pub complexity_score: f32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Piece {
+    pub id: usize,
+    pub label: Option<String>,
+    pub outline: Vec<Vec2>,
+    pub folds: Vec<FoldLine>,
+    pub tabs: Vec<Tab>,
+    pub area: f32,
+    pub perimeter: f32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FoldLine {
+    pub start: Vec2,
+    pub end: Vec2,
+    pub fold_type: FoldType,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum FoldType {
+    Mountain,
+    Valley,
+    GenericFold,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Tab {
+    pub poly: Vec<Vec2>,
+    pub glue_to_piece_id: usize,
+    pub glue_edge: EdgeRef,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EdgeRef {
+    pub piece_id: usize,
+    pub edge_index: usize,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Vec2 {
+    pub x: f32,
+    pub y: f32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum UnwrapEngine {
+    Native,
+    Papercraft,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UnwrapOptions {
+    pub engine: UnwrapEngine,
+    pub sheet_width: f32,
+    pub sheet_height: f32,
+    pub margin: f32,
+    pub fold_angle_threshold: f32,
+    pub max_piece_size: f32,
+    pub max_pages: u32,
+    pub cut_style: CutStyle,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum CutStyle {
+    Knife,
+    Scissors,
+}
+// ------------------------------------------
+erive(Debug, Deserialize)
+#[serde(rename_all = "camelCase")]
+pub struct UnfoldConfig {
+    pub algorithm: Option<String>,
+}
+
+#[derive(Serialize)]
+struct FaceDto { vertices: Vec<usize> }
+
+#[derive(Serialize)]
+struct UnfoldResponse {
+    success: bool,
+    algorithm_used: String,
+    message: String,
+    vertex_count: usize,
+    face_count: usize,
+    islands: usize,
+    total_area: f64,
+    vertices_2d: Vec<[f64; 2]>,
+    faces: Vec<FaceDto>,
+    island_ids: Vec<usize>,
+}
+
+fn sanitize_obj(text: &str) -> String {
+    text.lines()
+        .map(|line| {
+            if line.starts_with("V ") { format!("v{}", &line[1..]) }
+            else if line.starts_with("F ") { format!("f{}", &line[1..]) }
+            else { line.to_string() }
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+struct UnionFind { parent: Vec<usize> }
+
+impl UnionFind {
+    fn new(size: usize) -> Self { UnionFind { parent: (0..size).collect() } }
+    fn find(&mut self, i: usize) -> usize {
+        if self.parent[i] == i { i }
+        else { self.parent[i] = self.find(self.parent[i]); self.parent[i] }
+    }
+    fn union(&mut self, i: usize, j: usize) {
+        let root_i = self.find(i); let root_j = self.find(j);
+        if root_i != root_j { self.parent[root_i] = root_j; }
+    }
+}
+
+fn calculate_metrics(vertices_2d: &Vec<[f64; 2]>, faces: &Vec<FaceDto>) -> (usize, f64, Vec<usize>) {
+    let mut island_count = 0;
+    let mut total_area = 0.0f64;
+    let mut island_ids = Vec::new();
+    (island_count, total_area, island_ids)
+}
+
+fn process_and_pack_island(
+    all_vertices_2d: &mut Vec<[f64; 2]>,
+    _current_x: &mut f64,
+    _current_y: &mut f64,
+    _row_max_height: &mut f64,
+    _padding: f64,
+    _max_row_width: f64,
+    final_vertices_2d: &[[f64; 2]],
+    inv_vertex_map: &[usize],
+) {
+    for &v_idx in inv_vertex_map {
+        if v_idx < final_vertices_2d.len() {
+            let v = final_vertices_2d[v_idx];
+            all_vertices_2d.push([v[0], v[1]]);
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn orig_unfold_mesh(obj_data: String, _config: Option<UnfoldConfig>) -> Result<String, String> {
+    println!("[unfold] Получен OBJ размером {} байт", obj_data.len());
+
+    let handle = tokio::task::spawn_blocking(move || {
+        let sanitized = sanitize_obj(&obj_data);
+        let raw_mesh = pepakura_core::import::parse_obj_str(&sanitized)
+            .map_err(|e| format!("Ошибка парсинга OBJ: {:?}", e))?;
+
+        println!("[unfold] Меш распарсен: {} вершин, {} граней", raw_mesh.vertices.len(), raw_mesh.faces.len());
+
+        // ========================================================================
+        // АГРЕССИВНАЯ САНИТИЗАЦИЯ (Papercraft Mode)
+        // ========================================================================
+        let mesh = match pepakura_core::sanitize::simplify_mesh(&raw_mesh, &SanitizeOptions::default()) {
+            Ok(clean_mesh) => {
+                println!("[sanitize] Меш очищен: {} вершин, {} граней -> {} вершин, {} граней",
+                    raw_mesh.vertices.len(), raw_mesh.faces.len(), clean_mesh.vertices.len(), clean_mesh.faces.len());
+                clean_mesh
+            }
+            Err(_) => {
+                println!("[sanitize] Очистка meshopt недоступна (WASM?). Используем оригинальный меш.");
+                raw_mesh
+            }
+        };
+
+        let start_time = std::time::Instant::now();
+
+        // ========================================================================
+        // MST PAPERCRAFT PIPELINE
+        // ========================================================================
+        println!("[unfold] Алгоритм: MST-Papercraft (Tree-based Unwrapping)");
+
+        // 1. Выявляем естественные связные компоненты (острова)
+        let mut uf = UnionFind::new(mesh.faces.len());
+        let mut edge_map: HashMap<(usize, usize), usize> = HashMap::new();
+        
+        for (f_idx, face) in mesh.faces.iter().enumerate() {
+            for k in 0..3 {
+                let v1 = face.vertices[k];
+                let v2 = face.vertices[(k + 1) % 3];
+                let key = if v1 < v2 { (v1, v2) } else { (v2, v1) };
+                
+                if let Some(&other_f_idx) = edge_map.get(&key) {
+                    uf.union(f_idx, other_f_idx);
+                } else {
+                    edge_map.insert(key, f_idx);
+                }
+            }
+        }
+
+        let mut components: HashMap<usize, Vec<usize>> = HashMap::new();
+        for (f_idx, _) in mesh.faces.iter().enumerate() {
+            let root = uf.find(f_idx);
+            components.entry(root).or_insert_with(Vec::new).push(f_idx);
+        }
+
+        println!("[unfold] Найдено {} связных компонентов для MST-развертки", components.len());
+
+        let mut all_vertices_2d = vec![[0.0, 0.0]; mesh.vertices.len()];
+        let mut mut_mst_count = 0;
+
+        let mut current_x = 0.0;
+        let mut current_y = 0.0;
+        let mut row_max_height = 0.0;
+        let padding = 20.0;
+        let max_row_width = 1000.0;
+        
+        let core_config = pepakura_core::unfold::UnfoldConfig::default();
+        let mut comp_idx = 0;
+
+        // Итерируемся ТОЛЬКО по значениям HashMap (&Vec<usize>)
+        for face_indices in components.values() {
+            if face_indices.is_empty() { continue; }
+
+            let mut sub_vertices = Vec::new();
+            let mut inv_vertex_map = Vec::new();
+            let mut vertex_map = HashMap::new();
+            let mut sub_faces = Vec::new();
+
+            for &fi in face_indices {
+                let orig_face = &mesh.faces[fi];
+                
+                // Фильтрация вырожденных полигонов (дублирующиеся вершины)
+                if orig_face.vertices[0] == orig_face.vertices[1] || 
+                   orig_face.vertices[1] == orig_face.vertices[2] || 
+                   orig_face.vertices[0] == orig_face.vertices[2] {
+                    continue;
+                }
+                
+                let mut new_face = pepakura_core::geometry::Face { vertices: vec![0, 0, 0], material_id: orig_face.material_id.clone() };
+                for i in 0..3 {
+                    let orig_vi = orig_face.vertices[i];
+                    let sub_vi = *vertex_map.entry(orig_vi).or_insert_with(|| {
+                        let idx = sub_vertices.len();
+                        sub_vertices.push(mesh.vertices[orig_vi].clone());
+                        inv_vertex_map.push(orig_vi);
+                        idx
+                    });
+                    new_face.vertices[i] = sub_vi;
+                }
+                sub_faces.push(new_face);
+            }
+
+            let sub_mesh = pepakura_core::geometry::Mesh {
+                vertices: sub_vertices,
+                faces: sub_faces.clone(),
+                name: format!("component_{}", comp_idx),
+                metadata: Default::default(),
+            };
+
+            match pepakura_core::unfold::unfold_mst(&sub_mesh, &core_config) {
+                Ok(unfolded) => {
+                    mut_mst_count += 1;
+                    process_and_pack_island(
+                        &mut all_vertices_2d, &mut current_x, &mut current_y, &mut row_max_height,
+                        padding, max_row_width, &unfolded.vertices_2d, &inv_vertex_map
+                    );
+                }
+                Err(e) => {
+                    println!("[unfold] MST упал на компоненте {}: {:?}. Пропуск.", comp_idx, e);
+                }
+            }
+            
+            comp_idx += 1;
+        }
+
+        let elapsed = start_time.elapsed().as_secs_f64() * 1000.0;
+        let algorithm_used = format!("MST-Papercraft({}) [{:.0}ms]", mut_mst_count, elapsed);
+
+        let faces_dto: Vec<FaceDto> = mesh.faces.iter().map(|f| FaceDto { vertices: f.vertices.to_vec() }).collect();
+        let (islands, total_area, island_ids) = calculate_metrics(&all_vertices_2d, &faces_dto);
+
+        let response = UnfoldResponse {
+            success: true,
+            algorithm_used,
+            message: format!("Развёртка выполнена. Островов: {}", islands),
+            vertex_count: mesh.vertices.len(),
+            face_count: mesh.faces.len(),
+            islands,
+            total_area: if total_area.is_finite() { total_area.round() } else { 0.0 },
+            vertices_2d: all_vertices_2d,
+            faces: faces_dto,
+            island_ids,
+        };
+
+        Ok::<String, String>(serde_json::to_string(&response).map_err(|e| format!("Сериализация: {}", e))?)
+    });
+
+    match handle.await {
+        Ok(Ok(res)) => Ok(res),
+        Ok(Err(e)) => Err(format!("Ошибка вычислений: {}", e)),
+        Err(e) => Err(format!("Поток выполнения упал: {}", e)),
+    }
+}
+
+// ---------- Новая публичная обёртка unfold_mesh ----------
+#[tauri::command]
+pub async fn unfold_mesh(
+    mesh_path: String,
+    options: UnwrapOptions,
+) -> Result<UnwrapResult, String> {
+    // Получаем исходные данные развёртки через старую логику
+    let (vertices_2d, faces, island_ids, total_sheets, sheet_w, sheet_h) =
+        orig_unfold_mesh(mesh_path).await?;
+
+    // Конвертация в UnwrapResult (без изменения логики)
+    let mut pieces = Vec::new();
+    let num_islands: usize = island_ids.iter().max().map_or(0, |&id| id + 1);
+    for iid in 0..num_islands {
+        let face_indices: Vec<usize> = island_ids.iter()
+            .enumerate()
+            .filter(|(_, &id)| id == iid)
+            .map(|(i, _)| i)
+            .collect();
+        if face_indices.is_empty() { continue; }
+
+        // Извлечение контурных рёбер острова
+        let mut edge_set: std::collections::HashSet<(usize, usize)> = std::collections::HashSet::new();
+        for &fi in &face_indices {
+            let f = &faces[fi];
+            for j in 0..f.len() {
+                let a = f[j];
+                let b = f[(j + 1) % f.len()];
+                let key = if a < b { (a, b) } else { (b, a) };
+                if edge_set.contains(&key) {
+                    edge_set.remove(&key);
+                } else {
+                    edge_set.insert(key);
+                }
+            }
+        }
+        if edge_set.is_empty() { continue; }
+
+        // Трассировка контура
+        let mut remaining: Vec<(usize, usize)> = edge_set.into_iter().collect();
+        let mut outline: Vec<Vec2> = Vec::new();
+        let first = remaining.pop().unwrap();
+        outline.push(Vec2 { x: vertices_2d[first.0][0] as f32, y: vertices_2d[first.0][1] as f32 });
+        outline.push(Vec2 { x: vertices_2d[first.1][0] as f32, y: vertices_2d[first.1][1] as f32 });
+        while !remaining.is_empty() {
+            let last = outline.last().unwrap();
+            let pos_opt = remaining.iter().position(|&(a, b)| {
+                let va = &vertices_2d[a];
+                let vb = &vertices_2d[b];
+                (va[0] as f32 - last.x).abs() < 1e-4 && (va[1] as f32 - last.y).abs() < 1e-4
+                || (vb[0] as f32 - last.x).abs() < 1e-4 && (vb[1] as f32 - last.y).abs() < 1e-4
+            });
+            if let Some(pos) = pos_opt {
+                let (a, b) = remaining.remove(pos);
+                let next_idx = if (vertices_2d[a][0] as f32 - last.x).abs() < 1e-4 &&
+                                  (vertices_2d[a][1] as f32 - last.y).abs() < 1e-4 { b } else { a };
+                outline.push(Vec2 { x: vertices_2d[next_idx][0] as f32, y: vertices_2d[next_idx][1] as f32 });
+            } else {
+                break;
+            }
+        }
+        if outline.len() > 1
+            && (outline[0].x - outline.last().unwrap().x).abs() < 1e-4
+            && (outline[0].y - outline.last().unwrap().y).abs() < 1e-4 {
+            outline.pop();
+        }
+
+        let area = polygon_area(&outline);
+        let perimeter = polygon_perimeter(&outline);
+        pieces.push(Piece {
+            id: iid,
+            label: None,
+            outline,
+            folds: vec![],
+            tabs: vec![],
+            area,
+            perimeter,
+        });
+    }
+
+    let total_area: f32 = pieces.iter().map(|p| p.area).sum();
+    let total_perimeter: f32 = pieces.iter().map(|p| p.perimeter).sum();
+    let complexity_score = (pieces.len() as f32) * 10.0 + total_perimeter * 0.1;
+
+    Ok(UnwrapResult {
+        pieces,
+        sheet_width: sheet_w,
+        sheet_height: sheet_h,
+        margin: options.margin,
+        num_pages: total_sheets as u32,
+        total_area,
+        total_perimeter,
+        complexity_score,
+    })
+}
+
+fn polygon_area(poly: &[Vec2]) -> f32 {
+    let n = poly.len();
+    if n < 3 { return 0.0; }
+    let mut area = 0.0;
+    for i in 0..n {
+        let j = (i + 1) % n;
+        area += poly[i].x * poly[j].y;
+        area -= poly[j].x * poly[i].y;
+    }
+    area.abs() * 0.5
+}
+
+fn polygon_perimeter(poly: &[Vec2]) -> f32 {
+    let mut p = 0.0;
+    for i in 0..poly.len() {
+        let j = (i + 1) % poly.len();
+        let dx = poly[i].x - poly[j].x;
+        let dy = poly[i].y - poly[j].y;
+        p += (dx*dx + dy*dy).sqrt();
+    }
+    p
+}
+
+

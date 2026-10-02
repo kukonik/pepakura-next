@@ -1,0 +1,168 @@
+{
+  "app": {
+    "title": "Pepakura Next",
+    "description": "Cross-platform papercraft unfolding with AI"
+  },
+  "actions": {
+    "generate": "Generate",
+    "import": "Import",
+    "export": "Export",
+    "save": "Save",
+    "load": "Load"
+  },
+  "stages": {
+    "3d": "3D Model",
+    "unfold": "Unfold",
+    "nest": "Nest",
+    "export": "Export"
+  },
+  "ai": {
+    "textTo3d": "Text to 3D",
+    "imageTo3d": "Image to 3D",
+    "generating": "Generating...",
+    "assistant": {
+      "title": "AI Assistant",
+      "status": {
+        "online": "Ollama connected",
+        "offline": "Ollama not available",
+        "checking": "Checking connection..."
+      },
+      "analyze": {
+        "button": "AI Model Analysis",
+        "title": "Analysis Results",
+        "noModel": "Please load a 3D model first",
+        "running": "Analysis running...",
+        "complete": "Analysis complete",
+        "error": "Analysis error"
+      },
+      "chat": {
+        "placeholder": "Enter a message for AI assistant...",
+        "send": "Send",
+        "sending": "Sending...",
+        "clear": "Clear chat",
+        "noMessages": "No messages. Start a dialogue with AI!"
+      },
+      "roles": {
+        "user": "User",
+        "assistant": "AI Assistant",
+        "system": "System"
+      },
+      "analysis": {
+        "algorithm": "Recommended algorithm",
+        "maxIterations": "Max iterations",
+        "tolerance": "Tolerance",
+        "tips": "Tips",
+        "potentialIssues": "Potential issues",
+        "noResults": "Analysis results will appear here",
+        "clear": "Clear results"
+      },
+      "errors": {
+        "ollamaUnavailable": "Ollama is not available. Make sure the service is running on localhost:11434",
+        "sendMessageFailed": "Failed to send message",
+        "analysisFailed": "Failed to analyze model",
+        "noModel": "Model not loaded"
+      }
+    }
+  },
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "about": "About",
+    "dark": "Dark",
+    "light": "Light",
+    "system": "System",
+    "appName": "Pepakura Next",
+    "appTagline": "Papercraft design studio",
+    "switchToEnglish": "Switch to English",
+    "switchToRussian": "Switch to Russian",
+    "russian": "Russian",
+    "english": "English",
+    "switchToLight": "Switch to light theme",
+    "switchToDark": "Switch to dark theme",
+    "open": "Open",
+    "delete": "Delete"
+  },
+  "dashboard": {
+    "title": "My Projects",
+    "newProject": "New Project",
+    "import": "Import",
+    "open": "Open",
+    "settings": "Settings",
+    "recentProjects": "Recent Projects",
+    "noProjects": "No projects. Create a new one or import a model.",
+    "search": "Search projects...",
+    "delete": "Delete",
+    "export": "Export",
+    "openInEditor": "Open in Editor",
+    "newProjectHint": "Create empty project",
+    "importHint": "Import 3D model",
+    "openHint": "Open existing project",
+    "settingsHint": "Application settings",
+    "searchPlaceholder": "Search by name or tags",
+    "loading": "Loading projects...",
+    "created": "Created",
+    "models": "models",
+    "deleteConfirm": "Delete project \"{name}\"?",
+    "newProjectPrompt": "Enter new project name:",
+    "newProjectDefault": "New Project",
+    "createError": "Failed to create project",
+    "importSuccess": "Model imported successfully",
+    "importError": "Import model error",
+    "openNotImplemented": "Open project from file not implemented yet"
+  },
+  "unfold": {
+    "title": "Unfold",
+    "export": "Export",
+    "settings": "Unfold Settings",
+    "algorithm": "Algorithm",
+    "preserveDetail": "Preserve detail",
+    "maxIterations": "Max iterations",
+    "tolerance": "Tolerance"
+  },
+  "export": {
+    "title": "Export",
+    "format": "Format",
+    "pageSize": "Page size",
+    "scale": "Scale",
+    "showVertexIds": "Show vertex IDs",
+    "showFoldLines": "Show fold lines",
+    "showCutLines": "Show cut lines"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "language": "Language",
+    "theme": "Theme",
+    "defaultExportPath": "Default export path",
+    "ai": "AI",
+    "provider": "Provider",
+    "model": "Model",
+    "apiKey": "API key",
+    "about": "About",
+    "version": "Version",
+    "license": "License",
+    "tabGeneral": "General",
+    "tabUnfold": "Unfold",
+    "tabAI": "AI",
+    "tabAbout": "About",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "defaultExportPathPlaceholder": "Select folder",
+    "browse": "Browse",
+    "preserveDetail": "Preserve detail",
+    "maxIterations": "Maximum iterations",
+    "tolerance": "Tolerance",
+    "toleranceHint": "Smaller value = more accurate but slower",
+    "aiProvider": "AI Provider",
+    "aiModel": "AI Model",
+    "aiModelPlaceholder": "e.g., llama3.2",
+    "apiKeyPlaceholder": "Enter your API key",
+    "apiKeyHint": "Key stored locally encrypted",
+    "repository": "Repository",
+    "credits": "Credits",
+    "resetToDefaults": "Reset to defaults",
+    "save": "Save"
+  }
+}

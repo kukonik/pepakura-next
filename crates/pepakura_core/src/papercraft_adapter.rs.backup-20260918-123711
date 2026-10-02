@@ -1,0 +1,337 @@
+use crate::Mesh;
+use crate::unwrap_types::{UnwrapResult, Piece, Polygon, Point2D, UnwrapMetrics, Page};
+use std::collections::{HashSet, HashMap, BTreeMap};
+use nalgebra::{DMatrix, DVector};
+
+pub fn unfold_with_papercraft(mesh: &Mesh) -> Result<UnwrapResult, String> {
+    if mesh.faces.is_empty() {
+        return Err("Mesh is empty".to_string());
+    }
+
+    // 1. Разрезание на островки (Dihedral Angle Cut > 40 grad)
+    let mut uf = UnionFind::new(mesh.faces.len());
+    let mut edge_map: HashMap<(usize, usize), Vec<usize>> = HashMap::new();
+    for (fi, f) in mesh.faces.iter().enumerate() {
+        if f.vertices.len() < 3 { continue; }
+        for i in 0..3 {
+            let a = f.vertices[i];
+            let b = f.vertices[(i + 1) % 3];
+            let key = if a < b { (a, b) } else { (b, a) };
+            edge_map.entry(key).or_default().push(fi);
+        }
+    }
+
+    let n = |vi: usize| [mesh.vertices[vi].x as f64, mesh.vertices[vi].y as f64, mesh.vertices[vi].z as f64];
+    let sub = |a: [f64; 3], b: [f64; 3]| [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    let cross = |a: [f64; 3], b: [f64; 3]| [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    let norm = |v: [f64; 3]| { let l = (v[0]*v[0]+v[1]*v[1]+v[2]*v[2]).sqrt(); if l > 1e-6 { [v[0]/l, v[1]/l, v[2]/l] } else { [0.0; 3] } };
+
+    for (_key, faces) in &edge_map {
+        if faces.len() == 2 {
+            let f1 = &mesh.faces[faces[0]];
+            let f2 = &mesh.faces[faces[1]];
+            if f1.vertices.len() < 3 || f2.vertices.len() < 3 { continue; }
+            
+            let fn1 = norm(cross(sub(n(f1.vertices[1]), n(f1.vertices[0])), sub(n(f1.vertices[2]), n(f1.vertices[0]))));
+            let fn2 = norm(cross(sub(n(f2.vertices[1]), n(f2.vertices[0])), sub(n(f2.vertices[2]), n(f2.vertices[0]))));
+            let dot = fn1[0]*fn2[0] + fn1[1]*fn2[1] + fn1[2]*fn2[2];
+            let ang = dot.clamp(-1.0, 1.0).acos() * (180.0 / std::f64::consts::PI);
+            
+            if ang > 40.0 {
+                // Разрезаем
+            } else {
+                uf.union(faces[0], faces[1]);
+            }
+        }
+    }
+
+    let mut comps: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    for (fi, _) in mesh.faces.iter().enumerate() {
+        let r = uf.find(fi);
+        comps.entry(r).or_insert_with(Vec::new).push(fi);
+    }
+
+    let mut all_v2d = vec![[0.0f64; 2]; mesh.vertices.len()];
+    let mut piece_ids = vec![0; mesh.vertices.len()];
+    let mut current_id = 1;
+    let mut pieces = Vec::new();
+    let mut total_folds_count = 0;
+
+    let mut pack_cursor_x = 0.0;
+    let mut pack_cursor_y = 0.0;
+    let mut pack_row_h = 0.0;
+
+    // 2. Развёртка каждого островка с помощью LSCM
+    for (_, fis) in comps.values().enumerate() {
+        if fis.is_empty() { continue; }
+        
+        let mut sv = Vec::new();
+        let mut iv = Vec::new();
+        let mut vm = HashMap::new();
+        let mut sf = Vec::new();
+        
+        for &fi in fis {
+            let of = &mesh.faces[fi];
+            if of.vertices.len() < 3 { continue; }
+            let mut nf = crate::geometry::Face { vertices: vec![0, 0, 0], material_id: of.material_id.clone() };
+            for i in 0..3 {
+                let oi = of.vertices[i];
+                let si = *vm.entry(oi).or_insert_with(|| { let i = sv.len(); sv.push(mesh.vertices[oi].clone()); iv.push(oi); i });
+                nf.vertices[i] = si;
+            }
+            sf.push(nf);
+        }
+        
+        if sf.is_empty() { continue; }
+        let sm = crate::geometry::Mesh { vertices: sv, faces: sf, name: "island".to_string(), metadata: Default::default() };
+        
+        // --- ВЫЗОВ АЛГОРИТМА LSCM ---
+        let vertices_2d_map = match lscm_unfold(&sm) {
+            Ok(v) => v,
+            Err(_e) => {
+                // Фолбэк: если LSCM не сработал, используем проекцию XY
+                let mut fb = HashMap::new();
+                for (i, v) in sm.vertices.iter().enumerate() {
+                    fb.insert(i, [v.x as f64, v.y as f64]);
+                }
+                fb
+            }
+        };
+
+        // Сборка контура (outline)
+        let mut iem: HashMap<usize, HashSet<(usize, usize)>> = HashMap::new();
+        for f in &sm.faces {
+            if f.vertices.len() < 3 { continue; }
+            let id = 0;
+            let e = iem.entry(id).or_default();
+            for i in 0..3 {
+                let a = f.vertices[i];
+                let b = f.vertices[(i + 1) % 3];
+                let k = if a < b { (a, b) } else { (b, a) };
+                if !e.insert(k) { e.remove(&k); }
+            }
+        }
+
+        let mut ol = Vec::new();
+        if let Some(be) = iem.get(&0) {
+            let mut rm: Vec<(usize, usize)> = be.iter().cloned().collect();
+            if let Some(fe) = rm.pop() {
+                let pt0 = vertices_2d_map.get(&fe.0).copied().unwrap_or([0.0, 0.0]);
+                let pt1 = vertices_2d_map.get(&fe.1).copied().unwrap_or([0.0, 0.0]);
+                ol.push(Point2D { x: pt0[0] as f32, y: pt0[1] as f32 });
+                ol.push(Point2D { x: pt1[0] as f32, y: pt1[1] as f32 });
+                let mut last = fe.1;
+                while !rm.is_empty() {
+                    if let Some(p) = rm.iter().position(|&(a, b)| a == last || b == last) {
+                        let (a, b) = rm.remove(p);
+                        let n_idx = if a == last { b } else { a };
+                        let pt_n = vertices_2d_map.get(&n_idx).copied().unwrap_or([0.0, 0.0]);
+                        ol.push(Point2D { x: pt_n[0] as f32, y: pt_n[1] as f32 });
+                        last = n_idx;
+                    } else { break; }
+                }
+            }
+        }
+        
+        if ol.len() > 1 {
+            let f = &ol[0];
+            let l = ol.last().unwrap();
+            if (f.x - l.x).abs() < 0.01 && (f.y - l.y).abs() < 0.01 {
+                ol.pop();
+            }
+        }
+
+        let id = current_id;
+        current_id += 1;
+
+        let folds = Vec::new();
+        total_folds_count += folds.len();
+
+        // Упаковка (Grid Packing)
+        let mut is_min_x = f64::MAX;
+        let mut is_min_y = f64::MAX;
+        let mut is_max_x = f64::MIN;
+        let mut is_max_y = f64::MIN;
+        for p in vertices_2d_map.values() {
+            if p[0] < is_min_x { is_min_x = p[0]; }
+            if p[1] < is_min_y { is_min_y = p[1]; }
+            if p[0] > is_max_x { is_max_x = p[0]; }
+            if p[1] > is_max_y { is_max_y = p[1]; }
+        }
+        
+        let iw = is_max_x - is_min_x;
+        let ih = is_max_y - is_min_y;
+        
+        let max_row_width = 5.0;
+        if pack_cursor_x + iw > max_row_width && pack_cursor_x > 0.0 {
+            pack_cursor_x = 0.0;
+            pack_cursor_y -= pack_row_h + 0.5;
+            pack_row_h = 0.0;
+        }
+        
+        let offset_x = pack_cursor_x - is_min_x;
+        let offset_y = pack_cursor_y - is_min_y;
+        
+        pack_cursor_x += iw + 0.5;
+        if ih > pack_row_h { pack_row_h = ih; }
+        
+        for (si, &oi) in iv.iter().enumerate() {
+            let p_island = vertices_2d_map.get(&si).copied().unwrap_or([0.0, 0.0]);
+            all_v2d[oi] = [p_island[0] + offset_x, p_island[1] + offset_y];
+            piece_ids[oi] = id;
+        }
+
+        let mut ar = 0.0_f32;
+        let mut pe = 0.0_f32;
+        let n_pts = ol.len();
+        if n_pts > 2 {
+            for i in 0..n_pts {
+                let j = (i + 1) % n_pts;
+                let dx = ol[j].x - ol[i].x;
+                let dy = ol[j].y - ol[i].y;
+                ar += ol[i].x * ol[j].y - ol[j].x * ol[i].y;
+                pe += (dx * dx + dy * dy).sqrt();
+            }
+            ar = ar.abs() * 0.5;
+        }
+
+        pieces.push(Piece {
+            id: id as u32,
+            name: format!("Piece_{}", id),
+            label: None,
+            outline: Polygon { points: ol, holes: vec![] },
+            folds,
+            tabs: vec![],
+            area: ar,
+            perimeter: pe,
+            page_number: 0,
+        });
+    }
+
+    let total_pieces_count = pieces.len() as u32;
+
+    Ok(UnwrapResult {
+        engine_used: "papercraft_lscm".to_string(),
+        vertices_2d: all_v2d,
+        faces: mesh.faces.iter().map(|f| f.vertices.clone()).collect(),
+        total_area: 0.0,
+        total_perimeter: 0.0,
+        pieces,
+        pages: vec![Page { page_number: 0, piece_ids: vec![], utilization_percent: 0.0 }],
+        metrics: UnwrapMetrics { total_pieces: total_pieces_count, total_pages: 1, total_folds: total_folds_count as u32, total_tabs: 0, complexity_score: 0.0 },
+        sheet_width: 1000.0,
+        sheet_height: 1000.0,
+        margin: 10.0,
+    })
+}
+
+/// Реализация алгоритма LSCM (Least Squares Conformal Maps)
+fn lscm_unfold(mesh: &crate::geometry::Mesh) -> Result<HashMap<usize, [f64; 2]>, String> {
+    let num_verts = mesh.vertices.len();
+    let num_faces = mesh.faces.len();
+    if num_verts < 3 || num_faces == 0 { return Err("Too small".to_string()); }
+    
+    let mut local_uvs: Vec<([f64; 3], [f64; 3])> = Vec::with_capacity(num_faces);
+    
+    // 1. Вычисляем локальные 2D координаты для каждого треугольника
+    for f in &mesh.faces {
+        if f.vertices.len() < 3 { continue; }
+        let p0 = &mesh.vertices[f.vertices[0]];
+        let p1 = &mesh.vertices[f.vertices[1]];
+        let p2 = &mesh.vertices[f.vertices[2]];
+        
+        let v0 = [p0.x as f64, p0.y as f64, p0.z as f64];
+        let v1 = [p1.x as f64, p1.y as f64, p1.z as f64];
+        let v2 = [p2.x as f64, p2.y as f64, p2.z as f64];
+        
+        let e1 = [v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]];
+        let e2 = [v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]];
+        
+        let len_e1 = (e1[0]*e1[0] + e1[1]*e1[1] + e1[2]*e1[2]).sqrt();
+        if len_e1 < 1e-6 { continue; }
+        
+        let dot = e1[0]*e2[0] + e1[1]*e2[1] + e1[2]*e2[2];
+        let len_e2 = (e2[0]*e2[0] + e2[1]*e2[1] + e2[2]*e2[2]).sqrt();
+        
+        let x1 = len_e1; 
+        let x2 = dot / len_e1; 
+        let y2_sq = len_e2*len_e2 - x2*x2;
+        let y2 = if y2_sq > 0.0 { y2_sq.sqrt() } else { 0.0 };
+        
+        let det = x1 * y2; // y0=0, x0=0
+        if det.abs() < 1e-12 { continue; }
+        
+        let wu = [
+            (0.0 - y2) / det, // y1 - y2 = 0 - y2
+            (y2 - 0.0) / det, // y2 - y0 = y2
+            (0.0 - 0.0) / det // y0 - y1 = 0
+        ];
+        let wv = [
+            (x2 - x1) / det, // x2 - x1
+            (0.0 - x2) / det, // x0 - x2 = -x2
+            (x1 - 0.0) / det // x1 - x0 = x1
+        ];
+        
+        local_uvs.push((wu, wv));
+    }
+    
+    // 2. Построение матрицы A (2*num_faces + 2 уравнения, 2*num_verts переменных)
+    let rows = 2 * num_faces + 2;
+    let cols = 2 * num_verts;
+    
+    let mut a = DMatrix::<f64>::zeros(rows, cols);
+    let mut b = DVector::<f64>::zeros(rows);
+    
+    let mut r = 0;
+    for (i, f) in mesh.faces.iter().enumerate() {
+        if f.vertices.len() < 3 { continue; }
+        let (wu, wv) = &local_uvs[i];
+        
+        for j in 0..3 {
+            let v_idx = f.vertices[j];
+            a[(r, 2*v_idx)] = wu[j];
+            a[(r, 2*v_idx + 1)] = -wv[j];
+            a[(r+1, 2*v_idx)] = wv[j];
+            a[(r+1, 2*v_idx + 1)] = wu[j];
+        }
+        r += 2;
+    }
+    
+    // 3. Закрепление вершин (Pinning)
+    let pin0 = mesh.faces[0].vertices[0];
+    let pin1 = mesh.faces[0].vertices[1];
+    
+    let p0 = &mesh.vertices[pin0];
+    let p1 = &mesh.vertices[pin1];
+    let dist = (((p1.x-p0.x).powi(2) + (p1.y-p0.y).powi(2) + (p1.z-p0.z).powi(2)) as f64).sqrt();
+    
+    a[(r, 2*pin0)] = 1.0; b[r] = 0.0; r+=1;
+    a[(r, 2*pin1+1)] = 1.0; b[r] = dist; r+=1;
+    
+    // 4. Решение нормальных уравнений A^T * A * x = A^T * b
+    let ata = a.transpose() * &a;
+    let atb = a.transpose() * &b;
+    
+    let x = ata.lu().solve(&atb).ok_or("LSCM solve failed")?;
+    
+    // 5. Извлечение координат
+    let mut verts_2d = HashMap::new();
+    for i in 0..num_verts {
+        verts_2d.insert(i, [x[2*i], x[2*i+1]]);
+    }
+    
+    Ok(verts_2d)
+}
+
+struct UnionFind { parent: Vec<usize> }
+impl UnionFind {
+    fn new(size: usize) -> Self { UnionFind { parent: (0..size).collect() } }
+    fn find(&mut self, mut i: usize) -> usize {
+        let mut root = i; while self.parent[root] != root { root = self.parent[root]; }
+        while self.parent[i] != root { let next = self.parent[i]; self.parent[i] = root; i = next; } root
+    }
+    fn union(&mut self, i: usize, j: usize) {
+        let ri = self.find(i); let rj = self.find(j); if ri != rj { self.parent[ri] = rj; }
+    }
+}
+

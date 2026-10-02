@@ -1,0 +1,20 @@
+{
+  "name": "shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "types": "index.ts",
+  "exports": {
+    "./*": "./*.ts"
+  },
+  "dependencies": {
+    "vue": "^3.3.0",
+    "pinia": "^2.1.0"
+  },
+  "peerDependencies": {
+    "vue-router": "^4.0.0"
+  },
+  "devDependencies": {
+    "vue-router": "^4.0.0"
+  }
+}

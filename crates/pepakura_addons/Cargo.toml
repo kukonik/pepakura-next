@@ -1,0 +1,28 @@
+[package]
+name = "pepakura_addons"
+version = "0.1.0"
+edition = "2021"
+description = "Addons system for Pepakura Next - modular extensions framework"
+authors = ["Pepakura Next Team"]
+license = "MIT"
+repository = "https://github.com/pepakura-next/pepakura-next"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+# Core errors
+thiserror = "1.0"
+anyhow = "1.0"
+log = "0.4"
+
+# Сериализация для конфигов
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Platform абстракции
+pepakura_platform = { path = "../pepakura_platform" }
+
+# Для загрузки динамических библиотек (только native)
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+libloading = "0.8"

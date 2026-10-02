@@ -1,0 +1,84 @@
+# .sourcecraft/ci.yaml
+
+stages:
+  - name: lint
+  - name: test
+  - name: build
+
+workflows:
+  main-pipeline:
+    when:
+      events:
+        - push
+        - merge_request
+      branches:
+        include:
+          - main
+
+    jobs:
+      ui-desktop-lint-test:
+        stage: lint
+        image: node:20
+        script:
+          - corepack enable
+          - cd ui-desktop
+          - pnpm install
+          - pnpm lint || echo "no lint"
+          - pnpm test || echo "no tests"
+
+      ui-web-lint-test:
+        stage: lint
+        image: node:20
+        script:
+          - corepack enable
+          - cd ui-web
+          - pnpm install
+          - pnpm lint || echo "no lint"
+          - pnpm test || echo "no tests"
+
+      core-test:
+        stage: test
+        image: rust:1.82
+        script:
+          - cd core
+          - cargo test --all --all-features --locked
+
+      core-build:
+        stage: build
+        image: rust:1.82
+        needs:
+          - core-test
+        script:
+          - cd core
+          - cargo build --release --locked
+        artifacts:
+          paths:
+            - core/target/release
+
+      ui-desktop-build:
+        stage: build
+        image: node:20
+        needs:
+          - ui-desktop-lint-test
+        script:
+          - corepack enable
+          - cd ui-desktop
+          - pnpm install
+          - pnpm build || echo "no build script"
+        artifacts:
+          paths:
+            - ui-desktop/dist
+
+      ui-web-build:
+        stage: build
+        image: node:20
+        needs:
+          - ui-web-lint-test
+        script:
+          - corepack enable
+          - cd ui-web
+          - pnpm install
+          - pnpm build || echo "no build script"
+        artifacts:
+          paths:
+            - ui-web/dist

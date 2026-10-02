@@ -1,0 +1,288 @@
+use pepakura_core::Vertex;
+use serde::{Deserialize, Serialize};
+use tauri::command;
+use std::collections::HashMap;
+use pepakura_core::sanitize::SanitizeOptions;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnfoldConfig {
+    pub algorithm: Option<String>,
+}
+
+#[derive(Serialize)]
+struct FaceDto { vertices: Vec<usize> }
+
+#[derive(Serialize)]
+struct UnfoldResponse {
+    success: bool,
+    algorithm_used: String,
+    message: String,
+    vertex_count: usize,
+    face_count: usize,
+    islands: usize,
+    total_area: f64,
+    vertices_2d: Vec<[f64; 2]>,
+    faces: Vec<FaceDto>,
+    island_ids: Vec<usize>,
+}
+
+fn sanitize_obj(text: &str) -> String {
+    text.lines()
+        .map(|line| {
+            if line.starts_with("V ") { format!("v{}", &line[1..]) }
+            else if line.starts_with("F ") { format!("f{}", &line[1..]) }
+            else { line.to_string() }
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+struct UnionFind { parent: Vec<usize> }
+
+impl UnionFind {
+    fn new(size: usize) -> Self { UnionFind { parent: (0..size).collect() } }
+    fn find(&mut self, i: usize) -> usize {
+        if self.parent[i] == i { i }
+        else { self.parent[i] = self.find(self.parent[i]); self.parent[i] }
+    }
+    fn union(&mut self, i: usize, j: usize) {
+        let root_i = self.find(i); let root_j = self.find(j);
+        if root_i != root_j { self.parent[root_i] = root_j; }
+    }
+}
+
+fn calculate_metrics(vertices_2d: &Vec<[f64; 2]>, faces: &Vec<FaceDto>) -> (usize, f64, Vec<usize>) {
+    let mut island_count = 0;
+    let mut total_area = 0.0f64;
+    let mut island_ids = Vec::new();
+    (island_count, total_area, island_ids)
+}
+
+fn process_and_pack_island(
+    all_vertices_2d: &mut Vec<[f64; 2]>,
+    _current_x: &mut f64,
+    _current_y: &mut f64,
+    _row_max_height: &mut f64,
+    _padding: f64,
+    _max_row_width: f64,
+    final_vertices_2d: &[[f64; 2]],
+    inv_vertex_map: &[usize],
+) {
+    for &v_idx in inv_vertex_map {
+        if v_idx < final_vertices_2d.len() {
+            let v = final_vertices_2d[v_idx];
+            all_vertices_2d.push([v[0], v[1]]);
+        }
+    }
+}
+
+#[tauri::command]
+
+// -- Вставлено скриптом update-commands-rs.ps1 --
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UnwrapResult {
+    pub pieces: Vec<Piece>,
+    pub sheet_width: f32,
+    pub sheet_height: f32,
+    pub margin: f32,
+    pub num_pages: u32,
+    pub total_area: f32,
+    pub total_perimeter: f32,
+    pub complexity_score: f32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Piece {
+    pub id: usize,
+    pub label: Option<String>,
+    pub outline: Vec<Vec2>,
+    pub folds: Vec<FoldLine>,
+    pub tabs: Vec<Tab>,
+    pub area: f32,
+    pub perimeter: f32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FoldLine {
+    pub start: Vec2,
+    pub end: Vec2,
+    pub fold_type: FoldType,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum FoldType {
+    Mountain,
+    Valley,
+    GenericFold,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Tab {
+    pub poly: Vec<Vec2>,
+    pub glue_to_piece_id: usize,
+    pub glue_edge: EdgeRef,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EdgeRef {
+    pub piece_id: usize,
+    pub edge_index: usize,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Vec2 {
+    pub x: f32,
+    pub y: f32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum UnwrapEngine {
+    Native,
+    Papercraft,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UnwrapOptions {
+    pub engine: UnwrapEngine,
+    pub sheet_width: f32,
+    pub sheet_height: f32,
+    pub margin: f32,
+    pub fold_angle_threshold: f32,
+    pub max_piece_size: f32,
+    pub max_pages: u32,
+    pub cut_style: CutStyle,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum CutStyle {
+    Knife,
+    Scissors,
+}
+// -- Модифицированная unfold_mesh --
+#[tauri::command]
+async fn unfold_mesh(
+    state: tauri::State<'_, AppState>,
+    mesh_path: String,
+    options: UnwrapOptions,
+) -> Result<UnwrapResult, String> {
+    // Загрузка меша (существующая логика)
+    let mesh = pepakura_core::io::load_obj(&mesh_path)
+        .map_err(|e| format!("Load error: {}", e))?;
+
+    // Существующий алгоритм развёртки (MST + постпроцессинг)
+    let (vertices_2d, faces, island_ids, total_sheets, sheet_w, sheet_h) =
+        perform_unfold_and_pack(&mesh, &options)?;
+
+    // ---------- НОВОЕ: собираем UnwrapResult ----------
+    let mut pieces = Vec::new();
+    let num_islands = island_ids.iter().max().map_or(0, |&id| id + 1);
+    for iid in 0..num_islands {
+        // Индексы граней этого острова
+        let face_indices: Vec<usize> = island_ids.iter()
+            .enumerate()
+            .filter(|(_, &id)| id == iid)
+            .map(|(i, _)| i)
+            .collect();
+
+        if face_indices.is_empty() { continue; }
+
+        // Собираем все рёбра (неупорядоченные) как пары вершин
+        let mut edge_set: std::collections::HashSet<(usize, usize)> = std::collections::HashSet::new();
+        for &fi in &face_indices {
+            let f = &faces[fi];
+            for j in 0..f.len() {
+                let a = f[j];
+                let b = f[(j + 1) % f.len()];
+                let key = if a < b { (a, b) } else { (b, a) };
+                if edge_set.contains(&key) {
+                    edge_set.remove(&key); // ребро внутреннее
+                } else {
+                    edge_set.insert(key);
+                }
+            }
+        }
+        // Оставшиеся — контурные рёбра
+        if edge_set.is_empty() { continue; }
+
+        // Восстанавливаем замкнутый полигон (простая трассировка)
+        let mut outline: Vec<Vec2> = Vec::new();
+        let mut remaining: Vec<(usize, usize)> = edge_set.into_iter().collect();
+        // Начинаем с первого ребра
+        let first = remaining.pop().unwrap();
+        outline.push(vertices_2d[first.0].clone());
+        outline.push(vertices_2d[first.1].clone());
+        while !remaining.is_empty() {
+            let last = outline.last().unwrap();
+            // Ищем ребро, содержащее последнюю вершину
+            if let Some(pos) = remaining.iter().position(|&(a, b)| {
+                a == find_vertex_index(last, &vertices_2d) || b == find_vertex_index(last, &vertices_2d)
+            }) {
+                let (a, b) = remaining.remove(pos);
+                let next_idx = if find_vertex_index(last, &vertices_2d) == a { b } else { a };
+                outline.push(vertices_2d[next_idx].clone());
+            } else {
+                break; // не должны сюда попадать, но страховка
+            }
+        }
+        // Убираем последнюю точку, если она равна первой (замкнутость)
+        if outline.len() > 1 && (outline[0].x - outline.last().unwrap().x).abs() < 1e-4
+                              && (outline[0].y - outline.last().unwrap().y).abs() < 1e-4 {
+            outline.pop();
+        }
+
+        let area = polygon_area(&outline);
+        let perimeter = polygon_perimeter(&outline);
+
+        // Пока клапаны и линии сгиба отсутствуют; позже вы сможете их доработать
+        pieces.push(Piece {
+            id: iid,
+            label: None,
+            outline,
+            folds: vec![],
+            tabs: vec![],
+            area,
+            perimeter,
+        });
+    }
+
+    let total_area: f32 = pieces.iter().map(|p| p.area).sum();
+    let total_perimeter: f32 = pieces.iter().map(|p| p.perimeter).sum();
+    // Простейшая эвристика сложности
+    let complexity_score = (pieces.len() as f32) * 10.0 + total_perimeter * 0.1;
+
+    Ok(UnwrapResult {
+        pieces,
+        sheet_width: sheet_w,
+        sheet_height: sheet_h,
+        margin: options.margin,
+        num_pages: total_sheets as u32,
+        total_area,
+        total_perimeter,
+        complexity_score,
+    })
+}
+
+// Вспомогательные функции (добавьте их ниже или в тот же файл, можно оставить как есть)
+fn find_vertex_index(v: &Vec2, vertices: &[Vec2]) -> usize {
+    vertices.iter().position(|p| (p.x - v.x).abs() < 1e-5 && (p.y - v.y).abs() < 1e-5).unwrap()
+}
+fn polygon_area(poly: &[Vec2]) -> f32 {
+    let n = poly.len();
+    if n < 3 { return 0.0; }
+    let mut area = 0.0;
+    for i in 0..n {
+        let j = (i + 1) % n;
+        area += poly[i].x * poly[j].y;
+        area -= poly[j].x * poly[i].y;
+    }
+    area.abs() * 0.5
+}
+fn polygon_perimeter(poly: &[Vec2]) -> f32 {
+    poly.windows(2).map(|w| dist(&w[0], &w[1])).sum::<f32>()
+        + dist(&poly[poly.len()-1], &poly[0])
+}
+fn dist(a: &Vec2, b: &Vec2) -> f32 {
+    ((a.x - b.x).powi(2) + (a.y - b.y).powi(2)).sqrt()
+}
+

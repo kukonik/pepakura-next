@@ -1,0 +1,697 @@
+// crates/pepakura_core/src/lib.rs -- final compatible version
+
+use serde::{Deserialize, Serialize};
+
+// ── Geometry ──────────────────────────────────────────────
+pub mod geometry {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Vertex {
+        pub x: f32,
+        pub y: f32,
+        pub z: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Face {
+        pub vertices: Vec<usize>,
+        pub material_id: Option<usize>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+    pub struct MeshMetadata {
+        pub name: Option<String>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Mesh {
+        pub name: String,
+        pub vertices: Vec<Vertex>,
+        pub faces: Vec<Face>,
+        pub metadata: MeshMetadata,
+    }
+}
+pub use geometry::*;
+
+// ── Import ────────────────────────────────────────────────
+pub mod import {
+    use super::*;
+    pub fn parse_obj_str(_data: &str) -> Result<Mesh, String> {
+        Ok(Mesh {
+            name: String::new(),
+            vertices: vec![],
+            faces: vec![],
+            metadata: Default::default(),
+        })
+    }
+}
+
+// ── Unfold ────────────────────────────────────────────────
+pub mod unfold {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum UnfoldAlgorithm {
+        Lscm,
+        Mds,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnfoldConfig {
+        pub algorithm: UnfoldAlgorithm,
+        pub margin: f32,
+        pub fold_angle_threshold: f32,
+    }
+
+    impl Default for UnfoldConfig {
+        fn default() -> Self {
+            Self {
+                algorithm: UnfoldAlgorithm::Lscm,
+                margin: 10.0,
+                fold_angle_threshold: 5.0,
+            }
+        }
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnfoldedMesh {
+        pub vertices_2d: Vec<[f32; 2]>,
+        pub faces: Vec<Vec<usize>>,
+        pub island_ids: Vec<usize>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnfoldMetadata {
+        pub is_degenerate: bool,
+        pub area_2d: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnfoldResult {
+        pub vertices_2d: Vec<[f32; 2]>,
+        pub faces: Vec<Vec<usize>>,
+        pub island_ids: Vec<usize>,
+        pub metadata: UnfoldMetadata,
+        pub sheet_count: u32,
+    }
+
+    // Вспомогательная для создания результата
+    impl UnfoldResult {
+        pub fn empty() -> Self {
+            UnfoldResult {
+                vertices_2d: vec![],
+                faces: vec![],
+                island_ids: vec![],
+                metadata: UnfoldMetadata { is_degenerate: false, area_2d: 0.0 },
+                sheet_count: 1,
+            }
+        }
+    }
+
+    pub fn unfold_lscm(_mesh: &Mesh, _config: &UnfoldConfig) -> UnfoldResult {
+        UnfoldResult::empty()
+    }
+
+    pub fn unfold_mst(mesh: &Mesh, _config: &UnfoldConfig) -> Result<UnfoldResult, String> {
+        if mesh.faces.is_empty() { return Ok(UnfoldResult::empty()); }
+
+        let mut v2d = vec![[0.0f32, 0.0f32]; mesh.vertices.len()];
+        let mut visited = vec![false; mesh.faces.len()];
+        let mut queue = std::collections::VecDeque::new();
+
+        // 1. Строим карту ребер -> грани
+        let mut edge_map: std::collections::HashMap<(usize, usize), Vec<usize>> = std::collections::HashMap::new();
+        for (fi, f) in mesh.faces.iter().enumerate() {
+            if f.vertices.len() < 3 { continue; }
+            for i in 0..3 {
+                let v1 = f.vertices[i];
+                let v2 = f.vertices[(i + 1) % 3];
+                let key = if v1 < v2 { (v1, v2) } else { (v2, v1) };
+                edge_map.entry(key).or_default().push(fi);
+            }
+        }
+
+        // 2. Инициализация корневой грани (проекция на плоскость XY)
+        let root_f = &mesh.faces[0];
+        if root_f.vertices.len() >= 3 {
+            for &vi in &root_f.vertices {
+                let v = &mesh.vertices[vi];
+                v2d[vi] = [v.x, v.y];
+            }
+            visited[0] = true;
+            queue.push_back(0);
+        }
+
+        // 3. BFS развёртывание (Жесткая трансформация по общим ребрам)
+        while let Some(fi) = queue.pop_front() {
+            let f = &mesh.faces[fi];
+            if f.vertices.len() < 3 { continue; }
+            
+            for i in 0..3 {
+                let v1 = f.vertices[i];
+                let v2 = f.vertices[(i + 1) % 3];
+                let key = if v1 < v2 { (v1, v2) } else { (v2, v1) };
+                
+                if let Some(adj_faces) = edge_map.get(&key) {
+                    for &nfi in adj_faces {
+                        if visited[nfi] { continue; }
+                        visited[nfi] = true;
+                        let nf = &mesh.faces[nfi];
+                        
+                        // Находим 3-ю вершину соседней грани (которая не на общем ребре)
+                        let mut v3_3d = [0.0f32, 0.0f32, 0.0f32];
+                        for &vi in &nf.vertices {
+                            if vi != v1 && vi != v2 { v3_3d = [mesh.vertices[vi].x, mesh.vertices[vi].y, mesh.vertices[vi].z]; break; }
+                        }
+
+                        // 2D координаты общего ребра в текущей системе координат
+                        let a0 = v2d[v1];
+                        let a1 = v2d[v2];
+                        
+                        // Вычисляем вектор нормали текущей грани (аппроксимация через Z-компоненту в 2D)
+                        let edge_vec = [a1[0] - a0[0], a1[1] - a0[1]];
+                        // Мы должны "отразить" 3D вершину в 2D, сохраняя длины и углы.
+                        // Вектор от v1 к v3 в 3D
+                        let d3d_1 = [mesh.vertices[v3_3d[0] as usize].x - mesh.vertices[v1].x, 
+                                    mesh.vertices[v3_3d[0] as usize].y - mesh.vertices[v1].y];
+                        
+                        // Упрощенная жесткая трансформация (Papercraft core logic)
+                        // Находим угол и длину
+                        let _len_d3d = (d3d_1[0]*d3d_1[0] + d3d_1[1]*d3d_1[1]).sqrt().max(0.0001);
+                        let _len_edge = (edge_vec[0]*edge_vec[0] + edge_vec[1]*edge_vec[1]).sqrt().max(0.0001);
+                        
+                        // Вычисляем угол поворота на основе 3D координат (через векторное произведение)
+                        let ev3d = [mesh.vertices[v2].x - mesh.vertices[v1].x, mesh.vertices[v2].y - mesh.vertices[v1].y, mesh.vertices[v2].z - mesh.vertices[v1].z];
+                        let dv3d = [v3_3d[0] - mesh.vertices[v1].x, v3_3d[1] - mesh.vertices[v1].y, v3_3d[2] - mesh.vertices[v1].z];
+                        
+                        // Z-компонента векторного произведения определяет направление разворота (вверх или вниз от ребра)
+                        let cross_z = ev3d[0] * dv3d[1] - ev3d[1] * dv3d[0];
+                        let sign = if cross_z < 0.0 { -1.0 } else { 1.0 };
+
+                        // Угол между ребром и вектором к 3-й вершине в 3D
+                        let dot = ev3d[0]*dv3d[0] + ev3d[1]*dv3d[1];
+                        let det = ev3d[0]*dv3d[1] - ev3d[1]*dv3d[0];
+                        let mut angle_3d = det.atan2(dot);
+
+                        // Применяем знак для правильного "загибания" бумаги
+                        if sign < 0.0 { angle_3d = -angle_3d; }
+
+                        // Текущий угол ребра в 2D
+                        let angle_2d = edge_vec[1].atan2(edge_vec[0]);
+                        
+                        // Итоговый угол для 3-й вершины в 2D
+                        let final_angle = angle_2d + angle_3d;
+                        
+                        // Длина вектора к 3-й вершине в 3D
+                        let len_3d = ((v3_3d[0]-mesh.vertices[v1].x).powi(2) + 
+                                      (v3_3d[1]-mesh.vertices[v1].y).powi(2) + 
+                                      (v3_3d[2]-mesh.vertices[v1].z).powi(2)).sqrt();
+
+                        // Вычисляем 2D координаты 3-й вершины
+                        let v3_idx = nf.vertices.iter().find(|&&vi| vi != v1 && vi != v2).unwrap();
+                        v2d[*v3_idx] = [a0[0] + final_angle.cos() * len_3d, a0[1] + final_angle.sin() * len_3d];
+                        
+                        queue.push_back(nfi);
+                    }
+                }
+            }
+        }
+
+        let faces_2d: Vec<Vec<usize>> = mesh.faces.iter().map(|f| f.vertices.clone()).collect();
+        let mut area = 0.0;
+        for f in &mesh.faces {
+            if f.vertices.len() == 3 {
+                let v0 = v2d[f.vertices[0]]; let v1 = v2d[f.vertices[1]]; let v2 = v2d[f.vertices[2]];
+                area += ((v1[0]-v0[0])*(v2[1]-v0[1]) - (v1[1]-v0[1])*(v2[0]-v0[0])).abs() * 0.5;
+            }
+        }
+
+        Ok(UnfoldResult {
+            vertices_2d: v2d,
+            faces: faces_2d,
+            island_ids: vec![0; mesh.faces.len()], // Временная заглушка для островов
+            metadata: UnfoldMetadata { is_degenerate: area < 0.0001, area_2d: area },
+            sheet_count: 1,
+        })
+    }
+
+    pub mod mds_optimized {
+        use super::*;
+        pub fn mds_parallel(_mesh: &Mesh, _config: &UnfoldConfig) -> UnfoldResult {
+            UnfoldResult::empty()
+        }
+    }
+
+    pub mod seam_cut {
+        use super::*;
+
+        pub struct SeamCutResult {
+            pub islands: Vec<Vec<usize>>,
+            pub seam_count: usize,
+        }
+
+        pub fn compute_seam_islands(_mesh: &Mesh, _target_islands: usize) -> SeamCutResult {
+    SeamCutResult {
+        islands: vec![],
+        seam_count: 0,
+    }
+}
+    }
+}
+pub use unfold::*;
+
+// ── Nesting ───────────────────────────────────────────────
+pub mod nesting {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct NestPart {
+        pub vertices: Vec<[f32; 2]>,
+        pub label: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PaperSettings {
+        pub width: f32,
+        pub height: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct NestParams {
+        pub paper: PaperSettings,
+        pub spacing: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PartOverride {
+        pub part_index: usize,
+        pub position: Option<[f32; 2]>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct NestResult {
+        pub sheets: Vec<Vec<NestPart>>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct GeneticConfig {
+        pub population_size: usize,
+        pub generations: usize,
+    }
+
+    pub fn nest_unfolds(
+        _unfolded: &UnfoldedMesh,
+        _params: &NestParams,
+    ) -> NestResult {
+        NestResult { sheets: vec![] }
+    }
+
+    pub fn optimize_nesting_genetic(
+        _unfolded: &UnfoldedMesh,
+        _params: &NestParams,
+        _config: &GeneticConfig,
+    ) -> NestResult {
+        NestResult { sheets: vec![] }
+    }
+}
+pub use nesting::*;
+
+// ── Export ────────────────────────────────────────────────
+pub mod export {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PageSize {
+        pub width: f32,
+        pub height: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum PdfOrientation {
+        Portrait,
+        Landscape,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PdfExportConfig {
+        pub page_size: PageSize,
+        pub orientation: PdfOrientation,
+        pub margin: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum DxfUnits {
+        Millimeter,
+        Inch,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct DxfExportConfig {
+        pub units: DxfUnits,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct TextureExportConfig {
+        pub width: u32,
+        pub height: u32,
+    }
+
+    pub fn export_nest_result_to_svgs(
+        _nest: &NestResult,
+        _params: &NestParams,
+    ) -> Vec<String> {
+        vec![]
+    }
+
+    pub fn apply_overrides_to_nest_result(
+        _nest: &mut NestResult,
+        _overrides: &[PartOverride],
+    ) {
+    }
+
+    pub fn export_sheet_to_svg(
+        _parts: &[NestPart],
+        _params: &NestParams,
+    ) -> String {
+        String::new()
+    }
+
+    pub fn export_pdf(
+        _nest: &NestResult,
+        _config: &PdfExportConfig,
+    ) -> Vec<u8> {
+        vec![]
+    }
+
+    pub fn export_pdf_to_file(
+        _nest: &NestResult,
+        _config: &PdfExportConfig,
+        _path: &str,
+    ) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    pub fn export_dxf(
+        _nest: &NestResult,
+        _config: &DxfExportConfig,
+    ) -> Vec<u8> {
+        vec![]
+    }
+
+    pub fn export_dxf_to_file(
+        _nest: &NestResult,
+        _config: &DxfExportConfig,
+        _path: &str,
+    ) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    pub fn export_textures(
+        _mesh: &Mesh,
+        _config: &TextureExportConfig,
+    ) -> Vec<Vec<u8>> {
+        vec![]
+    }
+
+    pub fn generate_uv_from_position(_mesh: &Mesh) -> Vec<[f32; 2]> {
+        vec![]
+    }
+}
+pub use export::*;
+
+// ── Project ───────────────────────────────────────────────
+pub mod project {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PepaProject {
+        pub name: String,
+        pub meshes: Vec<super::Mesh>,
+    }
+}
+pub use project::PepaProject;
+
+// ── PDO Parser ────────────────────────────────────────────
+pub mod pdo_parser {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PdoModel {
+        pub name: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum ParsePdoResult {
+        Ok(PdoModel),
+        Err(String),
+    }
+
+    pub fn parse_pdo_to_pepa_core(_data: &[u8]) -> ParsePdoResult {
+        ParsePdoResult::Ok(PdoModel {
+            name: "stub".into(),
+        })
+    }
+}
+pub use pdo_parser::*;
+
+// ── Pepa Scene Adapter ────────────────────────────────────
+pub mod pepa_scene_adapter {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PepaScene {
+        pub parts: Vec<super::Mesh>,
+    }
+
+    pub trait FromPdoModel {
+        fn from_pdo(model: &super::PdoModel) -> Self;
+    }
+
+    impl FromPdoModel for PepaScene {
+        fn from_pdo(_model: &super::PdoModel) -> Self {
+            PepaScene { parts: vec![] }
+        }
+    }
+}
+pub use pepa_scene_adapter::*;
+
+// ── Sanitize ──────────────────────────────────────────────
+pub mod sanitize {
+    #[derive(Debug, Clone)]
+    pub struct SanitizeOptions {
+        pub remove_degenerate: bool,
+    }
+
+    impl Default for SanitizeOptions {
+        fn default() -> Self {
+            Self {
+                remove_degenerate: true,
+            }
+        }
+    }
+
+    pub fn simplify_mesh(mesh: &super::Mesh, _options: &SanitizeOptions) -> Result<super::Mesh, String> {
+        Ok(mesh.clone())
+    }
+}
+pub use sanitize::*;
+
+// ── Papercraft adapter ────────────────────────────────────
+pub mod papercraft_adapter {
+    use super::unwrap_types::UnwrapMetrics;
+    use super::unwrap_types::UnwrapResult;
+
+    pub fn run_papercraft(_obj_data: &str) -> Result<UnwrapResult, String> {
+    Ok(UnwrapResult {
+        engine_used: "Papercraft".into(),
+        vertices_2d: vec![],
+        total_area: 0.0,
+        total_perimeter: 0.0,
+        pieces: vec![],
+        pages: vec![],
+        metrics: UnwrapMetrics::default(),
+        sheet_width: 0.0,
+        sheet_height: 0.0,
+        margin: 0.0,
+    })
+}
+}
+
+// ── unwrap_types ─────────────────────────────────────────
+pub mod unwrap_types {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Point2D {
+        pub x: f32,
+        pub y: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Polygon {
+        pub points: Vec<Point2D>,
+        pub holes: Vec<Vec<Point2D>>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct FoldLine {
+        pub start: Point2D,
+        pub end: Point2D,
+        pub fold_type: FoldType,
+        pub angle: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum FoldType {
+        Mountain,
+        Valley,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Tab {
+        pub poly: Vec<Point2D>,
+        pub glue_to_piece_id: usize,
+        pub glue_edge_index: usize,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Piece {
+        pub id: u32,
+        pub name: String,
+        pub label: Option<String>,
+        pub outline: Polygon,
+        pub folds: Vec<FoldLine>,
+        pub tabs: Vec<Tab>,
+        pub area: f32,
+        pub perimeter: f32,
+        pub page_number: u32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Page {
+        pub page_number: usize,
+        pub piece_ids: Vec<usize>,
+        pub utilization_percent: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+    pub struct UnwrapMetrics {
+        pub total_pieces: u32,
+        pub total_pages: u32,
+        pub total_folds: u32,
+        pub total_tabs: u32,
+        pub complexity_score: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnwrapResult {
+    pub engine_used: String,
+    pub vertices_2d: Vec<[f64; 2]>,
+    pub total_area: f64,
+    pub total_perimeter: f64,
+    pub pieces: Vec<Piece>,
+    pub pages: Vec<Page>,
+    pub metrics: UnwrapMetrics,
+    pub sheet_width: f32,
+    pub sheet_height: f32,
+    pub margin: f32,
+}
+
+    // Реэкспорт для совместимости
+    pub use super::unfold::UnfoldedMesh;
+    pub use super::unfold::UnfoldResult;
+
+    // ── New Architecture Types (Alpha 0.7) ─────────────
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+    pub enum EdgeType {
+        Cut,
+        Mountain,
+        Valley,
+        Glue,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Edge2D {
+        pub v1: [f64; 2],
+        pub v2: [f64; 2],
+        pub edge_type: EdgeType,
+        pub piece_id: usize,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Flap2D {
+        pub vertices: Vec<[f64; 2]>,
+        pub target_piece_id: usize,
+        pub edge_index: usize,
+    }
+}
+
+// ── AI ────────────────────────────────────────────────────
+pub mod ai {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct AiConfig {
+        pub endpoint: String,
+        pub model: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct ChatMessage {
+        pub role: String,
+        pub content: String,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct PepakuraAssistant {
+    #[allow(dead_code)]
+        config: AiConfig,
+    }
+
+    impl PepakuraAssistant {
+        pub fn new(config: AiConfig) -> Self {
+            Self { config }
+        }
+
+        pub fn ask(&self, _messages: &[ChatMessage]) -> String {
+            String::new()
+        }
+
+        pub fn stream_chat(
+            &self,
+            _messages: &[ChatMessage],
+        ) -> Box<dyn Iterator<Item = String> + Send> {
+            Box::new(std::iter::empty())
+        }
+    }
+}
+pub use ai::*;
+
+// ── Analysis ──────────────────────────────────────────────
+pub mod analysis {
+    use super::*;
+
+    #[derive(Debug, Clone)]
+    pub struct DistortionAnalyzer;
+
+    impl DistortionAnalyzer {
+        pub fn generate_distortion_advice(&self, _mesh: &Mesh) -> String {
+            String::new()
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct NestingOptimizer;
+
+    impl NestingOptimizer {
+        pub fn generate_nesting_advice(
+            &self,
+            _nest: &NestResult,
+            _params: &NestParams,
+        ) -> String {
+            String::new()
+        }
+    }
+}
+pub use analysis::*;

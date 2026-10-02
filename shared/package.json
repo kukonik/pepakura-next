@@ -1,0 +1,20 @@
+{
+  "name": "@pepakura/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "idb-keyval": "^6.2.2",
+    "three": "^0.160.0",
+    "@types/three": "^0.160.0",
+    "vue": "^3.5.0",
+    "@tauri-apps/api": "^2.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  }
+}

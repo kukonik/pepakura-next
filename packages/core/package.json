@@ -1,0 +1,10 @@
+{
+  "version": "0.0.1",
+  "types": "./src/index.ts",
+  "name": "@pepakura-next/core",
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "type": "module",
+  "main": "./src/index.ts"
+}

@@ -1,0 +1,68 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "crates/pepakura_core",
+    "crates/pepakura_wasm",
+    "crates/pepakura_platform",
+    "crates/pepakura_addons",
+    "crates/ai_bridge",
+    "crates/pepakura_debug",
+    "platform/desktop/ui-desktop/src-tauri",
+    "src-tauri",
+]
+
+# Исключить backup, legacy и отдельные workspace папки
+exclude = [
+    "backup_*",
+    "core/pepakura_core",
+    "packages/ui-desktop.backup_*",
+    "ui-desktop/src-tauri-backup",
+    "backend/genai-platform",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Pepakura Next Team"]
+license = "MIT"
+repository = "https://github.com/pepakura-next/pepakura-next"
+
+[workspace.dependencies]
+# Common
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+log = "0.4"
+anyhow = "1.0"
+
+# Async
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+
+# Geometry
+nalgebra = "0.32"
+
+# Image processing
+image = "0.24"
+
+# Export formats
+printpdf = "0.6"
+dxf = "0.5"
+svg = "0.13"
+
+# UUID
+uuid = { version = "0.8", features = ["v4", "wasm-bindgen"] }
+
+# Tauri
+tauri = { version = "2.3.5" }
+tauri-build = { version = "2.3.5" }
+tauri-plugin-fs = { version = "2.3.5" }
+tauri-plugin-dialog = { version = "2.3.5" }
+tauri-plugin-shell = { version = "2.3.5" }
+
+# WASM
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+serde-wasm-bindgen = "0.6"

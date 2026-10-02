@@ -1,0 +1,11 @@
+{
+    "ai": {
+      "provider": "openai",
+      "openai": {
+        "apiKey": "YOUR_API_KEY",
+        "model": "gpt-4",
+        "temperature": 0.7,
+        "maxTokens": 2048
+      }
+    }
+  }

@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo build *)",
+      "Bash(cargo test *)",
+      "Bash(cargo check *)",
+      "Bash(select-string *)",
+      "Bash(npm run *)",
+      "Bash(select-object *)",
+      "Bash(pnpm install)",
+      "Bash(pnpm add *)",
+      "Bash(pnpm ls *)",
+      "Bash(npm install *)",
+      "Bash(timeout *)",
+      "Bash(taskkill *)",
+      "Bash(findstr *)",
+      "Bash(cargo clean)",
+      "Bash(tasklist)",
+      "Bash(rd *)",
+      "Bash(del *)",
+      "Bash(set *)",
+      "Bash(mkdir *)",
+      "Bash(pnpm *)",
+      "Bash(dir *)",
+      "Bash(type *)"
+    ]
+  },
+  "$version": 3
+}

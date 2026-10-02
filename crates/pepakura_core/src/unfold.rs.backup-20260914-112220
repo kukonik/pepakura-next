@@ -1,0 +1,166 @@
+pub mod lscm;
+#[derive(Debug)]
+pub enum UnfoldError { Generic(String) }
+#[derive(Debug)]
+pub enum UnfoldError { Generic(String) }
+use serde::{Serialize, Deserialize};
+use crate::geometry::Mesh;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum UnfoldAlgorithm { Mst, Lscm, Mds }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UnfoldConfig {
+    pub algorithm: UnfoldAlgorithm,
+}
+
+impl Default for UnfoldConfig {
+    fn default() -> Self { Self { algorithm: UnfoldAlgorithm::Mst } }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UnfoldedMeshMeta {
+    pub is_degenerate: bool,
+    pub area_2d: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct UnfoldedMesh {
+    pub vertices_2d: Vec<[f64; 2]>,
+    pub faces: Vec<crate::geometry::Face>,
+    pub metadata: UnfoldedMeshMeta,
+}
+
+pub mod mds_optimized {
+    pub fn mds_parallel(_mesh: &crate::geometry::Mesh, _config: &super::UnfoldConfig) -> Result<super::UnfoldedMesh, String> {
+        Err("MDS parallel not implemented".to_string())
+    }
+}
+
+pub fn unfold_mst(mesh: &Mesh, _config: &UnfoldConfig) -> Result<UnfoldedMesh, String> {
+    if mesh.faces.is_empty() { 
+        return Ok(UnfoldedMesh { 
+            vertices_2d: vec![], 
+            faces: mesh.faces.clone(), 
+            metadata: UnfoldedMeshMeta { is_degenerate: false, area_2d: 0.0 } 
+        }); 
+    }
+    
+    use std::collections::{HashMap, VecDeque};
+    let mut v2d = vec![[0.0f64; 2]; mesh.vertices.len()];
+    let mut visited = vec![false; mesh.faces.len()];
+    
+    let get_v = |vi: usize| [mesh.vertices[vi].x as f64, mesh.vertices[vi].y as f64, mesh.vertices[vi].z as f64];
+    let sub_v = |a: [f64; 3], b: [f64; 3]| [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    let dot_v = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    
+    let mut edge_map: HashMap<(usize, usize), Vec<usize>> = HashMap::new();
+    for (fi, f) in mesh.faces.iter().enumerate() {
+        if f.vertices.len() < 3 { continue; }
+        for i in 0..3 {
+            let a = f.vertices[i];
+            let b = f.vertices[(i + 1) % 3];
+            let key = if a < b { (a, b) } else { (b, a) };
+            edge_map.entry(key).or_default().push(fi);
+        }
+    }
+    
+    let mut queue = VecDeque::new();
+    let mut total_area = 0.0;
+    
+    for i in 0..mesh.faces.len() {
+        if visited[i] || mesh.faces[i].vertices.len() < 3 { continue; }
+        
+        queue.push_back(i);
+        visited[i] = true;
+        
+        let f = &mesh.faces[i];
+        let v0 = get_v(f.vertices[0]);
+        let v1 = get_v(f.vertices[1]);
+        let v2 = get_v(f.vertices[2]);
+        
+        let e1 = sub_v(v1, v0);
+        let e2 = sub_v(v2, v0);
+        let len_e1 = dot_v(e1, e1).sqrt();
+        
+        if len_e1 < 1e-6 { continue; }
+        
+        let dot_e1e2 = dot_v(e1, e2);
+        let len_e2 = dot_v(e2, e2).sqrt();
+        let cos_a = (dot_e1e2 / (len_e1 * len_e2)).clamp(-1.0, 1.0);
+        let sin_a = (1.0 - cos_a * cos_a).max(0.0).sqrt();
+        
+        v2d[f.vertices[0]] = [0.0, 0.0];
+        v2d[f.vertices[1]] = [len_e1, 0.0];
+        v2d[f.vertices[2]] = [len_e2 * cos_a, len_e2 * sin_a];
+        
+        total_area += (v2d[f.vertices[1]][0] * v2d[f.vertices[2]][1] - v2d[f.vertices[1]][1] * v2d[f.vertices[2]][0]).abs() * 0.5;
+        
+        while let Some(fi) = queue.pop_front() {
+            let f_curr = &mesh.faces[fi];
+            for i in 0..3 {
+                let va = f_curr.vertices[i];
+                let vb = f_curr.vertices[(i + 1) % 3];
+                let key = if va < vb { (va, vb) } else { (vb, va) };
+                
+                if let Some(adj_faces) = edge_map.get(&key) {
+                    for &nf in adj_faces {
+                        if !visited[nf] && mesh.faces[nf].vertices.len() == 3 {
+                            visited[nf] = true;
+                            queue.push_back(nf);
+                            
+                            let f_next = &mesh.faces[nf];
+                            let mut opposite_idx = 0;
+                            for j in 0..3 {
+                                if f_next.vertices[j] != va && f_next.vertices[j] != vb {
+                                    opposite_idx = j;
+                                    break;
+                                }
+                            }
+                            
+                            let p_a = get_v(va);
+                            let p_b = get_v(vb);
+                            let p_c = get_v(f_next.vertices[opposite_idx]);
+                            
+                            let v_ab = sub_v(p_b, p_a);
+                            let v_ac = sub_v(p_c, p_a);
+                            
+                            let dot_ab_ab = dot_v(v_ab, v_ab);
+                            if dot_ab_ab < 1e-12 { continue; }
+                            let t = dot_v(v_ab, v_ac) / dot_ab_ab;
+                            
+                            let h_sq = dot_v(v_ac, v_ac) - t * t * dot_ab_ab;
+                            let h = if h_sq > 0.0 { h_sq.sqrt() } else { 0.0 };
+                            
+                            let p2_a = v2d[va];
+                            let p2_b = v2d[vb];
+                            let e2d = [p2_b[0] - p2_a[0], p2_b[1] - p2_a[1]];
+                            let len_e2d = dot_v(e2d, e2d).sqrt();
+                            if len_e2d < 1e-6 { continue; }
+                            
+                            let foot = [p2_a[0] + e2d[0] * t, p2_a[1] + e2d[1] * t];
+                            let perp = [-e2d[1] / len_e2d, e2d[0] / len_e2d];
+                            
+                            v2d[f_next.vertices[opposite_idx]] = [foot[0] + perp[0] * h, foot[1] + perp[1] * h];
+                            
+                            total_area += ((v2d[vb][0] - v2d[va][0]) * (v2d[f_next.vertices[opposite_idx]][1] - v2d[va][1]) - 
+                                           (v2d[vb][1] - v2d[va][1]) * (v2d[f_next.vertices[opposite_idx]][0] - v2d[va][0])).abs() * 0.5;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(UnfoldedMesh { vertices_2d: v2d, faces: mesh.faces.clone(), metadata: UnfoldedMeshMeta { is_degenerate: false, area_2d: total_area } })
+}
+
+pub mod seam_cut {
+    pub struct SeamResult { pub islands: Vec<Vec<usize>>, pub seam_count: usize }
+    pub fn compute_seam_islands(_mesh: &Mesh, _target: usize) -> SeamResult { SeamResult { islands: vec![(0.._mesh.faces.len()).collect()], seam_count: 0 } }
+}
+
+
+
+
+

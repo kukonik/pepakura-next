@@ -1,0 +1,10 @@
+/// Адаптер для интеграции с алгоритмами развёртки из `rodrigorc/papercraft`.
+/// 
+/// В будущем здесь будет:
+/// 1. Конвертация нашего `Mesh` в формат papercraft.
+/// 2. Вызов алгоритма unfolder (который строит остова и сгибы).
+/// 3. Конвертация результата обратно в наш `UnwrapResult`.
+pub fn unfold_with_papercraft(mesh: &crate::Mesh, config: &crate::UnfoldConfig) -> Result<crate::UnwrapResult, String> {
+    // TODO: Реализовать вызов papercraft
+    Err("Papercraft engine is not implemented yet".to_string())
+}

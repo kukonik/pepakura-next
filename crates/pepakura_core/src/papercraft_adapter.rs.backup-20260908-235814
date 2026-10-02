@@ -1,0 +1,137 @@
+use crate::Mesh;
+use crate::unwrap_types::{UnwrapResult, Piece, Polygon, Point2D, FoldLine, FoldType, UnwrapMetrics, Page};
+use std::collections::{HashSet, VecDeque, HashMap};
+
+pub fn unfold_with_papercraft(mesh: &Mesh) -> Result<UnwrapResult, String> {
+    if mesh.faces.is_empty() {
+        return Err("Mesh is empty".to_string());
+    }
+
+    let mut vertices_2d: HashMap<usize, [f64; 2]> = HashMap::new();
+    let mut visited_faces = HashSet::new();
+    let mut queue = VecDeque::new();
+    let mut folds = Vec::new();
+
+    let root_face_idx = 0;
+    queue.push_back(root_face_idx);
+    visited_faces.insert(root_face_idx);
+
+    // Базовая грань: проецируем на XY
+    let root_face = &mesh.faces[root_face_idx];
+    for &v_idx in &root_face.vertices {
+        let v = &mesh.vertices[v_idx];
+        vertices_2d.insert(v_idx, [v.x as f64, v.y as f64]);
+    }
+
+    let dist3 = |a_idx: usize, b_idx: usize| -> f64 {
+        let a = &mesh.vertices[a_idx];
+        let b = &mesh.vertices[b_idx];
+        let dx = a.x as f64 - b.x as f64;
+        let dy = a.y as f64 - b.y as f64;
+        let dz = a.z as f64 - b.z as f64;
+        (dx * dx + dy * dy + dz * dz).sqrt()
+    };
+
+    // BFS обход (Spanning Tree Unfold)
+    while let Some(face_idx) = queue.pop_front() {
+        let face = &mesh.faces[face_idx];
+        let f_indices = &face.vertices;
+        
+        let edges = [
+            (f_indices[0], f_indices[1], f_indices[2]),
+            (f_indices[1], f_indices[2], f_indices[0]),
+            (f_indices[2], f_indices[0], f_indices[1])
+        ];
+        
+        for &(v1, v2, v3) in &edges {
+            for (n_idx, n_face) in mesh.faces.iter().enumerate() {
+                if visited_faces.contains(&n_idx) { continue; }
+                
+                let nf_indices = &n_face.vertices;
+                let shares_v1 = nf_indices.contains(&v1);
+                let shares_v2 = nf_indices.contains(&v2);
+                
+                if shares_v1 && shares_v2 {
+                    visited_faces.insert(n_idx);
+                    queue.push_back(n_idx);
+                    
+                    let p1 = vertices_2d.get(&v1).copied().unwrap_or([0.0, 0.0]);
+                    let p2 = vertices_2d.get(&v2).copied().unwrap_or([0.0, 0.0]);
+                    
+                    let len_13 = dist3(v1, v3);
+                    let len_23 = dist3(v2, v3);
+                    
+                    let dx = p2[0] - p1[0];
+                    let dy = p2[1] - p1[1];
+                    let d = (dx * dx + dy * dy).sqrt();
+                    
+                    if d > 1e-6 && d <= len_13 + len_23 && d >= (len_13 - len_23).abs() {
+                        let a = (len_13.powi(2) - len_23.powi(2) + d.powi(2)) / (2.0 * d);
+                        let h_sq = len_13.powi(2) - a.powi(2);
+                        let h = if h_sq > 0.0 { h_sq.sqrt() } else { 0.0 };
+                        
+                        let x0 = p1[0] + a * dx / d;
+                        let y0 = p1[1] + a * dy / d;
+                        
+                        let c1 = [x0 + h * (-dy) / d, y0 + h * dx / d];
+                        let c2 = [x0 - h * (-dy) / d, y0 - h * dx / d];
+                        
+                        let cross = dx * (c1[1] - p1[1]) - dy * (c1[0] - p1[0]);
+                        let c = if cross > 0.0 { c1 } else { c2 };
+                        
+                        vertices_2d.insert(v3, c);
+                        
+                        folds.push(FoldLine {
+                            start: Point2D { x: p1[0] as f32, y: p1[1] as f32 },
+                            end: Point2D { x: p2[0] as f32, y: p2[1] as f32 },
+                            fold_type: FoldType::Mountain, 
+                            angle: 0.0,
+                        });
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    // Собираем контур из вершин базовой грани
+    let mut points = Vec::new();
+    for &v_idx in &root_face.vertices {
+        if let Some(pt) = vertices_2d.get(&v_idx) {
+            points.push(Point2D { x: pt[0] as f32, y: pt[1] as f32 });
+        }
+    }
+
+    let piece = Piece {
+        id: 0,
+        name: "Piece_0".to_string(),
+        label: None,
+        outline: Polygon { points, holes: vec![] },
+        folds,
+        tabs: vec![],
+        area: 0.0,
+        perimeter: 0.0,
+        page_number: 0,
+    };
+
+    let mut all_v2d = vec![[0.0; 2]; mesh.vertices.len()];
+    for (i, v) in mesh.vertices.iter().enumerate() {
+        all_v2d[i] = vertices_2d.get(&i).copied().unwrap_or([v.x as f64, v.y as f64]);
+    }
+
+    Ok(UnwrapResult {
+        engine_used: "papercraft_clean_room".to_string(),
+        vertices_2d: all_v2d,
+        faces: mesh.faces.iter().map(|f| f.vertices.clone()).collect(),
+        total_area: 0.0,
+        total_perimeter: 0.0,
+        pieces: vec![piece],
+        pages: vec![Page { page_number: 0, piece_ids: vec![0], utilization_percent: 0.0 }],
+        metrics: UnwrapMetrics { total_pieces: 1, total_pages: 1, total_folds: piece.folds.len() as u32, total_tabs: 0, complexity_score: 0.0 },
+        sheet_width: 1000.0,
+        sheet_height: 1000.0,
+        margin: 10.0,
+    })
+}
+
+

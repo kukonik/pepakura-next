@@ -1,0 +1,188 @@
+
+> pepakura-next@0.0.0 dev
+> vite --port 5173
+
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m67027[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+Error: The following dependencies are imported but could not be resolved:
+
+  [36m@/components/common/AppHeader.vue[39m [37m[2m(imported by D:/Dev/pepakura-next/platform/desktop/ui-desktop/src/views/HomeView.vue?id=0)[22m[39m
+  [36m@/components/dashboard/QuickActions.vue[39m [37m[2m(imported by D:/Dev/pepakura-next/platform/desktop/ui-desktop/src/views/HomeView.vue?id=0)[22m[39m
+  [36m@/components/dashboard/RecentProjectsPanel.vue[39m [37m[2m(imported by D:/Dev/pepakura-next/platform/desktop/ui-desktop/src/views/HomeView.vue?id=0)[22m[39m
+  [36m@pepakura/shared/composables/usePlatform[39m [37m[2m(imported by D:/Dev/pepakura-next/platform/desktop/ui-desktop/src/composables/usePdfExport.ts)[22m[39m
+  [36m@pepakura/shared/composables/useModelViewer[39m [37m[2m(imported by D:/Dev/pepakura-next/platform/desktop/ui-desktop/src/components/ModelViewer3D.vue?id=0)[22m[39m
+  [36m@pepakura/shared/composables/useModelFileLoader[39m [37m[2m(imported by D:/Dev/pepakura-next/platform/desktop/ui-desktop/src/components/ModelViewer3D.vue?id=0)[22m[39m
+  [36m@pepakura/shared/composables/useModelStats[39m [37m[2m(imported by D:/Dev/pepakura-next/platform/desktop/ui-desktop/src/components/ModelViewer3D.vue?id=0)[22m[39m
+
+Are they installed?
+    at file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:50669:15
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:50174:26
+[2m23:43:41[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "@/components/common/AppHeader.vue" from "src/views/HomeView.vue". Does the file exist?
+[2m23:43:49[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "@pepakura/shared/composables/useModelViewer" from "src/components/ModelViewer3D.vue". Does the file exist?
+[2m23:43:50[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "@pepakura/shared/composables/usePlatform" from "src/composables/usePdfExport.ts". Does the file exist?
+[2m23:43:50[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "@pepakura/shared/composables/usePlatform" from "src/stores/projectStore.ts". Does the file exist?
+[2m23:43:50[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "@pepakura/shared/composables/usePlatform" from "src/stores/projectStore.ts". Does the file exist?
+[2m23:43:50[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "@pepakura/shared/composables/usePlatform" from "src/stores/projectStore.ts". Does the file exist?
+[2m23:43:50[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "@pepakura/shared/composables/usePlatform" from "src/stores/projectStore.ts". Does the file exist?
+[2m23:43:50[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "@pepakura/shared/composables/usePlatform" from "src/stores/projectStore.ts". Does the file exist?
+[2m23:44:18[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/components/common/AppHeader.vue" from "src/views/HomeView.vue". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Dev/pepakura-next/platform/desktop/ui-desktop/src/views/HomeView.vue[39m:12:22
+[33m  1  |  import { defineComponent as _defineComponent } from "vue";
+  2  |  import AppHeader from "@/components/common/AppHeader.vue";
+     |                         ^
+  3  |  import QuickActions from "@/components/dashboard/QuickActions.vue";
+  4  |  import RecentProjectsPanel from "@/components/dashboard/RecentProjectsPanel.vue";[39m
+      at TransformPluginContext._formatError (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 1)
+      at async TransformPluginContext.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m23:45:45[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@pepakura/shared/composables/usePlatform" from "src/stores/projectStore.ts". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Dev/pepakura-next/platform/desktop/ui-desktop/src/stores/projectStore.ts[39m:3:28
+[33m  1  |  import { defineStore } from "pinia";
+  2  |  import { ref } from "vue";
+  3  |  import { usePlatform } from "@pepakura/shared/composables/usePlatform";
+     |                               ^
+  4  |  export const useProjectStore = defineStore("project", () => {
+  5  |    const projects = ref([]);[39m
+      at TransformPluginContext._formatError (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 2)
+      at async TransformPluginContext.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m23:45:45[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@pepakura/shared/composables/useModelViewer" from "src/components/ModelViewer3D.vue". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Dev/pepakura-next/platform/desktop/ui-desktop/src/components/ModelViewer3D.vue[39m:44:33
+[33m  2  |  import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+  3  |  import { useProjectStore } from "../stores/projectStore";
+  4  |  import { useModelViewer } from "@pepakura/shared/composables/useModelViewer";
+     |                                  ^
+  5  |  import { useModelFileLoader } from "@pepakura/shared/composables/useModelFileLoader";
+  6  |  import { useModelStats } from "@pepakura/shared/composables/useModelStats";[39m
+      at TransformPluginContext._formatError (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 3)
+      at async TransformPluginContext.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m23:45:45[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "@pepakura/shared/composables/usePlatform" from "src/stores/projectStore.ts". Does the file exist?
+[2m23:45:47[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@pepakura/shared/composables/usePlatform" from "src/composables/usePdfExport.ts". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Dev/pepakura-next/platform/desktop/ui-desktop/src/composables/usePdfExport.ts[39m:2:28
+[33m  1  |  import { ref } from "vue";
+  2  |  import { usePlatform } from "@pepakura/shared/composables/usePlatform";
+     |                               ^
+  3  |  export function usePdfExport() {
+  4  |    const isExporting = ref(false);[39m
+      at TransformPluginContext._formatError (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 1)
+      at async TransformPluginContext.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m23:52:29[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/components/common/AppHeader.vue" from "src/views/HomeView.vue". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Dev/pepakura-next/platform/desktop/ui-desktop/src/views/HomeView.vue[39m:12:22
+[33m  1  |  import { defineComponent as _defineComponent } from "vue";
+  2  |  import AppHeader from "@/components/common/AppHeader.vue";
+     |                         ^
+  3  |  import QuickActions from "@/components/dashboard/QuickActions.vue";
+  4  |  import RecentProjectsPanel from "@/components/dashboard/RecentProjectsPanel.vue";[39m
+      at TransformPluginContext._formatError (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 1)
+      at async TransformPluginContext.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m23:52:31[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@pepakura/shared/composables/usePlatform" from "src/stores/projectStore.ts". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Dev/pepakura-next/platform/desktop/ui-desktop/src/stores/projectStore.ts[39m:3:28
+[33m  1  |  import { defineStore } from "pinia";
+  2  |  import { ref } from "vue";
+  3  |  import { usePlatform } from "@pepakura/shared/composables/usePlatform";
+     |                               ^
+  4  |  export const useProjectStore = defineStore("project", () => {
+  5  |    const projects = ref([]);[39m
+      at TransformPluginContext._formatError (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 2)
+      at async TransformPluginContext.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m23:52:31[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@pepakura/shared/composables/useModelViewer" from "src/components/ModelViewer3D.vue". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Dev/pepakura-next/platform/desktop/ui-desktop/src/components/ModelViewer3D.vue[39m:44:33
+[33m  2  |  import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+  3  |  import { useProjectStore } from "../stores/projectStore";
+  4  |  import { useModelViewer } from "@pepakura/shared/composables/useModelViewer";
+     |                                  ^
+  5  |  import { useModelFileLoader } from "@pepakura/shared/composables/useModelFileLoader";
+  6  |  import { useModelStats } from "@pepakura/shared/composables/useModelStats";[39m
+      at TransformPluginContext._formatError (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 3)
+      at async TransformPluginContext.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m23:52:31[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@pepakura/shared/composables/usePlatform" from "src/composables/usePdfExport.ts". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Dev/pepakura-next/platform/desktop/ui-desktop/src/composables/usePdfExport.ts[39m:2:28
+[33m  1  |  import { ref } from "vue";
+  2  |  import { usePlatform } from "@pepakura/shared/composables/usePlatform";
+     |                               ^
+  3  |  export function usePdfExport() {
+  4  |    const isExporting = ref(false);[39m
+      at TransformPluginContext._formatError (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 1)
+      at async TransformPluginContext.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Dev/pepakura-next/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.39/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m23:52:31[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "@pepakura/shared/composables/usePlatform" from "src/stores/projectStore.ts". Does the file exist?
+[2m00:01:53[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m
+[2m00:01:58[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m
+Re-optimizing dependencies because vite config has changed
+[2m00:03:46[22m [36m[1m[vite][22m[39m server restarted.
+[2m00:44:51[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/@fs/D:/Dev/pepakura-next/platform/desktop/ui-desktop/src/components/export/PdfExporter.vue[22m
+[2m00:44:53[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/@fs/D:/Dev/pepakura-next/platform/desktop/ui-desktop/src/components/export/PdfExporter.vue[22m
+[2m00:44:53[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/@fs/D:/Dev/pepakura-next/platform/desktop/ui-desktop/src/components/export/PdfExporter.vue[22m

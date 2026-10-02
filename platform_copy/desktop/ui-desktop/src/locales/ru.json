@@ -1,0 +1,168 @@
+{
+  "app": {
+    "title": "Pepakura Next",
+    "description": "Кроссплатформенное развёртывание бумажных моделей с ИИ"
+  },
+  "actions": {
+    "generate": "Сгенерировать",
+    "import": "Импорт",
+    "export": "Экспорт",
+    "save": "Сохранить",
+    "load": "Загрузить"
+  },
+  "stages": {
+    "3d": "3D Модель",
+    "unfold": "Развёртка",
+    "nest": "Раскладка",
+    "export": "Экспорт"
+  },
+  "ai": {
+    "textTo3d": "Текст в 3D",
+    "imageTo3d": "Изображение в 3D",
+    "generating": "Генерация...",
+    "assistant": {
+      "title": "AI Ассистент",
+      "status": {
+        "online": "Ollama подключён",
+        "offline": "Ollama не доступен",
+        "checking": "Проверка подключения..."
+      },
+      "analyze": {
+        "button": "AI Анализ модели",
+        "title": "Результаты анализа",
+        "noModel": "Сначала загрузите 3D модель",
+        "running": "Анализ запущен...",
+        "complete": "Анализ завершён",
+        "error": "Ошибка анализа"
+      },
+      "chat": {
+        "placeholder": "Введите сообщение для AI ассистента...",
+        "send": "Отправить",
+        "sending": "Отправка...",
+        "clear": "Очистить чат",
+        "noMessages": "Нет сообщений. Начните диалог с AI!"
+      },
+      "roles": {
+        "user": "Пользователь",
+        "assistant": "AI Ассистент",
+        "system": "Система"
+      },
+      "analysis": {
+        "algorithm": "Рекомендуемый алгоритм",
+        "maxIterations": "Макс. итераций",
+        "tolerance": "Допуск",
+        "tips": "Советы",
+        "potentialIssues": "Возможные проблемы",
+        "noResults": "Результаты анализа появятся здесь",
+        "clear": "Очистить результаты"
+      },
+      "errors": {
+        "ollamaUnavailable": "Ollama не доступен. Убедитесь, что сервис запущен на localhost:11434",
+        "sendMessageFailed": "Ошибка при отправке сообщения",
+        "analysisFailed": "Ошибка при анализе модели",
+        "noModel": "Модель не загружена"
+      }
+    }
+  },
+  "common": {
+    "ok": "ОК",
+    "cancel": "Отмена",
+    "loading": "Загрузка...",
+    "about": "О программе",
+    "dark": "Тёмная",
+    "light": "Светлая",
+    "system": "Системная",
+    "appName": "Pepakura Next",
+    "appTagline": "Papercraft design studio",
+    "switchToEnglish": "Переключить на английский",
+    "switchToRussian": "Переключить на русский",
+    "russian": "Русский",
+    "english": "English",
+    "switchToLight": "Переключить на светлую тему",
+    "switchToDark": "Переключить на тёмную тему",
+    "open": "Открыть",
+    "delete": "Удалить"
+  },
+  "dashboard": {
+    "title": "Мои проекты",
+    "newProject": "Новый проект",
+    "import": "Импортировать",
+    "open": "Открыть",
+    "settings": "Настройки",
+    "recentProjects": "Недавние проекты",
+    "noProjects": "Нет проектов. Создайте новый или импортируйте модель.",
+    "search": "Поиск проектов...",
+    "delete": "Удалить",
+    "export": "Экспорт",
+    "openInEditor": "Открыть в редакторе",
+    "newProjectHint": "Создать пустой проект",
+    "importHint": "Импорт 3D модели",
+    "openHint": "Открыть существующий проект",
+    "settingsHint": "Настройки приложения",
+    "searchPlaceholder": "Поиск по имени или тегам",
+    "loading": "Загрузка проектов...",
+    "created": "Создан",
+    "models": "моделей",
+    "deleteConfirm": "Удалить проект \"{name}\"?",
+    "newProjectPrompt": "Введите название нового проекта:",
+    "newProjectDefault": "Новый проект",
+    "createError": "Не удалось создать проект",
+    "importSuccess": "Модель успешно импортирована",
+    "importError": "Ошибка импорта модели",
+    "openNotImplemented": "Функция открытия проекта из файла ещё не реализована"
+  },
+  "unfold": {
+    "title": "Развёртка",
+    "export": "Экспорт",
+    "settings": "Настройки развёртки",
+    "algorithm": "Алгоритм",
+    "preserveDetail": "Сохранять детали",
+    "maxIterations": "Макс. итераций",
+    "tolerance": "Допуск"
+  },
+  "export": {
+    "title": "Экспорт",
+    "format": "Формат",
+    "pageSize": "Размер страницы",
+    "scale": "Масштаб",
+    "showVertexIds": "Показывать ID вершин",
+    "showFoldLines": "Показывать линии сгиба",
+    "showCutLines": "Показывать линии реза"
+  },
+  "settings": {
+    "title": "Настройки",
+    "general": "Общие",
+    "language": "Язык",
+    "theme": "Тема",
+    "defaultExportPath": "Путь экспорта по умолчанию",
+    "ai": "AI",
+    "provider": "Провайдер",
+    "model": "Модель",
+    "apiKey": "API ключ",
+    "about": "О программе",
+    "version": "Версия",
+    "license": "Лицензия",
+    "tabGeneral": "Общие",
+    "tabUnfold": "Развёртка",
+    "tabAI": "AI",
+    "tabAbout": "О программе",
+    "themeLight": "Светлая",
+    "themeDark": "Тёмная",
+    "themeSystem": "Системная",
+    "defaultExportPathPlaceholder": "Выберите папку",
+    "browse": "Обзор",
+    "preserveDetail": "Сохранять детали",
+    "maxIterations": "Максимальное количество итераций",
+    "tolerance": "Допуск",
+    "toleranceHint": "Меньшее значение = точнее, но медленнее",
+    "aiProvider": "Провайдер AI",
+    "aiModel": "Модель AI",
+    "aiModelPlaceholder": "Например, llama3.2",
+    "apiKeyPlaceholder": "Введите ваш API ключ",
+    "apiKeyHint": "Ключ хранится локально в зашифрованном виде",
+    "repository": "Репозиторий",
+    "credits": "Авторы",
+    "resetToDefaults": "Сбросить к умолчаниям",
+    "save": "Сохранить"
+  }
+}

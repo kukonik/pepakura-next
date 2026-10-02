@@ -1,0 +1,547 @@
+// crates/pepakura_core/src/lib.rs -- final compatible version
+
+use serde::{Deserialize, Serialize};
+
+// ── Geometry ──────────────────────────────────────────────
+pub mod geometry {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Vertex {
+        pub x: f32,
+        pub y: f32,
+        pub z: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Face {
+        pub vertices: Vec<usize>,
+        pub material_id: Option<usize>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+    pub struct MeshMetadata {
+        pub name: Option<String>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Mesh {
+        pub name: String,
+        pub vertices: Vec<Vertex>,
+        pub faces: Vec<Face>,
+        pub metadata: MeshMetadata,
+    }
+}
+pub use geometry::*;
+
+// ── Import ────────────────────────────────────────────────
+pub mod import {
+    use super::*;
+    pub fn parse_obj_str(data: &str) -> Result<Mesh, String> {
+        Ok(Mesh {
+            name: String::new(),
+            vertices: vec![],
+            faces: vec![],
+            metadata: Default::default(),
+        })
+    }
+}
+
+// ── Unfold ────────────────────────────────────────────────
+pub mod unfold {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum UnfoldAlgorithm {
+        Lscm,
+        Mds,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnfoldConfig {
+        pub algorithm: UnfoldAlgorithm,
+        pub margin: f32,
+        pub fold_angle_threshold: f32,
+    }
+
+    impl Default for UnfoldConfig {
+        fn default() -> Self {
+            Self {
+                algorithm: UnfoldAlgorithm::Lscm,
+                margin: 10.0,
+                fold_angle_threshold: 5.0,
+            }
+        }
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnfoldedMesh {
+        pub vertices_2d: Vec<[f32; 2]>,
+        pub faces: Vec<Vec<usize>>,
+        pub island_ids: Vec<usize>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnfoldMetadata {
+        pub is_degenerate: bool,
+        pub area_2d: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnfoldResult {
+        pub vertices_2d: Vec<[f32; 2]>,
+        pub faces: Vec<Vec<usize>>,
+        pub island_ids: Vec<usize>,
+        pub metadata: UnfoldMetadata,
+        pub sheet_count: u32,
+    }
+
+    // Вспомогательная для создания результата
+    impl UnfoldResult {
+        pub fn empty() -> Self {
+            UnfoldResult {
+                vertices_2d: vec![],
+                faces: vec![],
+                island_ids: vec![],
+                metadata: UnfoldMetadata { is_degenerate: false, area_2d: 0.0 },
+                sheet_count: 1,
+            }
+        }
+    }
+
+    pub fn unfold_lscm(_mesh: &Mesh, _config: &UnfoldConfig) -> UnfoldResult {
+        UnfoldResult::empty()
+    }
+
+    pub fn unfold_mst(_mesh: &Mesh, _config: &UnfoldConfig) -> Result<UnfoldResult, String> {
+        Ok(UnfoldResult::empty())
+    }
+
+    pub mod mds_optimized {
+        use super::*;
+        pub fn mds_parallel(_mesh: &Mesh, _config: &UnfoldConfig) -> UnfoldResult {
+            UnfoldResult::empty()
+        }
+    }
+
+    pub mod seam_cut {
+        use super::*;
+
+        pub struct SeamCutResult {
+            pub islands: Vec<Vec<usize>>,
+            pub seam_count: usize,
+        }
+
+        pub fn compute_seam_islands(_mesh: &Mesh, _target_islands: usize) -> Result<SeamCutResult, String> {
+            Ok(SeamCutResult {
+                islands: vec![],
+                seam_count: 0,
+            })
+        }
+    }
+}
+pub use unfold::*;
+
+// ── Nesting ───────────────────────────────────────────────
+pub mod nesting {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct NestPart {
+        pub vertices: Vec<[f32; 2]>,
+        pub label: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PaperSettings {
+        pub width: f32,
+        pub height: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct NestParams {
+        pub paper: PaperSettings,
+        pub spacing: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PartOverride {
+        pub part_index: usize,
+        pub position: Option<[f32; 2]>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct NestResult {
+        pub sheets: Vec<Vec<NestPart>>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct GeneticConfig {
+        pub population_size: usize,
+        pub generations: usize,
+    }
+
+    pub fn nest_unfolds(
+        _unfolded: &UnfoldedMesh,
+        _params: &NestParams,
+    ) -> NestResult {
+        NestResult { sheets: vec![] }
+    }
+
+    pub fn optimize_nesting_genetic(
+        _unfolded: &UnfoldedMesh,
+        _params: &NestParams,
+        _config: &GeneticConfig,
+    ) -> NestResult {
+        NestResult { sheets: vec![] }
+    }
+}
+pub use nesting::*;
+
+// ── Export ────────────────────────────────────────────────
+pub mod export {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PageSize {
+        pub width: f32,
+        pub height: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum PdfOrientation {
+        Portrait,
+        Landscape,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PdfExportConfig {
+        pub page_size: PageSize,
+        pub orientation: PdfOrientation,
+        pub margin: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum DxfUnits {
+        Millimeter,
+        Inch,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct DxfExportConfig {
+        pub units: DxfUnits,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct TextureExportConfig {
+        pub width: u32,
+        pub height: u32,
+    }
+
+    pub fn export_nest_result_to_svgs(
+        _nest: &NestResult,
+        _params: &NestParams,
+    ) -> Vec<String> {
+        vec![]
+    }
+
+    pub fn apply_overrides_to_nest_result(
+        _nest: &mut NestResult,
+        _overrides: &[PartOverride],
+    ) {
+    }
+
+    pub fn export_sheet_to_svg(
+        _parts: &[NestPart],
+        _params: &NestParams,
+    ) -> String {
+        String::new()
+    }
+
+    pub fn export_pdf(
+        _nest: &NestResult,
+        _config: &PdfExportConfig,
+    ) -> Vec<u8> {
+        vec![]
+    }
+
+    pub fn export_pdf_to_file(
+        _nest: &NestResult,
+        _config: &PdfExportConfig,
+        _path: &str,
+    ) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    pub fn export_dxf(
+        _nest: &NestResult,
+        _config: &DxfExportConfig,
+    ) -> Vec<u8> {
+        vec![]
+    }
+
+    pub fn export_dxf_to_file(
+        _nest: &NestResult,
+        _config: &DxfExportConfig,
+        _path: &str,
+    ) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    pub fn export_textures(
+        _mesh: &Mesh,
+        _config: &TextureExportConfig,
+    ) -> Vec<Vec<u8>> {
+        vec![]
+    }
+
+    pub fn generate_uv_from_position(_mesh: &Mesh) -> Vec<[f32; 2]> {
+        vec![]
+    }
+}
+pub use export::*;
+
+// ── Project ───────────────────────────────────────────────
+pub mod project {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PepaProject {
+        pub name: String,
+        pub meshes: Vec<super::Mesh>,
+    }
+}
+pub use project::PepaProject;
+
+// ── PDO Parser ────────────────────────────────────────────
+pub mod pdo_parser {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PdoModel {
+        pub name: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum ParsePdoResult {
+        Ok(PdoModel),
+        Err(String),
+    }
+
+    pub fn parse_pdo_to_pepa_core(_data: &[u8]) -> ParsePdoResult {
+        ParsePdoResult::Ok(PdoModel {
+            name: "stub".into(),
+        })
+    }
+}
+pub use pdo_parser::*;
+
+// ── Pepa Scene Adapter ────────────────────────────────────
+pub mod pepa_scene_adapter {
+    use super::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct PepaScene {
+        pub parts: Vec<super::Mesh>,
+    }
+
+    pub trait FromPdoModel {
+        fn from_pdo(model: &super::PdoModel) -> Self;
+    }
+
+    impl FromPdoModel for PepaScene {
+        fn from_pdo(_model: &super::PdoModel) -> Self {
+            PepaScene { parts: vec![] }
+        }
+    }
+}
+pub use pepa_scene_adapter::*;
+
+// ── Sanitize ──────────────────────────────────────────────
+pub mod sanitize {
+    #[derive(Debug, Clone)]
+    pub struct SanitizeOptions {
+        pub remove_degenerate: bool,
+    }
+
+    impl Default for SanitizeOptions {
+        fn default() -> Self {
+            Self {
+                remove_degenerate: true,
+            }
+        }
+    }
+
+    pub fn simplify_mesh(mesh: &super::Mesh, _options: &SanitizeOptions) -> Result<super::Mesh, String> {
+        Ok(mesh.clone())
+    }
+}
+pub use sanitize::*;
+
+// ── Papercraft adapter ────────────────────────────────────
+pub mod papercraft_adapter {
+    use super::unwrap_types::UnwrapResult;
+
+    pub fn run_papercraft(_obj_data: &str) -> Result<UnwrapResult, String> {
+        // заглушка
+        Ok(UnwrapResult {
+            engine_used: "Papercraft".into(),
+            pieces: vec![],
+            pages: vec![],
+            metrics: Default::default(),
+            sheet_width: 0.0,
+            sheet_height: 0.0,
+            margin: 0.0,
+        })
+    }
+}
+
+// ── unwrap_types ─────────────────────────────────────────
+pub mod unwrap_types {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Point2D {
+        pub x: f32,
+        pub y: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Polygon {
+        pub points: Vec<Point2D>,
+        pub holes: Vec<Vec<Point2D>>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct FoldLine {
+        pub start: Point2D,
+        pub end: Point2D,
+        pub fold_type: FoldType,
+        pub angle: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum FoldType {
+        Mountain,
+        Valley,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Tab {
+        pub poly: Vec<Point2D>,
+        pub glue_to_piece_id: usize,
+        pub glue_edge_index: usize,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Piece {
+        pub id: u32,
+        pub name: String,
+        pub label: Option<String>,
+        pub outline: Polygon,
+        pub folds: Vec<FoldLine>,
+        pub tabs: Vec<Tab>,
+        pub area: f32,
+        pub perimeter: f32,
+        pub page_number: u32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Page {
+        pub page_number: usize,
+        pub piece_ids: Vec<usize>,
+        pub utilization_percent: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+    pub struct UnwrapMetrics {
+        pub total_pieces: u32,
+        pub total_pages: u32,
+        pub total_folds: u32,
+        pub total_tabs: u32,
+        pub complexity_score: f32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct UnwrapResult {
+        pub engine_used: String,
+        pub pieces: Vec<Piece>,
+        pub pages: Vec<Page>,
+        pub metrics: UnwrapMetrics,
+        pub sheet_width: f32,
+        pub sheet_height: f32,
+        pub margin: f32,
+    }
+
+    // Реэкспорт для совместимости
+    pub use super::unfold::UnfoldedMesh;
+    pub use super::unfold::UnfoldResult;
+}
+
+// ── AI ────────────────────────────────────────────────────
+pub mod ai {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct AiConfig {
+        pub endpoint: String,
+        pub model: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct ChatMessage {
+        pub role: String,
+        pub content: String,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct PepakuraAssistant {
+        config: AiConfig,
+    }
+
+    impl PepakuraAssistant {
+        pub fn new(config: AiConfig) -> Self {
+            Self { config }
+        }
+
+        pub fn ask(&self, _messages: &[ChatMessage]) -> String {
+            String::new()
+        }
+
+        pub fn stream_chat(
+            &self,
+            _messages: &[ChatMessage],
+        ) -> Box<dyn Iterator<Item = String> + Send> {
+            Box::new(std::iter::empty())
+        }
+    }
+}
+pub use ai::*;
+
+// ── Analysis ──────────────────────────────────────────────
+pub mod analysis {
+    use super::*;
+
+    #[derive(Debug, Clone)]
+    pub struct DistortionAnalyzer;
+
+    impl DistortionAnalyzer {
+        pub fn generate_distortion_advice(&self, _mesh: &Mesh) -> String {
+            String::new()
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct NestingOptimizer;
+
+    impl NestingOptimizer {
+        pub fn generate_nesting_advice(
+            &self,
+            _nest: &NestResult,
+            _params: &NestParams,
+        ) -> String {
+            String::new()
+        }
+    }
+}
+pub use analysis::*;

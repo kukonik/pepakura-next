@@ -1,0 +1,140 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+  TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: pepakura-next-windows-x86_64
+            extension: .exe
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: pepakura-next-macos-aarch64
+            extension: .app
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: pepakura-next-linux-x86_64
+            extension: .AppImage
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install system dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install create-dmg
+
+      - name: Install dependencies
+        run: |
+          cd ui-desktop
+          pnpm install
+
+      - name: Build Tauri application
+        run: |
+          cd ui-desktop
+          pnpm tauri build --target ${{ matrix.target }}
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            ui-desktop/src-tauri/target/release/bundle/**/*${{ matrix.extension }}
+            ui-desktop/src-tauri/target/release/bundle/**/*.deb
+            ui-desktop/src-tauri/target/release/bundle/**/*.rpm
+            ui-desktop/src-tauri/target/release/bundle/**/*.dmg
+          retention-days: 7
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: |
+          cd ui-desktop
+          pnpm install
+
+      - name: Run frontend tests
+        run: |
+          cd ui-desktop
+          pnpm test:unit
+
+      - name: Run Rust tests
+        run: |
+          cd core/pepakura_core
+          cargo test --verbose
+
+  release:
+    needs: [build, test]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            pepakura-next-windows-x86_64/*.exe
+            pepakura-next-macos-aarch64/*.app
+            pepakura-next-linux-x86_64/*.AppImage
+            pepakura-next-linux-x86_64/*.deb
+            pepakura-next-linux-x86_64/*.rpm
+          draft: false
+          prerelease: false

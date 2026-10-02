@@ -1,0 +1,72 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub enum UnwrapEngine {
+    #[default]
+    Native,
+    PapercraftExe,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UnwrapOptions {
+    pub engine: UnwrapEngine,
+    pub scale: f32,
+    pub page_width: f32,
+    pub page_height: f32,
+    pub margin: f32,
+    pub allow_tabs: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UnwrapGlobalMetrics {
+    pub total_pieces: usize,
+    pub total_tabs: usize,
+    pub total_folds: usize,
+    pub total_pages: usize,
+    pub avg_piece_area: f32,
+    pub max_piece_area: f32,
+    pub estimated_assembly_time_min: f32,
+    pub difficulty_score: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Segment2 {
+    pub x1: f32,
+    pub y1: f32,
+    pub x2: f32,
+    pub y2: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Outline {
+    pub points: Vec<[f32; 2]>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FoldLine {
+    pub fold_type: String, // "Mountain" / "Valley" / "Cut"
+    pub segment: Segment2,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Tab {
+    pub outline: Outline,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Piece {
+    pub id: String,
+    pub name: String,
+    pub outline: Outline,
+    pub folds: Vec<FoldLine>,
+    pub tabs: Vec<Tab>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UnwrapResult {
+    pub engine: String,
+    pub options_used: UnwrapOptions,
+    pub pages: Vec<serde_json::Value>,
+    pub pieces: Vec<Piece>,
+    pub global_metrics: UnwrapGlobalMetrics,
+}

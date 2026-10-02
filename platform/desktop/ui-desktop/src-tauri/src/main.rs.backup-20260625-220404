@@ -1,0 +1,11 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![allow(dead_code)]
+mod commands;
+use commands::unfold_mesh;
+
+fn main() {
+    tauri::Builder::default()
+        .manage(tauri::Manager::new())
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
