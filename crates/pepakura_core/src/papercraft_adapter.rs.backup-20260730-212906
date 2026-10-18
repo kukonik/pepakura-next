@@ -1,3 +1,0 @@
-pub fn unfold_with_papercraft(_obj_data: &str) -> Result<crate::UnwrapResult, String> {
-    Err("Papercraft engine is not implemented yet".to_string())
-}

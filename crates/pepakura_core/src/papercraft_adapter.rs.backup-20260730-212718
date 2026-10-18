@@ -1,3 +1,0 @@
-pub fn unfold_with_papercraft(_mesh: &crate::Mesh, _config: &crate::UnfoldConfig) -> Result<crate::UnfoldResult, String> {
-    Err("Papercraft engine is not implemented yet".to_string())
-}

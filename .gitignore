@@ -13,3 +13,12 @@ src-tauri/gen/
 models/
 uploads/
 outputs/
+
+desktop_copy/
+platform_copy/
+_QUARANTINE/
+packages/ui-desktop.backup_*/
+**/src-tauri-backup/
+**/*.backup.*
+**/*.broken.*
+**/*.corrupt-*
