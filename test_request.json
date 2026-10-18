@@ -1,7 +1,0 @@
-{
-  "tool": "model_tools",
-  "op": "unfold_model",
-  "payload": {
-    "path": "test_model.obj"
-  }
-}
