@@ -27,20 +27,12 @@ repo-tree.txt
 check_output.txt
 .codeassistantmodes
 .void/
- $null
+$null
 h
 text-generation-webui/
-# --- audit cleanup: local-only artifacts ---
-repo-tree.txt
-check_output.txt
-.codeassistantmodes
-.void/
- $null
-h
 get3d.json
 image-to-3d.json
 point-e.json
 shape-e.json
 text-to-3d.json
 triposr.json
-text-generation-webui/
