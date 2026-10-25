@@ -14,6 +14,7 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, './packages/shared/src'),
       '@core': path.resolve(__dirname, './packages/core/src'),
       '@frontend': path.resolve(__dirname, './frontend/src'),
+      '@pepakura_wasm': path.resolve(__dirname, './crates/pepakura_wasm/pkg'),
       // '@pepakura_wasm' оставить только если код реально импортирует его — проверка ниже
     },
   },
