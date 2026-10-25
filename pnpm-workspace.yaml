@@ -1,15 +1,10 @@
 packages:
   - "packages/*"
   - "core/*"
-  - "crates/*"
   - "shared"
   - "platform/desktop/*"
   - "addons/*"
-
 allowBuilds:
-  esbuild: true
-  vue-demi: false
-
-ignoredBuiltDependencies:
+  esbuild: set this to true or false
+onlyBuiltDependencies:
   - esbuild
-  - vue-demi
