@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  web:
+    name: web (install smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # TODO: включить после починки typecheck — сейчас ровно 3 известные ошибки
+      # (осиротевший frontend/ без vue + алиас на wasm-glue, которого нет в git).
+      # - name: Typecheck
+      #   run: pnpm typecheck
+
+  # TODO: включить после починки src-tauri (30 ошибок компиляции: commands.rs
+  # написан под другую копию pepakura_core; лог: pepakura-backups\cargo-check-log.txt)
+  # rust:
+  #   name: rust (cargo check)
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: dtolnay/rust-toolchain@stable
+  #     - uses: Swatinem/rust-cache@v2
+  #     - run: cargo check --all-targets --manifest-path src-tauri/Cargo.toml
