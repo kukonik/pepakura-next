@@ -6,16 +6,17 @@
     "dev": "cd platform/desktop/ui-desktop && pnpm dev",
     "build": "cd platform/desktop/ui-desktop && pnpm build",
     "tauri": "cd src-tauri && cargo tauri dev",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "typecheck": "pnpm -r exec pnpm run typecheck 2>/dev/null || echo 'Typecheck not configured in all packages'",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --ignore-path .gitignore",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "check:rust": "cargo check --all-targets"
   },
   "dependencies": {
-    "@tauri-apps/plugin-dialog": "^2.7.1",
-    "@types/node": "^20.19.30",
-    "@types/three": "^0.160.0"
+    "@tauri-apps/plugin-dialog": "^2.7.1"
   },
   "devDependencies": {
-    "@vue/tsconfig": "^0.9.1"
+    "@types/node": "20.19.30",
+    "@types/three": "0.160.0",
+    "@vue/tsconfig": "^0.9.1",
+    "typescript": "5.7.2"
   }
 }
