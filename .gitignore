@@ -22,3 +22,11 @@ packages/ui-desktop.backup_*/
 **/*.backup.*
 **/*.broken.*
 **/*.corrupt-*
+# --- audit cleanup: local-only artifacts ---
+repo-tree.txt
+check_output.txt
+.codeassistantmodes
+.void/
+ $null
+h
+text-generation-webui/
