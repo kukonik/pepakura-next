@@ -9,19 +9,18 @@
 //!
 //! ## Пример использования
 //!
-//! ```rust
-//! use pepakura_addons::{Addon, AddonManifest, AddonRegistry};
+//! ```rust,no_run
+//! use std::sync::Arc;
+//! use pepakura_addons::{Addon, AddonError, AddonManifest, AddonRegistry};
 //!
 //! // Создание аддона
 //! pub struct MyAddon;
 //!
 //! impl Addon for MyAddon {
 //!     fn manifest(&self) -> AddonManifest {
-//!         AddonManifest {
-//!             name: "my-addon".to_string(),
-//!             version: "1.0.0".to_string(),
-//!             description: "My custom addon".to_string(),
-//!         }
+//!         // Заполните манифест вашего аддона; полный набор полей
+//!         // см. в документации pepakura_addons::manifest::AddonManifest.
+//!         todo!("построить AddonManifest")
 //!     }
 //!
 //!     fn initialize(&self) -> Result<(), AddonError> {
@@ -30,9 +29,9 @@
 //!     }
 //! }
 //!
-//! // Регистрация аддона
-//! let mut registry = AddonRegistry::new();
-//! registry.register(Box::new(MyAddon)).unwrap();
+//! // Регистрация аддона: register принимает Arc<dyn Addon>
+//! let registry = AddonRegistry::new();
+//! registry.register(Arc::new(MyAddon)).unwrap();
 //! ```
 
 pub mod error;

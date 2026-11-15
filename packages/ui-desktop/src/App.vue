@@ -2,7 +2,7 @@
   <div id="app">
     <!-- Глобальный layout -->
     <div class="app-layout">
-      <PepakuraEditor />
+      <SplitView />
       
       <!-- Глобальный toast контейнер -->
       <Teleport to="body">
@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import NotificationToast from './components/NotificationToast.vue'
-import PepakuraEditor from './components/PepakuraEditor.vue'
+import SplitView from './components/SplitView.vue'
 import { useProjectStore } from './stores/projectStore'
 // глобальные стили
 

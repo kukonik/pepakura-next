@@ -57,6 +57,62 @@ impl Default for AppSettings {
     }
 }
 
+/// Создаёт схему БД (общая для new() и in_memory()).
+fn init_schema(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS state (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id TEXT NOT NULL,
+            action TEXT NOT NULL,
+            state_before TEXT NOT NULL,
+            state_after TEXT NOT NULL,
+            timestamp TEXT NOT NULL
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS recent_projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT NOT NULL,
+            name TEXT NOT NULL,
+            last_opened TEXT NOT NULL
+        )",
+        [],
+    )?;
+
+    // Индексы для ускорения
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_history_project ON history(project_id)",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_history_timestamp ON history(timestamp)",
+        [],
+    )?;
+
+    Ok(())
+}
+
 impl StatePersistence {
     /// Создаёт новый менеджер персистентности.
     pub fn new<P: AsRef<Path>>(db_path: P) -> Result<Self> {
@@ -67,57 +123,7 @@ impl StatePersistence {
                 | OpenFlags::SQLITE_OPEN_FULL_MUTEX,
         )?;
 
-        // Создаём таблицы
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS state (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )",
-            [],
-        )?;
-
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                project_id TEXT NOT NULL,
-                action TEXT NOT NULL,
-                state_before TEXT NOT NULL,
-                state_after TEXT NOT NULL,
-                timestamp TEXT NOT NULL
-            )",
-            [],
-        )?;
-
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )",
-            [],
-        )?;
-
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS recent_projects (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                path TEXT NOT NULL,
-                name TEXT NOT NULL,
-                last_opened TEXT NOT NULL
-            )",
-            [],
-        )?;
-
-        // Индексы для ускорения
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_history_project ON history(project_id)",
-            [],
-        )?;
-
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_history_timestamp ON history(timestamp)",
-            [],
-        )?;
+        init_schema(&conn)?;
 
         Ok(Self { conn })
     }
@@ -129,6 +135,7 @@ impl StatePersistence {
                 | OpenFlags::SQLITE_OPEN_CREATE
                 | OpenFlags::SQLITE_OPEN_FULL_MUTEX,
         )?;
+        init_schema(&conn)?;
         Ok(Self { conn })
     }
 
@@ -148,7 +155,7 @@ impl StatePersistence {
 
     /// Загружает состояние по ключу.
     pub fn load_state<T: for<'de> Deserialize<'de>>(&self, key: &str) -> Result<Option<T>> {
-        let result: Result<String, _> = self.conn.query_row(
+        let result: Result<String> = self.conn.query_row(
             "SELECT value FROM state WHERE key = ?1",
             [key],
             |row| row.get(0),
@@ -274,7 +281,7 @@ impl StatePersistence {
 
     /// Загружает настройку.
     pub fn get_setting(&self, key: &str) -> Result<Option<String>> {
-        let result: Result<String, _> = self.conn.query_row(
+        let result: Result<String> = self.conn.query_row(
             "SELECT value FROM settings WHERE key = ?1",
             [key],
             |row| row.get(0),
@@ -417,8 +424,8 @@ mod tests {
 
         let loaded: Option<serde_json::Value> = persistence.load_state("test_key").unwrap();
         assert!(loaded.is_some());
-        assert_eq!(loaded.unwrap()["name"], "Test Project");
-        assert_eq!(loaded.unwrap()["value"], 42);
+        assert_eq!(loaded.as_ref().unwrap()["name"], "Test Project");
+        assert_eq!(loaded.as_ref().unwrap()["value"], 42);
     }
 
     #[test]

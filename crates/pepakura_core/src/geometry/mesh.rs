@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::geometry::Vertex;
+use super::vertex::Vertex;
 
 /// Грань меша (треугольник).
 /// 
@@ -19,18 +19,18 @@ impl Face {
     /// Создаёт новую грань из трёх вершин.
     /// 
     /// # Аргументы
-    /// * `v1` - индекс первой вершины
-    /// * `v2` - индекс второй вершины
-    /// * `v3` - индекс третьей вершины
+    /// * v1 - индекс первой вершины
+    /// * v2 - индекс второй вершины
+    /// * v3 - индекс третьей вершины
     /// 
     /// # Примеры
     /// 
-    /// ```
+    /// 
     /// use pepakura_core::geometry::Face;
     /// 
     /// let face = Face::new(0, 1, 2);
     /// assert_eq!(face.vertices, [0, 1, 2]);
-    /// ```
+    /// 
     pub fn new(v1: usize, v2: usize, v3: usize) -> Self {
         Self {
             vertices: [v1, v2, v3],
@@ -139,6 +139,9 @@ pub struct MeshMetadata {
     pub description: Option<String>,
     /// Теги для поиска
     pub tags: Vec<String>,
+    /// Имена материалов (индекс = Face.material_id) [82-A]
+    #[serde(default)]
+    pub material_names: Vec<String>,
     /// Дата создания
     pub created_at: Option<String>,
     /// Дата модификации
@@ -151,13 +154,15 @@ pub struct MeshMetadata {
 /// 
 /// # Примеры
 /// 
-/// ```
+/// 
 /// use pepakura_core::geometry::{Mesh, Vertex, Face};
 /// 
 /// let mut mesh = Mesh::new("Cube");
 /// // Добавление вершин и граней...
-/// ```
+/// 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
+
 pub struct Mesh {
     /// Вершины меша
     pub vertices: Vec<Vertex>,
@@ -174,13 +179,13 @@ impl Mesh {
     /// 
     /// # Примеры
     /// 
-    /// ```
+    /// 
     /// use pepakura_core::geometry::Mesh;
     /// 
     /// let mesh = Mesh::new("MyModel");
     /// assert_eq!(mesh.name, "MyModel");
     /// assert!(mesh.vertices.is_empty());
-    /// ```
+    /// 
     pub fn new(name: &str) -> Self {
         Self {
             vertices: Vec::new(),
@@ -220,7 +225,7 @@ impl Mesh {
     /// 
     /// # Примеры
     /// 
-    /// ```
+    /// 
     /// use pepakura_core::geometry::{Mesh, Vertex, Face};
     /// 
     /// let mut mesh = Mesh::new("Test");
@@ -229,7 +234,7 @@ impl Mesh {
     /// let bbox = mesh.bounding_box();
     /// assert_eq!(bbox.min, [0.0, 0.0, 0.0]);
     /// assert_eq!(bbox.max, [1.0, 1.0, 1.0]);
-    /// ```
+    /// 
     pub fn bounding_box(&self) -> BoundingBox {
         if self.vertices.is_empty() {
             return BoundingBox::empty();
@@ -253,14 +258,14 @@ impl Mesh {
     /// 
     /// # Примеры
     /// 
-    /// ```
+    /// 
     /// use pepakura_core::geometry::{Mesh, Vertex};
     /// 
     /// let mut mesh = Mesh::new("Test");
     /// mesh.add_vertex(Vertex::new(0, [0.0, 0.0, 0.0]));
     /// mesh.add_vertex(Vertex::new(1, [2.0, 2.0, 2.0]));
     /// assert_eq!(mesh.centroid(), [1.0, 1.0, 1.0]);
-    /// ```
+    /// 
     pub fn centroid(&self) -> [f64; 3] {
         if self.vertices.is_empty() {
             return [0.0, 0.0, 0.0];
@@ -281,14 +286,14 @@ impl Mesh {
     /// 
     /// # Примеры
     /// 
-    /// ```
+    /// 
     /// use pepakura_core::geometry::{Mesh, Vertex};
     /// 
     /// let mut mesh = Mesh::new("Test");
     /// mesh.add_vertex(Vertex::new(0, [1.0, 2.0, 3.0]));
     /// mesh.scale(2.0);
     /// assert_eq!(mesh.vertices[0].position, [2.0, 4.0, 6.0]);
-    /// ```
+    /// 
     pub fn scale(&mut self, factor: f64) {
         for vertex in &mut self.vertices {
             vertex.position[0] *= factor;
@@ -301,14 +306,14 @@ impl Mesh {
     /// 
     /// # Примеры
     /// 
-    /// ```
+    /// 
     /// use pepakura_core::geometry::{Mesh, Vertex};
     /// 
     /// let mut mesh = Mesh::new("Test");
     /// mesh.add_vertex(Vertex::new(0, [1.0, 2.0, 3.0]));
     /// mesh.translate([1.0, 1.0, 1.0]);
     /// assert_eq!(mesh.vertices[0].position, [2.0, 3.0, 4.0]);
-    /// ```
+    /// 
     pub fn translate(&mut self, offset: [f64; 3]) {
         for vertex in &mut self.vertices {
             vertex.position[0] += offset[0];

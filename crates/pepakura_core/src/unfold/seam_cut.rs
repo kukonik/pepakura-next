@@ -31,7 +31,7 @@ pub struct SeamCutResult {
 }
 
 /// Вычислить оптимальные швы через MST на dual-графе.
-/// `target_islands` — желаемое число островов для этого компонента.
+/// target_islands — желаемое число островов для этого компонента.
 pub fn compute_seam_islands(mesh: &Mesh, target_islands: usize) -> SeamCutResult {
     let n_faces = mesh.faces.len();
     if n_faces == 0 {

@@ -1,0 +1,9 @@
+use crate::geometry::Mesh;
+
+pub struct SanitizeOptions {
+    pub remove_degenerate: bool,
+}
+
+pub fn simplify_mesh(_mesh: &Mesh, _opts: &SanitizeOptions) -> Mesh {
+    Mesh::new("sanitized")
+}

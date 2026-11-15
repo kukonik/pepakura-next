@@ -72,6 +72,8 @@ impl Persistence {
             [],
         )?;
         
+        conn.execute(             "CREATE TABLE settings (                 key TEXT PRIMARY KEY,                 value TEXT NOT NULL             )",             [],         )?;
+
         Ok(Self { conn })
     }
     
@@ -99,7 +101,11 @@ impl Persistence {
             "SELECT value FROM state WHERE key = ?1"
         )?;
         
-        let value: String = stmt.query_row([key], |row| row.get(0))?;
+        let value: String = match stmt.query_row([key], |row| row.get(0)) {
+            Ok(v) => v,
+            Err(rusqlite::Error::QueryReturnedNoRows) => return Ok(None),
+            Err(e) => return Err(e),
+        };
         
         let parsed: T = serde_json::from_str(&value)
             .map_err(|e| rusqlite::Error::FromSqlConversionFailure(0, Type::Text, Box::new(e)))?;
@@ -145,7 +151,11 @@ impl Persistence {
             "SELECT data FROM projects WHERE id = ?1"
         )?;
         
-        let data: String = stmt.query_row([id.to_string()], |row| row.get(0))?;
+        let data: String = match stmt.query_row([id.to_string()], |row| row.get(0)) {
+            Ok(v) => v,
+            Err(rusqlite::Error::QueryReturnedNoRows) => return Ok(None),
+            Err(e) => return Err(e),
+        };
         
         let parsed: T = serde_json::from_str(&data)
             .map_err(|e| rusqlite::Error::FromSqlConversionFailure(0, Type::Text, Box::new(e)))?;
@@ -197,7 +207,11 @@ impl Persistence {
             "SELECT value FROM settings WHERE key = ?1"
         )?;
         
-        let value: String = stmt.query_row([key], |row| row.get(0))?;
+        let value: String = match stmt.query_row([key], |row| row.get(0)) {
+            Ok(v) => v,
+            Err(rusqlite::Error::QueryReturnedNoRows) => return Ok(None),
+            Err(e) => return Err(e),
+        };
         Ok(Some(value))
     }
     

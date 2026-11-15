@@ -1,17 +1,17 @@
-﻿//! # Mesh Statistics
+//! # Mesh Statistics
 //!
 //! Вычисление статистики 3D меша для анализа.
 //!
 //! ## Пример использования
 //!
-//! ```rust
+//! rust
 //! use pepakura_core::analysis::mesh_stats::MeshStats;
 //! use pepakura_core::geometry::Mesh;
 //!
 //! let mesh = Mesh::new("test");
 //! let stats = MeshStats::from_mesh(&mesh);
 //! println!("{}", stats.summary());
-//! ```
+//! 
 
 use crate::geometry::{Mesh, Face};
 use nalgebra::Vector3;

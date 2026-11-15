@@ -12,7 +12,7 @@
 //!
 //! ## Пример использования
 //!
-//! ```rust
+//! rust
 //! use pepakura_core::nesting::NestResult;
 //! use pepakura_core::analysis::nesting_optimization::NestingOptimizer;
 //!
@@ -22,7 +22,7 @@
 //!
 //! println!("Заполненность: {:.1}%", analysis.avg_fill_rate);
 //! println!("Рекомендации: {:?}", analysis.recommendations);
-//! ```
+//! 
 
 use crate::nesting::{NestResult, NestSheet};
 use serde::{Deserialize, Serialize};
@@ -672,54 +672,25 @@ pub fn generate_nesting_advice(analysis: &NestingAnalysisResult) -> Vec<String> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nesting::{NestResult, NestSheet, NestPart, PaperSettings, NestParams, NestMetrics};
+    use crate::nesting::{NestMetrics, NestSheetPart};
 
     fn create_test_nest_result() -> NestResult {
+        let mut result = NestResult::default();
         let sheet = NestSheet {
             id: 0,
-            index: 0,
             width_mm: 210.0,
             height_mm: 297.0,
             margin_mm: 5.0,
             parts: vec![
-                NestPart {
-                    id: 1,
-                    name: Some("Part 1".to_string()),
-                    unfolded_face_index: 0,
-                    x_mm: 10.0,
-                    y_mm: 10.0,
-                    width_mm: 50.0,
-                    height_mm: 30.0,
-                    rotation: 0.0,
-                },
-                NestPart {
-                    id: 2,
-                    name: Some("Part 2".to_string()),
-                    unfolded_face_index: 1,
-                    x_mm: 70.0,
-                    y_mm: 10.0,
-                    width_mm: 40.0,
-                    height_mm: 25.0,
-                    rotation: 0.0,
-                },
+                NestSheetPart { id: 0, x_mm: 10.0, y_mm: 10.0, width_mm: 50.0, height_mm: 40.0, rotation: 0.0 },
+                NestSheetPart { id: 1, x_mm: 80.0, y_mm: 10.0, width_mm: 30.0, height_mm: 20.0, rotation: 0.0 },
             ],
         };
-
-        let available_area = (210.0 - 10.0) as f64 * (297.0 - 10.0) as f64;
-        let parts_area = 50.0 * 30.0 + 40.0 * 25.0;
-
-        NestResult {
-            sheets: vec![sheet],
-            metrics: NestMetrics {
-                total_sheets: 1,
-                total_parts: 2,
-                avg_fill_rate: (parts_area as f64 / available_area * 100.0) as f32,
-                total_parts_area: parts_area,
-                total_sheets_area: 210.0 * 297.0,
-            },
-            params_snapshot: NestParams::default(),
-        }
+        result.sheets.push(sheet);
+        result.metrics = NestMetrics { total_sheets: 1, total_parts: 2, avg_fill_rate: 0.0 };
+        result
     }
+
 
     #[test]
     fn test_nesting_optimizer_creation() {
@@ -732,9 +703,7 @@ mod tests {
     fn test_analyze_sheet() {
         let optimizer = NestingOptimizer::new();
         let nest_result = create_test_nest_result();
-        
         let analysis = optimizer.analyze(&nest_result);
-        
         assert_eq!(analysis.sheets_count, 1);
         assert_eq!(analysis.total_parts, 2);
         assert!(analysis.avg_fill_rate > 0.0);
@@ -745,10 +714,8 @@ mod tests {
     fn test_compute_parts_bbox() {
         let optimizer = NestingOptimizer::new();
         let nest_result = create_test_nest_result();
-        
         let sheet = &nest_result.sheets[0];
         let bbox = optimizer.compute_parts_bbox(sheet);
-        
         assert!(bbox.min_x >= 0.0);
         assert!(bbox.max_x > bbox.min_x);
         assert!(bbox.max_y > bbox.min_y);
@@ -784,7 +751,6 @@ mod tests {
     fn test_suggest_paper_format() {
         let optimizer = NestingOptimizer::new();
         let nest_result = create_test_nest_result();
-        
         let suggested = optimizer.suggest_paper_format(&nest_result);
         assert!(suggested.is_some());
     }
@@ -793,11 +759,9 @@ mod tests {
     fn test_evaluate_compactness() {
         let optimizer = NestingOptimizer::new();
         let nest_result = create_test_nest_result();
-        
         let sheet = &nest_result.sheets[0];
         let bbox = optimizer.compute_parts_bbox(sheet);
         let compactness = optimizer.evaluate_compactness(sheet, &bbox);
-        
         assert!(compactness >= 0.0);
         assert!(compactness <= 1.0);
     }

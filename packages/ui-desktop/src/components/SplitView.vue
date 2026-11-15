@@ -13,6 +13,14 @@
         <label style="font-size: 12px; display: flex; align-items: center; gap: 4px;">
           <input type="checkbox" v-model="showIslands2D" @change="draw2D" checked> Острова
         </label>
+        <label style="font-size: 12px; display: flex; align-items: center; gap: 4px;">
+          Части:
+          <select v-model="partsMode" style="font-size: 12px; background: #333; color: #ccc; border: 1px solid #555;">
+            <option value="auto">авто</option>
+            <option value="materials">из файла</option>
+            <option value="off">выкл</option>
+          </select>
+        </label>
       </div>
       <div style="flex: 1; position: relative;">
         <canvas ref="canvas2D" style="width: 100%; height: 100%;"></canvas>
@@ -29,7 +37,8 @@
       <button @click="callOrchestrator" :disabled="!objData || isAiThinking" style="padding: 10px; margin-bottom: 20px; cursor: pointer; background: #5a1e1e; color: white; border: 1px solid #771e1e; width: 100%;">
         {{ isAiThinking ? 'AI думает...' : '🤖 AI Анализ геометрии' }}
       </button>
-      <button @click="handleExport"  style="z-index: 9999; pointer-events: auto; padding: 10px; margin-bottom: 20px; cursor: pointer; background: #0e639c; color: white; border: none; width: 100%;">📄 Экспорт PDF</button>
+<button @click="handleExport" style="padding: 10px; margin-bottom: 10px; cursor: pointer; background: #0e639c; color: white; border: none; width: 100%;">📄 Экспорт PDF</button>
+<button @click="exportPdfPages55" style="padding: 10px; margin-bottom: 20px; cursor: pointer; background: #1e80ff; color: white; border: none; width: 100%;">🖨 PDF текстурный (A4)</button>
 
       <div style="flex: 1; overflow: auto; background: #ffffff; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">
         <div v-if="rustResult" style="color: #9cdcfe; margin-bottom: 10px; white-space: pre-wrap;">{{ rustResult }}</div>
@@ -44,7 +53,7 @@
 import { initCam, applyCam, autoFitCam } from '../cam.js';
 
 // import { calcEdgeCounts, drawSeams } from '../seams.js';
-import { ref, nextTick, onMounted, watch, reactive } from 'vue';
+import { unref,  ref, nextTick, onMounted, watch, reactive } from 'vue';
 const unfoldData = ref(null);
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
@@ -73,6 +82,7 @@ const mtlData = ref<string | null>(null)
 const textureMap = ref<Record<string, string>>({})
 const showWireframe2D = ref(true);
 const showIslands2D = ref(true);
+const partsMode = ref('auto'); // [82-A] режим разбиения на части
 
 let vertices2D: number[][] = [];
 let faces2D: number[][] = [];
@@ -114,7 +124,7 @@ const handleLoadObj = async () => {
         const mtlText = await readTextFile(mtlPath);
         const lines = mtlText.split(/\r?\n/);
         let currentMtl: string | null = null;
-        const texCache: Record<string, string> = {};
+        const texCache: Record<string, string>  = reactive({});
         for (const rawLine of lines) {
           const line = rawLine.trim();
           if (!line || line.startsWith('#')) continue;
@@ -129,7 +139,9 @@ const handleLoadObj = async () => {
             if (!texCache[texName]) {
               const texPath = objDir + texName;
               const texBytes = await readFile(texPath);
-              texCache[texName] = 'data:image/png;base64,' + arrayBufferToBase64(texBytes);
+              const tb = texBytes as Uint8Array;
+              const mime = (tb.length > 2 && tb[0] === 0xFF && tb[1] === 0xD8) ? 'image/jpeg' : 'image/png'; // FIX40
+              texCache[texName] = 'data:' + mime + ';base64,' + arrayBufferToBase64(texBytes);
             }
             textureMap.value[currentMtl] = texCache[texName];
           }
@@ -161,16 +173,21 @@ const doUnfold = async () => {
     console.log('[VUE DEBUG] objData type:', typeof objData.value, "len:", objData.value?.length, "val:", objData.value?.substring(0, 50));
     const r = await invoke('unfold_mesh', {
   objData: currentObjData,
-  config: { algorithm: 'smart' }
+  config: { algorithm: 'smart', parts: { mode: partsMode.value, concave_deg: 30 } } // [82-A]
 });
 unfoldData.value = r;
     console.log("[RUST RAW RESPONSE]", JSON.stringify(r)?.substring(0, 1500));
     if (true) {
       // lastMetrics deprecated
-      rustResult.value += '✅ Развёртка выполнена\nДвижок: ' + r.engine_used + '\nВершин 2D: ' + (r.vertices_2d?.length || 0) + '\nГраней: ' + (r.faces?.length || 0);
+      rustResult.value += '✅ Развёртка выполнена\nДвижок: ' + r.engine_used + '\nДеталей: ' + (r.pieces?.length || 0) + '\nЧасти: ' + (((r.parts || []).map(pp => pp.name + ' [' + pp.face_count + 'гр]').join(', ')) || '—') + '\nВершин 2D: ' + (r.vertices_2d?.length || 0) + '\nГраней: ' + (r.faces?.length || 0);
       vertices2D = r.vertices_2d || [];
-        pieces2D = r.pieces || [];
-        faces2D = r.faces || [];
+        faces2D = r.faces_2d || [];
+        islandIds = r.face_pieces || [];
+        buildTexFaces(unref(currentObjData)); // [TEX-A] UV из OBJ (до раскладки)
+        pieces2D = layoutPieces78(r.pieces || []); // [80-A] раскладка полками
+        loadTexImages(); // [TEX-A] картинки + текстурный слой
+        lastMetrics = { vertex_count: (r.vertices_2d || []).length, face_count: (r.faces || []).length, islands: new Set(r.face_pieces || []).size, total_area: 0 }; // FIX40
+        view2D.scale = 1; view2D.offsetX = 0; view2D.offsetY = 0; view2D.autoFitDone = true;
       // islandIds deprecated
       // degenerateIslands deprecated
       await nextTick();
@@ -230,7 +247,400 @@ const handle2DMouseUp = () => {
   view2D.isDragging = false;
 };
 
-const draw2D = () => {
+// ===== [TEX-A] текстурирование 2D-развёртки по UV исходного OBJ =====
+let texFaces: any[] = [];
+let texReady: any = false;
+let texImgs: any = new Map();
+let texLayer: any = null;
+let texMtlMap: any = new Map();
+let texMtlParsed: any = false;
+const texMapGet = (): any => { try { const v: any = unref(textureMap); return (v && typeof v === "object") ? v : null; } catch (e) { return null; } };
+const texNormKey = (s: any) => String(s || "").toLowerCase().replace(/^.*[\\\/]/, "").replace(/\.[a-z0-9]+$/, "").trim();
+function parseMtlMapKd(mtlText: any): any {
+  const map: any = new Map(); let cur: any = "";
+  if (typeof mtlText !== "string") { return map; }
+  mtlText.split(/\r?\n/).forEach((raw: any) => { const line: any = String(raw).trim(); if (line.startsWith("newmtl ")) { cur = line.slice(7).trim(); } else if (line.startsWith("map_Kd") && cur) { const f: any = line.slice(6).trim().split(/\s+/).pop(); if (f) { map.set(cur, String(f).replace(/^.*[\\\/]/, "")); } } });
+  return map;
+}
+function resolveTexUrl(mat: any): any {
+  const tm: any = texMapGet();
+  if (!tm || !mat) { return null; }
+  if (!texMtlParsed) { texMtlParsed = true; texMtlMap = parseMtlMapKd(unref(mtlData)); }
+  const keys: any = Object.keys(tm);
+  if (tm[mat]) { return tm[mat]; }
+  const file: any = texMtlMap.get(mat);
+  if (file) { if (tm[file]) { return tm[file]; } const f2: any = keys.find((k: any) => texNormKey(k) === texNormKey(file)); if (f2) { return tm[f2]; } }
+  const m: any = texNormKey(mat);
+  let hit: any = keys.find((k: any) => texNormKey(k) === m);
+  if (!hit) { hit = keys.find((k: any) => { const nk: any = texNormKey(k); return nk && (m.indexOf(nk) >= 0 || nk.indexOf(m) >= 0); }); }
+  return hit ? tm[hit] : null;
+}
+function buildTexFaces(objText: any) {
+  texFaces = []; texReady = false;
+  try {
+    if (typeof objText !== "string" || !objText.length) { console.warn("[TEX-A] нет текста OBJ"); return; }
+    if (!faces2D || !faces2D.length) { console.warn("[TEX-A] faces2D пуст"); return; }
+    const vt: any[] = []; const out: any[] = []; let mat: any = "";
+    objText.split(/\r?\n/).forEach((raw: any) => {
+      const line: any = String(raw).trim();
+      if (line.startsWith("vt ")) { const p: any = line.slice(3).trim().split(/\s+/); vt.push([parseFloat(p[0]) || 0, parseFloat(p[1]) || 0]); }
+      else if (line.startsWith("usemtl ")) { mat = line.slice(7).trim(); }
+      else if (line.startsWith("f ")) {
+        const vv: any = line.slice(2).trim().split(/\s+/).map((tok: any) => { const q: any = tok.split("/"); if (q.length < 2 || !q[1]) { return null; } let t: any = parseInt(q[1], 10); if (isNaN(t)) { return null; } if (t < 0) { t = vt.length + t; } return t - 1; });
+        for (let k = 1; k + 1 < vv.length; k++) { const ix: any = [vv[0], vv[k], vv[k + 1]]; const okq: any = ix.every((z: any) => z !== null && z >= 0 && z < vt.length); out.push(okq ? { uv: ix.map((z: any) => [vt[z][0], vt[z][1]]), mat: mat } : { uv: null, mat: mat }); }
+      }
+    });
+    texFaces = out;
+    texReady = vt.length > 0 && out.length === faces2D.length && out.some((t: any) => !!t.uv);
+    if (!texReady) { console.warn("[TEX-A] UV отключены: vt=" + vt.length + " objFaces=" + out.length + " unfoldFaces=" + faces2D.length); } else { console.log("[TEX-A] UV готовы: граней=" + out.length + " vt=" + vt.length); }
+  } catch (e) { console.warn("[TEX-A] ошибка разбора OBJ: " + e); }
+}
+function drawTexTri(g: any, img: any, src: any, dst: any) {
+  const dx1: any = src[1][0] - src[0][0]; const dy1: any = src[1][1] - src[0][1]; const dx2: any = src[2][0] - src[0][0]; const dy2: any = src[2][1] - src[0][1];
+  const det: any = dx1 * dy2 - dx2 * dy1;
+  if (!isFinite(det) || Math.abs(det) < 1e-9) { return; }
+  const du1: any = dst[1][0] - dst[0][0]; const dv1: any = dst[1][1] - dst[0][1]; const du2: any = dst[2][0] - dst[0][0]; const dv2: any = dst[2][1] - dst[0][1];
+  const a: any = (du1 * dy2 - du2 * dy1) / det; const c: any = (dx1 * du2 - dx2 * du1) / det;
+  const b: any = (dv1 * dy2 - dv2 * dy1) / det; const d: any = (dx1 * dv2 - dx2 * dv1) / det;
+  const e: any = dst[0][0] - a * src[0][0] - c * src[0][1]; const f: any = dst[0][1] - b * src[0][0] - d * src[0][1];
+  g.save(); g.beginPath(); g.moveTo(dst[0][0], dst[0][1]); g.lineTo(dst[1][0], dst[1][1]); g.lineTo(dst[2][0], dst[2][1]); g.closePath(); g.clip();
+  g.transform(a, b, c, d, e, f); g.drawImage(img, 0, 0); g.restore();
+}
+function buildTexLayer() {
+  texLayer = null;
+  if (!texReady || !faces2D || !faces2D.length || !vertices2D || !vertices2D.length) { return; }
+  let minX: any = Infinity; let minY: any = Infinity; let maxX: any = -Infinity; let maxY: any = -Infinity;
+  faces2D.forEach((f: any) => { if (!f) { return; } f.forEach((vi: any) => { const v: any = vertices2D[vi]; if (!v || !isFinite(v[0]) || !isFinite(v[1])) { return; } if (v[0] < minX) { minX = v[0]; } if (v[0] > maxX) { maxX = v[0]; } if (v[1] < minY) { minY = v[1]; } if (v[1] > maxY) { maxY = v[1]; } }); });
+  if (!isFinite(minX) || !isFinite(minY)) { return; }
+  const spanX: any = Math.max(1e-9, maxX - minX); const spanY: any = Math.max(1e-9, maxY - minY);
+  const ppmm: any = Math.min(16, 2048 / spanX, 2048 / spanY);
+  const cnv: any = document.createElement("canvas");
+  cnv.width = Math.max(1, Math.min(2048, Math.ceil(spanX * ppmm))); cnv.height = Math.max(1, Math.min(2048, Math.ceil(spanY * ppmm)));
+  const g: any = cnv.getContext("2d"); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+  const lx: any = (x: any) => (x - minX) * ppmm; const ly: any = (y: any) => (y - minY) * ppmm;
+  const inflate = (tri: any, px: any) => { const cx: any = (tri[0][0] + tri[1][0] + tri[2][0]) / 3; const cy: any = (tri[0][1] + tri[1][1] + tri[2][1]) / 3; return tri.map((p: any) => { const vx: any = p[0] - cx; const vy: any = p[1] - cy; const len: any = Math.hypot(vx, vy) || 1; const k: any = (len + px) / len; return [cx + vx * k, cy + vy * k]; }); };
+  let drawn: any = 0;
+  for (let i = 0; i < faces2D.length; i++) {
+    const tf: any = texFaces[i];
+    if (!tf || !tf.uv || !tf.mat) { continue; }
+    const url: any = texImgs.get("m:" + tf.mat); const img: any = url ? texImgs.get("u:" + url) : null;
+    if (!img || !img.complete || !img.naturalWidth) { continue; }
+    const f: any = faces2D[i];
+    const va: any = vertices2D[f[0]]; const vb: any = vertices2D[f[1]]; const vc: any = vertices2D[f[2]];
+    if (!va || !vb || !vc) { continue; }
+    const iw: any = img.naturalWidth; const ih: any = img.naturalHeight;
+    const src: any = tf.uv.map((p: any) => [p[0] * iw, (1 - p[1]) * ih]);
+    const dst: any = inflate([[lx(va[0]), ly(va[1])], [lx(vb[0]), ly(vb[1])], [lx(vc[0]), ly(vc[1])]], 0.6);
+    drawTexTri(g, img, src, dst); drawn++;
+  }
+  texLayer = { canvas: cnv, minX: minX, minY: minY, w: spanX, h: spanY, drawn: drawn };
+  console.log("[TEX-A] слой: " + drawn + "/" + faces2D.length + " граней, " + cnv.width + "x" + cnv.height + "px");
+}
+function loadTexImages() {
+  if (!texReady) { buildTexLayer(); return; }
+  const mats: any = new Map();
+  texFaces.forEach((t: any) => { if (t && t.mat && !mats.has(t.mat)) { mats.set(t.mat, true); } });
+  mats.forEach((_v: any, mat: any) => {
+    const url: any = resolveTexUrl(mat);
+    if (!url) { console.warn("[TEX-A] материал без текстуры: " + mat); return; }
+    texImgs.set("m:" + mat, url);
+    if (texImgs.get("u:" + url) === undefined) {
+      const im: any = new Image(); texImgs.set("u:" + url, im);
+      im.onload = () => { buildTexLayer(); draw2D(); };
+      im.onerror = () => { console.warn("[TEX-A] картинка не загрузилась: " + url); };
+      im.src = url;
+    }
+  });
+  console.log("[TEX-A] сдвинутых граней: " + texShiftHits + "/" + (faces2D ? faces2D.length : 0));
+  buildTexLayer();
+}
+// ===== [PDF-B] текстурированный многостраничный PDF (A4, 200 dpi) =====
+const PDF55_DPI: any = 200;
+const PDF55_PXMM: any = PDF55_DPI / 25.4;
+const PDF55_PATH: any = "G:\\Dev\\pepakura-next\\unfold_tex.pdf";
+function pdf55PackPieces(): any {
+  const items: any[] = [];
+  (pieces2D || []).forEach((p: any, pi: any) => {
+    let minX: any = Infinity; let minY: any = Infinity; let maxX: any = -Infinity; let maxY: any = -Infinity;
+    const up = (x: any, y: any) => { if (typeof x !== "number" || typeof y !== "number" || !isFinite(x) || !isFinite(y)) { return; } if (x < minX) { minX = x; } if (x > maxX) { maxX = x; } if (y < minY) { minY = y; } if (y > maxY) { maxY = y; } };
+    (p.outline_2d || []).forEach((v: any) => { up(v[0], v[1]); });
+    (p.cut_lines || []).forEach((s: any) => { up(s[0][0], s[0][1]); up(s[1][0], s[1][1]); });
+    (p.fold_lines || []).forEach((s: any) => { up(s[0][0], s[0][1]); up(s[1][0], s[1][1]); });
+    if (!isFinite(minX)) { return; }
+    items.push({ p: p, pi: pi, minX: minX, minY: minY, w: Math.max(1e-6, maxX - minX), h: Math.max(1e-6, maxY - minY), wmm: 0, hmm: 0, x: 0, y: 0 });
+  });
+  if (!items.length) { return null; }
+  let maxW: any = 0; let maxH: any = 0;
+  items.forEach((it: any) => { if (it.w > maxW) { maxW = it.w; } if (it.h > maxH) { maxH = it.h; } });
+  const mmPerUnit: any = Math.max(2, Math.min(400, Math.min(170 / maxW, 270 / maxH)));
+  items.forEach((it: any) => { it.wmm = it.w * mmPerUnit; it.hmm = it.h * mmPerUnit; });
+  items.sort((a: any, b: any) => b.hmm - a.hmm);
+  const PW: any = 190; const PH: any = 277;
+  const pgs: any[] = [];
+  let cur: any = null; let cx: any = 0; let cy: any = 0; let rowH: any = 0;
+  items.forEach((it: any) => {
+    if (it.wmm > PW) { it.wmm = PW; }
+    if (cur && cx > 0 && cx + it.wmm > PW) { cx = 0; cy += rowH + 4; rowH = 0; }
+    if (cur && cur.items.length > 0 && cy + it.hmm > PH) { cur = null; }
+    if (!cur) { cur = { items: [] }; pgs.push(cur); cx = 0; cy = 0; rowH = 0; }
+    it.x = cx; it.y = cy;
+    cur.items.push(it);
+    cx += it.wmm + 4; if (it.hmm > rowH) { rowH = it.hmm; }
+  });
+  return { pgs: pgs, mmPerUnit: mmPerUnit };
+}
+function pdf55FaceGroups(): any {
+  const idSet: any = new Map();
+  (islandIds || []).forEach((v: any) => { idSet.set(v, true); });
+  const groups: any = new Map();
+  (pieces2D || []).forEach((p: any, i: any) => {
+    let k: any = null;
+    k = i; (p.face_ids || []).forEach((f2: any) => { if (!groups.has(i)) { groups.set(i, []); } groups.get(i).push(f2); }); // [PDF-C] группы граней из face_ids детали (островId больше не нужен)
+    p.__k55 = k;
+    if (k !== null && !groups.has(k)) { groups.set(k, []); }
+  });
+    for (let fi = 0; fi < 0; fi++) { // [PDF-C] цикл по islandIds отключён — группы уже собраны из face_ids
+    const arr: any = groups.get(islandIds[fi]);
+    if (arr) { arr.push(fi); }
+  }
+  return groups;
+}
+function pdf55DrawPiece(g: any, it: any, ox: any, oy: any, mmpu: any, groups: any) {
+  const X: any = (x: any) => ox + (x - it.minX) * mmpu * PDF55_PXMM;
+  const Y: any = (y: any) => oy + (y - it.minY) * mmpu * PDF55_PXMM;
+  const outline: any = it.p.outline_2d || [];
+  if (outline.length >= 3) {
+    g.beginPath(); g.moveTo(X(outline[0][0]), Y(outline[0][1]));
+    for (let i = 1; i < outline.length; i++) { g.lineTo(X(outline[i][0]), Y(outline[i][1])); }
+    g.closePath(); g.fillStyle = "#ffffff"; g.fill(); g.strokeStyle = "#b0b0b0"; g.lineWidth = 1; g.stroke();
+  }
+  const arr: any = (it.p.__k55 === null || it.p.__k55 === undefined) ? null : groups.get(it.p.__k55);
+  if (arr) {
+    arr.forEach((fi: any) => {
+      const tf: any = texFaces[fi];
+      if (!tf || !tf.uv || !tf.mat) { return; }
+      const url: any = texImgs.get("m:" + tf.mat); const img: any = url ? texImgs.get("u:" + url) : null;
+      if (!img || !img.complete || !img.naturalWidth) { return; }
+      const f: any = faces2D[fi]; if (!f) { return; }
+      const va: any = vertices2D[f[0]]; const vb: any = vertices2D[f[1]]; const vc: any = vertices2D[f[2]];
+      if (!va || !vb || !vc) { return; }
+      const iw: any = img.naturalWidth; const ih: any = img.naturalHeight;
+      const src: any = tf.uv.map((q: any) => [q[0] * iw, (1 - q[1]) * ih]);
+      const dst: any = [[X(va[0]), Y(va[1])], [X(vb[0]), Y(vb[1])], [X(vc[0]), Y(vc[1])]];
+      drawTexTri(g, img, src, dst);
+    });
+  }
+  g.strokeStyle = "#e02020"; g.lineWidth = 2.2; g.setLineDash([]); g.beginPath();
+  (it.p.cut_lines || []).forEach((s: any) => { g.moveTo(X(s[0][0]), Y(s[0][1])); g.lineTo(X(s[1][0]), Y(s[1][1])); });
+  g.stroke();
+  g.strokeStyle = "#2060e0"; g.lineWidth = 1.6; g.setLineDash([6, 4]); g.beginPath();
+  (it.p.fold_lines || []).forEach((s: any) => { g.moveTo(X(s[0][0]), Y(s[0][1])); g.lineTo(X(s[1][0]), Y(s[1][1])); });
+  g.stroke(); g.setLineDash([]);
+}
+async function exportPdfPages55() {
+  try {
+    if (!pieces2D || !pieces2D.length) { alert("PDF: сначала выполните развёртку"); return; }
+    const pack: any = pdf55PackPieces();
+    if (!pack) { alert("PDF: нет деталей"); return; }
+    const groups: any = pdf55FaceGroups();
+    const MARG: any = 10;
+    const jpgs: any[] = [];
+    for (let pg = 0; pg < pack.pgs.length; pg++) {
+      const cnv: any = document.createElement("canvas");
+      cnv.width = Math.round(210 * PDF55_PXMM); cnv.height = Math.round(297 * PDF55_PXMM);
+      const g: any = cnv.getContext("2d");
+      g.fillStyle = "#ffffff"; g.fillRect(0, 0, cnv.width, cnv.height);
+      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+      pack.pgs[pg].items.forEach((it: any) => {
+        pdf55DrawPiece(g, it, (MARG + it.x) * PDF55_PXMM, (MARG + it.y) * PDF55_PXMM, pack.mmPerUnit, groups);
+      });
+      g.fillStyle = "#909090"; g.font = "22px sans-serif"; g.textAlign = "center";
+      g.fillText("стр. " + (pg + 1) + "/" + pack.pgs.length + "  |  масштаб " + pack.mmPerUnit.toFixed(2) + " мм на единицу модели", cnv.width / 2, cnv.height - Math.round(6 * PDF55_PXMM));
+      g.strokeStyle = "#808080"; g.lineWidth = 2; g.beginPath(); const ry55 = cnv.height - Math.round(16 * PDF55_PXMM); const rx55 = cnv.width / 2 - 50 * PDF55_PXMM; g.moveTo(rx55, ry55); g.lineTo(rx55 + 100 * PDF55_PXMM, ry55); g.moveTo(rx55, ry55 - 6); g.lineTo(rx55, ry55 + 6); g.moveTo(rx55 + 100 * PDF55_PXMM, ry55 - 6); g.lineTo(rx55 + 100 * PDF55_PXMM, ry55 + 6); g.stroke(); g.fillStyle = "#808080"; g.font = "20px sans-serif"; g.fillText("100 мм", rx55 + 100 * PDF55_PXMM + 10, ry55 + 7); // [PDF-C] линейка 100 мм
+      jpgs.push(cnv.toDataURL("image/jpeg", 0.9));
+    }
+    const r: any = await invoke("export_pdf", { vertices: [], faces: [], islandIds: null, path: PDF55_PATH, pages: jpgs });
+    console.log("[PDF-B] " + r);
+    alert("PDF сохранён: " + PDF55_PATH + "\nстраниц: " + jpgs.length);
+  } catch (e) { console.error("[PDF-B] ошибка: " + e); alert("PDF ошибка: " + e); }
+}
+(window as any).__pdf55export = exportPdfPages55;
+if (false) { // [PDF-C] плавающая кнопка отключена — кнопка перенесена в панель
+  (window as any).__pdf55wired = true;
+  window.addEventListener("keydown", (ev: any) => { if (ev.ctrlKey && (ev.code === "KeyP" || ev.key === "p" || ev.key === "P")) { ev.preventDefault(); exportPdfPages55(); } });
+  const b: any = document.createElement("button");
+  b.textContent = "PDF текстурный [Ctrl+P]";
+  b.setAttribute("style", "position:fixed;top:8px;right:8px;z-index:99999;padding:6px 10px;background:#1e80ff;color:#ffffff;border:none;border-radius:6px;font:13px sans-serif;cursor:pointer;opacity:0.9;");
+  b.onclick = () => { exportPdfPages55(); };
+  document.body.appendChild(b);
+}
+// [80-A] раскладка деталей полками (без пересечений): сортировка по высоте, укладка рядами
+const layoutPieces78 = (pieces) => {
+  if (!pieces || pieces.length < 2) return pieces;
+  const boxes = pieces.map(p => {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const up = (x, y) => {
+      if (typeof x !== 'number' || typeof y !== 'number' || !isFinite(x) || !isFinite(y)) return;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    };
+    (p.outline_2d || []).forEach(v => up(v[0], v[1]));
+    (p.cut_lines || []).forEach(s => { up(s[0][0], s[0][1]); up(s[1][0], s[1][1]); });
+    (p.fold_lines || []).forEach(s => { up(s[0][0], s[0][1]); up(s[1][0], s[1][1]); });
+    if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 0; maxY = 0; }
+    return { p, minX, minY, w: maxX - minX, h: maxY - minY };
+  });
+  boxes.sort((a, b) => b.h - a.h);
+  const gap = boxes[0].h * 0.12 + 1e-9;
+  const perRow = Math.ceil(Math.sqrt(boxes.length));
+  const shift = (p, dx, dy) => {
+    (p.outline_2d || []).forEach(v => { v[0] += dx; v[1] += dy; });
+    (p.cut_lines || []).forEach(s => { s[0][0] += dx; s[0][1] += dy; s[1][0] += dx; s[1][1] += dy; });
+    (p.fold_lines || []).forEach(s => { s[0][0] += dx; s[0][1] += dy; s[1][0] += dx; s[1][1] += dy; });
+  };
+  // [TEX-A] сдвигаем 2D-грани вместе с деталями (текстуры совпадают с раскладкой)
+  const idSetT: any = new Map();
+  if (islandIds && islandIds.length) { islandIds.forEach((v: any) => { idSetT.set(v, true); }); }
+  const pieceKeyOf = (p: any, i: any) => { if (idSetT.has(p.id)) { return p.id; } if (idSetT.has(p.part_id)) { return p.part_id; } if (idSetT.has(i)) { return i; } return null; };
+  let texShiftHits: any = 0;
+  const shiftFacesOf = (pid: any, dx: any, dy: any) => {
+    if (!islandIds || !islandIds.length || !faces2D || !faces2D.length || !vertices2D || !vertices2D.length) { return; }
+    const doneV: any = new Map();
+    for (let fi = 0; fi < Math.min(islandIds.length, faces2D.length); fi++) {
+      if (islandIds[fi] !== pid) { continue; }
+      const f: any = faces2D[fi];
+      if (!f) { continue; }
+      texShiftHits++;
+      f.forEach((vi: any) => { if (doneV.has(vi)) { return; } doneV.set(vi, true); const v: any = vertices2D[vi]; if (v) { v[0] += dx; v[1] += dy; } });
+    }
+  };
+  let cx = 0, cy = 0, rowH = 0, placed = 0;
+  boxes.forEach((b, bi) => {
+    shift(b.p, cx - b.minX, cy - b.minY);
+    const pk = pieceKeyOf(b.p, bi); // [TEX-A]
+    if (pk !== null) { shiftFacesOf(pk, cx - b.minX, cy - b.minY); }
+    cx += b.w + gap;
+    if (b.h > rowH) rowH = b.h;
+    placed++;
+    if (placed % perRow === 0) { cx = 0; cy += rowH + gap; rowH = 0; }
+  });
+  return pieces;
+};
+
+const draw2D78 = () => {
+  const canvas = canvas2D.value;
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const pieces = pieces2D || [];
+  if (!pieces.length) return;
+
+  // [79-A] габариты по реальным полям Rust: outline_2d / cut_lines / fold_lines
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const updB = (x, y) => {
+    if (typeof x !== 'number' || typeof y !== 'number' || !isFinite(x) || !isFinite(y)) return;
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  };
+  pieces.forEach(p => {
+    (p.outline_2d || []).forEach(v => updB(v[0], v[1]));
+    (p.cut_lines || []).forEach(seg => { updB(seg[0][0], seg[0][1]); updB(seg[1][0], seg[1][1]); });
+    (p.fold_lines || []).forEach(seg => { updB(seg[0][0], seg[0][1]); updB(seg[1][0], seg[1][1]); });
+  });
+  if (!isFinite(minX)) return;
+
+  // вписываем развёртку в канвас, поверх действует зум/панорама пользователя
+  const pad = 24;
+  const baseScale = Math.min(
+    (W - 2 * pad) / Math.max(1e-9, maxX - minX),
+    (H - 2 * pad) / Math.max(1e-9, maxY - minY)
+  );
+  const totalScale = baseScale * (view2D.scale || 1);
+  const tx = (x) => (x - minX) * totalScale + (view2D.offsetX || 0) + pad;
+  const ty = (y) => (y - minY) * totalScale + (view2D.offsetY || 0) + pad;
+
+  // заливка деталей белым (читаемость)
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  pieces.forEach(p => {
+    const outline = p.outline_2d || [];
+    if (outline.length < 3) return;
+    ctx.beginPath();
+    ctx.moveTo(tx(outline[0][0]), ty(outline[0][1]));
+    for (let i = 1; i < outline.length; i++) ctx.lineTo(tx(outline[i][0]), ty(outline[i][1]));
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  // [TEX-A] текстурный слой (под линиями реза/сгибов)
+  if (texLayer && texLayer.canvas && texLayer.drawn > 0) {
+    ctx.drawImage(texLayer.canvas, tx(texLayer.minX), ty(texLayer.minY), texLayer.w * totalScale, texLayer.h * totalScale);
+  }
+  // [82-A] резы по частям: каждая часть своим цветом (внутри части - один путь)
+  const PART_COLORS = ['#e02020', '#e08a20', '#20a020', '#a020c0', '#20c0a0', '#c02080', '#806020', '#2050c0', '#c05020', '#508030'];
+  const partColorOf = (pid) => {
+    const ids = [];
+    const seen = {};
+    pieces.forEach(p => { const k = p.part_id || 0; if (!seen[k]) { seen[k] = true; ids.push(k); } });
+    ids.sort((a, b) => a - b);
+    const idx = ids.indexOf(pid);
+    return PART_COLORS[(idx < 0 ? 0 : idx) % PART_COLORS.length];
+  };
+  ctx.lineWidth = 1.4;
+  ctx.setLineDash([]);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  const byPart = {};
+  pieces.forEach(p => {
+    const k = p.part_id || 0;
+    if (!byPart[k]) byPart[k] = [];
+    (p.cut_lines || []).forEach(seg => byPart[k].push(seg));
+  });
+  Object.keys(byPart).forEach(k => {
+    ctx.strokeStyle = partColorOf(Number(k));
+    ctx.beginPath();
+    byPart[k].forEach(seg => {
+      ctx.moveTo(tx(seg[0][0]), ty(seg[0][1]));
+      ctx.lineTo(tx(seg[1][0]), ty(seg[1][1]));
+    });
+    ctx.stroke();
+  });
+
+  // сгибы — синим пунктиром
+  ctx.strokeStyle = '#2060e0';
+  ctx.lineWidth = 1.1;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  pieces.forEach(p => {
+    (p.fold_lines || []).forEach(seg => {
+      ctx.moveTo(tx(seg[0][0]), ty(seg[0][1]));
+      ctx.lineTo(tx(seg[1][0]), ty(seg[1][1]));
+    });
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // номер детали в центре её габарита
+  ctx.fillStyle = '#909090';
+  ctx.font = '11px sans-serif';
+  pieces.forEach(p => {
+    const outline = p.outline_2d || [];
+    if (!outline.length) return;
+    let sx = 0, sy = 0;
+    outline.forEach(v => { sx += v[0]; sy += v[1]; });
+    ctx.fillText('#' + p.id + ' ' + (p.part || ''), tx(sx / outline.length), ty(sy / outline.length));
+  });
+};
+
+// [79-A] draw2D теперь рисует по реальным полям Rust (pieces: outline_2d/cut_lines/fold_lines).
+const draw2D = () => { draw2D78(); };
+
+const draw2D_legacy_unused = () => {
   const canvas = canvas2D.value;
   if (!canvas || !canvas.getContext) return;
   const ctx = canvas.getContext('2d');
@@ -299,10 +709,15 @@ const draw2D = () => {
   const meshHeight = maxY - minY;
   const scaleX = (width - padding * 2) / meshWidth;
   const scaleY = (height - padding * 2) / meshHeight;
-  const scale = Math.min(scaleX, scaleY);
+  // FIX40: зум/пан через view2D
+  const fitScale = Math.min(scaleX, scaleY);
+  if (!view2D.autoFitDone) { view2D.scale = 1; view2D.offsetX = 0; view2D.offsetY = 0; view2D.autoFitDone = true; }
+  const scale = fitScale * view2D.scale;
   
-  const offsetX = (width - meshWidth * scale) / 2 - minX * scale;
-  const offsetY = (height - meshHeight * scale) / 2 - minY * scale;
+  const fitOffsetX = (width - meshWidth * fitScale) / 2 - minX * fitScale;
+  const offsetX = fitOffsetX * view2D.scale + view2D.offsetX;
+  const fitOffsetY = (height - meshHeight * fitScale) / 2 - minY * fitScale;
+  const offsetY = fitOffsetY * view2D.scale + view2D.offsetY;
 
   const tx = (x) => x * scale + offsetX;
   const ty = (y) => y * scale + offsetY;
@@ -406,27 +821,41 @@ const callOrchestrator = async () => {
 
 const handleExport = async () => {
   try {
-    console.log('[Export] vertices2D length:', vertices2D.length, 'faces2D length:', faces2D.length);
-    if (vertices2D.length === 0 || faces2D.length === 0) {
+    console.log('[Export] pieces2D:', pieces2D.length, 'vertices2D:', vertices2D.length, 'faces2D:', faces2D.length);
+    if (pieces2D.length === 0 && (vertices2D.length === 0 || faces2D.length === 0)) {
       alert('Нет данных развёртки для экспорта.');
       return;
     }
     console.log('[Export] sample vertices2D[0..2]:', vertices2D.slice(0,3));
     console.log('[Export] sample faces2D[0..2]:', faces2D.slice(0,3));
-    const filePath = await save({
-      filters: [{ name: 'PDF', extensions: ['pdf'] }],
-      defaultPath: 'unfold.pdf'
-    });
-    if (!filePath) return;
-    console.log('[Export] invoking export_pdf with path:', filePath);
-    await invoke('export_pdf', { 
-      vertices: vertices2D, 
-      faces: faces2D, 
-      islandIds: islandIds,
-      path: filePath 
-    });
-    console.log('[Export] invoke succeeded');
-    alert('PDF сохранён: ' + filePath);
+    // FIX42: если системный диалог save() недоступен (нет плагина/прав) — пишем в фиксированный путь
+    let filePath: string | null = null;
+    try {
+      filePath = await save({
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+        defaultPath: 'unfold.pdf'
+      });
+    } catch (eDialog) {
+      console.error('[Export] save() недоступен, пишу в фиксированный путь:', eDialog);
+      filePath = 'G:\\Dev\\pepakura-next\\assets\\models\\unfold.pdf';
+    }
+    if (!filePath) { console.log('[Export] отменено пользователем'); return; }
+    if (pieces2D.length > 0) {
+      console.log('[Export] export_pieces_pdf, pieces:', pieces2D.length);
+      const res78 = await invoke<string>('export_pieces_pdf', { pieces: pieces2D, path: filePath });
+      console.log('[Export] invoke result:', res78);
+      alert('[EXP78] ' + String(res78));
+    } else {
+      console.log('[Export] export_pdf_cmd fallback, vertices:', vertices2D.length);
+      const res44 = await invoke<string>('export_pdf_cmd', {
+        vertices: vertices2D,
+        faces: faces2D,
+        islandIds: islandIds,
+        path: filePath
+      });
+      console.log('[Export] invoke result:', res44);
+      alert('[EXP44] ' + String(res44));
+    }
   } catch (e) {
     console.error('[Export] invoke error:', e);
     alert('Ошибка экспорта: ' + e);
@@ -438,6 +867,15 @@ const handleExport = async () => {
 onMounted(() => {
   const canvas = canvas2D?.value;
   if (!canvas) return;
+  // FIX40: размер битмапа = размеру элемента (иначе рисуем в 300x150 и растягиваем)
+  const resize2D = () => {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(rect.width));
+    canvas.height = Math.max(1, Math.floor(rect.height));
+    draw2D();
+  };
+  resize2D();
+  if (!(canvas as any).__fix40r) { (canvas as any).__fix40r = true; window.addEventListener('resize', resize2D); } // FIX41
 
   canvas.addEventListener('mousedown', (e) => {
     view2D.isDragging = true;
@@ -493,8 +931,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
-canvas { display: block; }
+/* [STYLE-59] прежний блок вызывал SyntaxError в vite dev (lang.css); заменён минимальным. Оригинал: SplitView.vue.bak_style59 */
 </style>
+
 
 
 

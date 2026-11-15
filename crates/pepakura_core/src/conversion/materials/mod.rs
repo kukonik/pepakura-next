@@ -16,6 +16,9 @@ pub fn convert_materials(textures: &[crate::pdo_parser::PdoTexture]) -> Result<V
 
 /// Конвертирует текстуры PDO в материалы Pepa, возвращая пустой вектор при ошибке
 pub fn convert_materials_or_default(textures: &[crate::pdo_parser::PdoTexture]) -> Vec<PepaMaterial> {
+    if textures.is_empty() {
+        return vec![MaterialConverter::create_default_material()];
+    }
     convert_materials(textures).unwrap_or_else(|_| vec![])
 }
 

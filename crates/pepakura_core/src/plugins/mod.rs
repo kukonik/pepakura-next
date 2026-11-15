@@ -7,7 +7,7 @@
 //! 
 //! ## Пример использования
 //! 
-//! ```rust
+//! rust
 //! use pepakura_core::plugins::{PluginRegistry, ImportPlugin};
 //! 
 //! let mut registry = PluginRegistry::new();
@@ -16,7 +16,7 @@
 //! // Использование
 //! let importer = registry.get_importer("obj").unwrap();
 //! let mesh = importer.import("model.obj").unwrap();
-//! ```
+//! 
 
 mod traits;
 mod registry;

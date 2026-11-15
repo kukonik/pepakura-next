@@ -239,53 +239,8 @@ fn load_mesh(path: &str) -> Result<Mesh, String> {
     }
 }
 
-/// Загрузить OBJ файл
+/// Загрузить OBJ файл через parse_obj_str из pepakura_core
 fn load_obj(path: &str) -> Result<Mesh, String> {
-    // Используем obj crate для парсинга
-    let obj_model = obj::Obj::load(path)
-        .map_err(|e| format!("Ошибка парсинга OBJ: {}", e))?;
-
-    // Создаём меш из первой модели
-    if obj_model.data.objects.is_empty() {
-        return Err("OBJ файл не содержит моделей".to_string());
-    }
-
-    let obj_data = &obj_model.data;
-    let mut mesh = Mesh::new(Path::new(path).file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("model"));
-
-    // Добавляем вершины
-    for (i, position) in obj_data.position.iter().enumerate() {
-        mesh.add_vertex(pepakura_core::geometry::Vertex::new(
-            i,
-            [position[0] as f64, position[1] as f64, position[2] as f64],
-        ));
-    }
-
-    // Добавляем грани (треугольные) из объектов
-    for object in &obj_data.objects {
-        for group in &object.groups {
-            for poly in &group.polys {
-                // Полигон может иметь более 3 вершин, берём первые три для треугольника
-                // poly является SimplePolygon (кортежная структура с одним полем Vec<IndexTuple>)
-                let vertices = &poly.0;
-                if vertices.len() >= 3 {
-                    let indices: Vec<usize> = vertices.iter()
-                        .take(3)
-                        .map(|v| (v.0 - 1) as usize) // OBJ использует 1-based indexing, v.0 - индекс позиции
-                        .collect();
-                    if indices.len() == 3 {
-                        mesh.add_face(pepakura_core::geometry::Face::new(
-                            indices[0],
-                            indices[1],
-                            indices[2],
-                        ));
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(mesh)
+    let data = std::fs::read_to_string(path).map_err(|e| format!("Cannot read file {}: {}", path, e))?;
+    pepakura_core::import::parse_obj_str(&data)
 }

@@ -1,6 +1,5 @@
 use byteorder::{LittleEndian, ReadBytesExt};
 use flate2::read::ZlibDecoder;
-use std::io::Read;
 use std::io::{self, Cursor, Read};
 #[derive(Debug)]
 pub struct PdoHeader {

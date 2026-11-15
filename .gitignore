@@ -22,3 +22,9 @@ packages/ui-desktop.backup_*/
 **/*.backup.*
 **/*.broken.*
 **/*.corrupt-*
+
+# pep-fix artifacts
+/fix*.txt
+/pepakura-dump*.txt
+/unfold_tex.pdf
+*.bak_*

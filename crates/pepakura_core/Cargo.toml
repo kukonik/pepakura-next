@@ -36,6 +36,8 @@ obj = "0.10.2"
 reqwest = { version = "0.13.4", features = ["json", "stream"] }
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 ureq = { version = "2", features = ["json"] }
+cgmath = "0.18.0"
+slotmap = "1.1.1"
 
 [dev-dependencies]
 env_logger = "0.10"

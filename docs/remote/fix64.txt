@@ -1,0 +1,21 @@
+**********************
+PowerShell transcript start
+Start time: 20261115144003
+Username: KOS-PC\kukon
+RunAs User: KOS-PC\kukon
+Configuration Name: 
+Machine: KOS-PC (Microsoft Windows NT 10.0.22621.0)
+Host Application: C:\Program Files (x86)\PowerShell\7\pwsh.dll -NoLogo -NoProfile -NonInteractive -Command Start-Transcript -Path G:\Dev\pepakura-next\fix64.txt -Force; cargo build --release --target x86_64-pc-windows-msvc 2>&1 | Tee-Object -FilePath G:\Dev\pepakura-next\fix64_build.log; "BUILD_EXIT=$LASTEXITCODE"; $f='G:\Dev\pepakura-next\pepakura-dump102.txt'; 'DUMP102: fix64 release build verification' > $f; "BUILD_EXIT=$LASTEXITCODE" >> $f; if ($LASTEXITCODE -eq 0) { Get-Item G:\Dev\pepakura-next\target\x86_64-pc-windows-msvc\release\pepakura-next.exe | ForEach-Object { $msg = "RELEASE_EXE: $($_.LastWriteTime) | $([math]::Round($_.Length/1MB,1)) MB"; $msg; Add-Content -Path $f -Value $msg } }; Add-Content -Path G:\Dev\pepakura-next\docs\fixlog.md -Value ('- ' + (Get-Date -Format 'yyyy-MM-dd HH:mm') + ' - fix64: Release-сборка (x86_64-pc-windows-msvc); задачи handoff закрыты: export_pieces_pdf регистрация (lib.rs:21/main.rs:60), клапаны 4f overlap-guard (t>=tw/tan), SMART-61 (robust-S1, dump101), PDF-B многорядная упаковка (SplitView.vue:383-384), статус Движок (SplitView.vue:182)'); Stop-Transcript
+Process ID: 4724
+PSVersion: 7.6.0
+PSEdition: Core
+GitCommitId: 7.6.0
+OS: Microsoft Windows 10.0.22621
+Platform: Win32NT
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1, 6.0, 7.0
+PSRemotingProtocolVersion: 2.4
+SerializationVersion: 1.1.0.1
+WSManStackVersion: 3.0
+**********************
+Transcript started, output file is G:\Dev\pepakura-next\fix64.txt
+   Compiling aws-lc-sys v0.41.0

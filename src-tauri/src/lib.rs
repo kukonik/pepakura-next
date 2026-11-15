@@ -17,7 +17,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(tauri::generate_handler![commands::unfold_mesh, commands::export_pdf_cmd, 
+            commands::export_pieces_pdf,
             unfold_lscm,
             commands::parse_pdo_to_pepa,
             commands::nest_project,

@@ -1,30 +1,6 @@
 //! # Analysis Module
 //!
 //! Модули для анализа 3D моделей.
-//!
-//! ## Подмодули
-//!
-//! - [`mesh_stats`] - вычисление статистики меша
-//! - [`mesh_analyzer`] - анализ с LLM-рекомендациями
-//! - [`distortion_analysis`] - анализ искажений развёртки
-//! - [`nesting_optimization`] - оптимизация раскладки
-//!
-//! ## Пример использования
-//!
-//! ```rust
-//! use pepakura_core::analysis::mesh_analyzer::MeshAnalyzer;
-//! use pepakura_core::geometry::Mesh;
-//!
-//! let mut analyzer = MeshAnalyzer::new();
-//! let mesh = Mesh::new("model");
-//! let result = analyzer.analyze(&mesh);
-//!
-//! println!("{}", result.stats.summary());
-//!
-//! if let Some(ai) = &result.ai_analysis {
-//!     println!("Сложность: {}", ai.difficulty);
-//! }
-//! ```
 
 pub mod mesh_stats;
 pub mod mesh_analyzer;

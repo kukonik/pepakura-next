@@ -247,7 +247,7 @@ mod tests {
     fn test_memory_storage() {
         use self::native::MemoryStorage;
 
-        let storage = MemoryStorage::new();
+        let mut storage = MemoryStorage::new();
 
         // Записать значение
         storage.set("key1", b"value1").unwrap();
@@ -274,7 +274,7 @@ mod tests {
     fn test_storage_json() {
         use self::native::MemoryStorage;
 
-        let storage = MemoryStorage::new();
+        let mut storage = MemoryStorage::new();
 
         #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
         struct TestData {

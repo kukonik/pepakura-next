@@ -316,9 +316,9 @@ mod tests {
     fn test_cotangent_angle() {
         let a = [0.0, 0.0, 0.0];
         let b = [1.0, 0.0, 0.0];
-        let c = [1.0, 1.0, 0.0];
+        let c = [0.5, 0.8660254, 0.0];
         let cot = LscmUnfolder::cotangent_angle(&a, &b, &c);
-        assert!(cot.abs() > 0.5);
+        assert!((cot - 0.5773503).abs() < 1e-5, "cot={}", cot);
     }
 
     #[test]

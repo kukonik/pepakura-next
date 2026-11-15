@@ -105,14 +105,14 @@ pub enum TextureExportError {
 /// Экспортирует текстуру и UV-координаты.
 ///
 /// # Аргументы
-/// * `unfolded` - развёрнутый меш с UV
-/// * `config` - конфигурация экспорта
-/// * `fs` - реализация FileSystem для записи файлов
-/// * `output_dir` - директория для экспорта
+/// * unfolded - развёрнутый меш с UV
+/// * config - конфигурация экспорта
+/// * fs - реализация FileSystem для записи файлов
+/// * output_dir - директория для экспорта
 ///
 /// # Возвращает
-/// * `Ok(TextureExportResult)` - результат экспорта
-/// * `Err(TextureExportError)` - ошибка
+/// * Ok(TextureExportResult) - результат экспорта
+/// * Err(TextureExportError) - ошибка
 pub fn export_textures<F: FileSystem>(
     unfolded: &UnfoldedMesh,
     config: &TextureExportConfig,
@@ -371,7 +371,7 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
     fn test_export_textures() {
-        use pepakura_platform::fs::FileSystem;
+
         
         let unfolded = create_test_mesh();
         let config = TextureExportConfig::default();
@@ -413,7 +413,7 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
     fn test_export_no_uv_coords() {
-        use pepakura_platform::fs::FileSystem;
+
         
         let mut unfolded = create_test_mesh();
         unfolded.uv_coords = None;

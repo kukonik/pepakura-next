@@ -1,6 +1,6 @@
 import { createI18n } from 'vue-i18n'
-import en from '../../platform/desktop/ui-desktop/src/locales/en.json'
-import ru from '../../platform/desktop/ui-desktop/src/locales/ru.json'
+import en from '../../../platform/desktop/ui-desktop/src/locales/en.json'
+import ru from '../../../platform/desktop/ui-desktop/src/locales/ru.json'
 
 const messages = {
   en,
@@ -15,3 +15,4 @@ const i18n = createI18n({
 })
 
 export default i18n
+

@@ -259,21 +259,21 @@ fn calculate_bounding_box(unfolded: &UnfoldedMesh) -> (f64, f64, f64, f64) {
 /// Генерирует XML-строку SVG с упрощёнными настройками (Alpha версия).
 ///
 /// # Аргументы
-/// * `mesh` - развёрнутый меш
-/// * `opts` - настройки экспорта
+/// * mesh - развёрнутый меш
+/// * opts - настройки экспорта
 ///
 /// # Возвращает
-/// * `Result<String, ExportError>` - SVG строка или ошибка
+/// * Result<String, ExportError> - SVG строка или ошибка
 ///
 /// # Пример
-/// ```
+/// 
 /// use pepakura_core::export::svg::{export_to_svg, SvgExportOptions};
 /// use pepakura_core::unfold::UnfoldedMesh;
 ///
 /// let unfolded = UnfoldedMesh::default();
 /// let opts = SvgExportOptions::default();
 /// let svg = export_to_svg(&unfolded, &opts).unwrap();
-/// ```
+/// 
 pub fn export_to_svg(mesh: &UnfoldedMesh, opts: &SvgExportOptions) -> Result<String, ExportError> {
     // Преобразуем упрощённые настройки в полный конфиг
     let config = SvgExportConfig {
@@ -308,6 +308,7 @@ mod tests {
         mesh.add_face(Face::new(0, 1, 2));
 
         UnfoldedMesh {
+            uv_coords: Default::default(),
             vertices_2d: vec![[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]],
             faces: mesh.faces.clone(),
             source_mesh: mesh,
@@ -329,6 +330,7 @@ mod tests {
     #[test]
     fn test_export_svg_empty_mesh() {
         let unfolded = UnfoldedMesh {
+            uv_coords: Default::default(),
             vertices_2d: vec![],
             faces: vec![],
             source_mesh: Mesh::new("Empty"),

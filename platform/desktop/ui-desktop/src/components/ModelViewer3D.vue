@@ -158,9 +158,14 @@ const loadModel = async (objText: string, mtlText: string | null, texMap: Record
             img.onload = () => {
               const tex = new THREE.Texture(img);
               tex.colorSpace = THREE.SRGBColorSpace;
+              // [U1-v2] tiling support for intentional UV repeats (eyes etc.)
+              tex.wrapS = THREE.RepeatWrapping;
+              tex.wrapT = THREE.RepeatWrapping;
               tex.needsUpdate = true;
 
-              // UV normalization
+              // [U1-v2] RepeatWrapping handles intentional repeats (1..4);
+              // only real pixel-space UVs (> 4 repeats) are normalized by the texture size
+              const UV_REPEAT_LIMIT = 4.0;
               const uvs = mesh.geometry.attributes.uv;
               let maxU = -Infinity, maxV = -Infinity;
               for (let i = 0; i < uvs.count; i++) {
@@ -170,17 +175,12 @@ const loadModel = async (objText: string, mtlText: string | null, texMap: Record
                 if (v > maxV) maxV = v;
               }
 
-              if (maxU > 1.0 || maxV > 1.0) {
-                const texW = img.width;
-                const texH = img.height;
-                const C = maxU > 0 ? texW / maxU : 1;
+              if (maxU > UV_REPEAT_LIMIT || maxV > UV_REPEAT_LIMIT) {
+                const texW = img.width > 0 ? img.width : 1;
+                const texH = img.height > 0 ? img.height : 1;
 
                 for (let i = 0; i < uvs.count; i++) {
-                  const u = uvs.getX(i);
-                  const v = uvs.getY(i);
-                  const uNorm = u * (C / texW);
-                  const vNorm = v * (C / texH);
-                  uvs.setXY(i, uNorm, vNorm);
+                  uvs.setXY(i, uvs.getX(i) / texW, uvs.getY(i) / texH);
                 }
                 uvs.needsUpdate = true;
               }
@@ -253,5 +253,3 @@ onUnmounted(() => {
   if (renderer) renderer.dispose();
 });
 </script>
-
-

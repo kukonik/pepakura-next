@@ -107,6 +107,8 @@ mod tests {
     #[test]
     fn test_validate_valid_model() {
         let pdo = PdoModel {
+            name: "test".to_string(),
+            raw: Vec::new(),
             header: "TEST".to_string(),
             vertices: vec![
                 PdoVertex { x: 0.0, y: 0.0, z: 0.0 },
@@ -128,6 +130,8 @@ mod tests {
     #[test]
     fn test_validate_invalid_face_index() {
         let pdo = PdoModel {
+            name: "test".to_string(),
+            raw: Vec::new(),
             header: "TEST".to_string(),
             vertices: vec![PdoVertex { x: 0.0, y: 0.0, z: 0.0 }],
             faces: vec![PdoFace {
@@ -145,6 +149,8 @@ mod tests {
     #[test]
     fn test_validate_invalid_texture_dimensions() {
         let pdo = PdoModel {
+            name: "test".to_string(),
+            raw: Vec::new(),
             header: "TEST".to_string(),
             vertices: vec![PdoVertex { x: 0.0, y: 0.0, z: 0.0 }],
             faces: vec![],
@@ -164,6 +170,8 @@ mod tests {
     #[test]
     fn test_is_valid_quick() {
         let valid = PdoModel {
+            name: "test".to_string(),
+            raw: Vec::new(),
             header: "TEST".to_string(),
             vertices: vec![PdoVertex { x: 0.0, y: 0.0, z: 0.0 }],
             faces: vec![PdoFace {
@@ -175,6 +183,8 @@ mod tests {
         assert!(PdoValidator::is_valid_quick(&valid));
 
         let invalid = PdoModel {
+            name: "test".to_string(),
+            raw: Vec::new(),
             header: "TEST".to_string(),
             vertices: vec![],
             faces: vec![],
@@ -186,6 +196,8 @@ mod tests {
     #[test]
     fn test_get_warnings() {
         let pdo = PdoModel {
+            name: "test".to_string(),
+            raw: Vec::new(),
             header: "".to_string(),
             vertices: vec![],
             faces: vec![],

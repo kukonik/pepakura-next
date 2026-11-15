@@ -5,6 +5,7 @@ use pepakura_core::unwrap_types::*;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct UnfoldConfig { pub algorithm: Option<String>, pub engine: Option<String> }
 
 #[derive(Serialize)]
@@ -23,21 +24,23 @@ pub async fn unfold_mesh(obj_data: String, config: Option<UnfoldConfig>) -> Resu
     if let Some(cfg) = &config {
         if cfg.algorithm.as_deref() == Some("papercraft") {
             let mesh = pepakura_core::import::parse_obj_str(&obj_data).map_err(|e| e.to_string())?;
-            return pepakura_core::papercraft_adapter::unfold_with_papercraft(&mesh);
+            let pr = pepakura_core::papercraft_adapter::unfold_with_papercraft(&mesh)?;
+            return Ok(UnwrapResult { engine_used: "Papercraft".to_string(), face_pieces: Vec::new(), pieces: pr.pieces, pages: Vec::new(), metrics: pr.metrics, sheet_width: 0.0, sheet_height: 0.0, margin: 0.0, total_area: 0.0, total_perimeter: 0.0, vertices_2d: Vec::new(), faces: Vec::new() });
         }
     }
 
     let handle = tokio::task::spawn_blocking(move || {
         let san = sanitize_obj(&obj_data);
         let raw = pepakura_core::import::parse_obj_str(&san).map_err(|e| format!("{:?}", e))?;
-        let mesh = pepakura_core::sanitize::simplify_mesh(&raw, &SanitizeOptions::default()).unwrap_or(raw);
+        let mesh = pepakura_core::sanitize::simplify_mesh(&raw, &SanitizeOptions::default());
 
         // Простая проекция 3D -> 2D (отбрасываем Z)
-        let av: Vec<[f64; 2]> = mesh.vertices.iter().map(|v| [v.x as f64, v.y as f64]).collect();
-        let fd: Vec<FaceDto> = mesh.faces.iter().map(|f| FaceDto{vertices: f.vertices.clone()}).collect();
+        let av: Vec<[f64; 2]> = mesh.vertices.iter().map(|v| [v.position[0], v.position[1]]).collect();
+        let fd: Vec<FaceDto> = mesh.faces.iter().map(|f| FaceDto{vertices: f.vertices.to_vec()}).collect();
 
         Ok::<UnwrapResult, String>(UnwrapResult {
             engine_used: "Native".to_string(),
+        face_pieces: Vec::new(),
             pieces: vec![], // Фронтенд сам построит pieces из vertices_2d и faces
             pages: vec![Page { page_number: 0, piece_ids: vec![], utilization_percent: 0.0 }],
             metrics: UnwrapMetrics { total_pieces: 0, total_pages: 1, total_folds: 0, total_tabs: 0, complexity_score: 0.0 },

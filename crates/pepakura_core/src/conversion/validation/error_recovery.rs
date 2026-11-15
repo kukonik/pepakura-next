@@ -293,6 +293,8 @@ mod tests {
     #[test]
     fn test_remove_duplicate_vertices() {
         let mut model = PdoModel {
+            name: "test".to_string(),
+            raw: Vec::new(),
             header: "TEST".to_string(),
             vertices: vec![
                 PdoVertex { x: 0.0, y: 0.0, z: 0.0 },
@@ -317,6 +319,8 @@ mod tests {
     #[test]
     fn test_scale_to_unit_size() {
         let mut model = PdoModel {
+            name: "test".to_string(),
+            raw: Vec::new(),
             header: "TEST".to_string(),
             vertices: vec![
                 PdoVertex { x: 0.0, y: 0.0, z: 0.0 },
@@ -344,6 +348,8 @@ mod tests {
     #[test]
     fn test_flip_normals() {
         let mut model = PdoModel {
+            name: "test".to_string(),
+            raw: Vec::new(),
             header: "TEST".to_string(),
             vertices: vec![
                 PdoVertex { x: 0.0, y: 0.0, z: 0.0 },

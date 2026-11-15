@@ -230,6 +230,8 @@ mod tests {
     #[test]
     fn test_validate_valid_triangle() {
         let pdo = PdoModel {
+            name: "test".to_string(),
+            raw: Vec::new(),
             header: "TEST".to_string(),
             vertices: vec![
                 PdoVertex { x: 0.0, y: 0.0, z: 0.0 },
@@ -250,6 +252,8 @@ mod tests {
     #[test]
     fn test_validate_nan_vertex() {
         let pdo = PdoModel {
+            name: "test".to_string(),
+            raw: Vec::new(),
             header: "TEST".to_string(),
             vertices: vec![
                 PdoVertex { x: f32::NAN, y: 0.0, z: 0.0 },
@@ -277,6 +281,8 @@ mod tests {
     fn test_surface_area() {
         // Простой треугольник в XY плоскости
         let pdo = PdoModel {
+            name: "test".to_string(),
+            raw: Vec::new(),
             header: "TEST".to_string(),
             vertices: vec![
                 PdoVertex { x: 0.0, y: 0.0, z: 0.0 },
@@ -297,6 +303,8 @@ mod tests {
     #[test]
     fn test_duplicate_vertices() {
         let pdo = PdoModel {
+            name: "test".to_string(),
+            raw: Vec::new(),
             header: "TEST".to_string(),
             vertices: vec![
                 PdoVertex { x: 0.0, y: 0.0, z: 0.0 },

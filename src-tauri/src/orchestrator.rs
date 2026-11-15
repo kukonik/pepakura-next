@@ -1,8 +1,11 @@
 //! AI Orchestrator Server
 //! Локальный HTTP-сервер (Axum) для интеграции с локальными моделями (Ollama/Qwen)
 //! Запускается на порту 3000 параллельно с Tauri.
+//! [78-A] добавлены CORS-заголовки (фронт на :5173 зовёт :3000) и OPTIONS-preflight.
 
 use axum::{routing::post, Json, Router};
+use axum::http::{HeaderMap, HeaderValue, StatusCode};
+// [80-A] .options() — встроенный метод MethodRouter, отдельный импорт не нужен
 use serde::{Deserialize, Serialize};
 use reqwest::Client;
 
@@ -22,31 +25,45 @@ pub struct AnalyzeResponse {
     pub difficulty: String,
 }
 
+/// CORS-заголовки для всех ответов (веб-фронт на localhost:5173).
+fn cors() -> HeaderMap {
+    let mut h = HeaderMap::new();
+    h.insert("Access-Control-Allow-Origin", HeaderValue::from_static("*"));
+    h.insert("Access-Control-Allow-Methods", HeaderValue::from_static("POST, OPTIONS"));
+    h.insert("Access-Control-Allow-Headers", HeaderValue::from_static("Content-Type"));
+    h
+}
+
 /// Запускает HTTP-сервер оркестратора
 pub async fn run_ai_server() {
-    let app = Router::new().route("/api/analyze", post(analyze_mesh));
+    let app = Router::new().route("/api/analyze", post(analyze_mesh).options(preflight));
 
     let listener = match tokio::net::TcpListener::bind("0.0.0.0:3000").await {
         Ok(l) => l,
         Err(e) => {
-            log::error!("❌ Не удалось запустить AI Orchestrator на порту 3000: {}", e);
+            log::error!("Не удалось запустить AI Orchestrator на порту 3000: {}", e);
             return;
         }
     };
 
-    log::info!("🤖 AI Orchestrator listening on http://localhost:3000");
+    log::info!("AI Orchestrator listening on http://localhost:3000");
     axum::serve(listener, app).await.unwrap();
 }
 
+/// Предварительный запрос OPTIONS (CORS preflight)
+async fn preflight() -> (HeaderMap, StatusCode) {
+    (cors(), StatusCode::OK)
+}
+
 /// Хэндлер для POST /api/analyze
-async fn analyze_mesh(Json(payload): Json<AnalyzeRequest>) -> Json<AnalyzeResponse> {
+async fn analyze_mesh(Json(payload): Json<AnalyzeRequest>) -> (HeaderMap, Json<AnalyzeResponse>) {
     let client = Client::new();
-    
+
     // Формируем промпт для локального Qwen/Ollama
     let system_prompt = "Ты — ИИ-ассистент для создания паперкрафт выкроек. Анализируй 3D модель и давай советы по развёртке, склейке и упрощению.";
     let prompt = format!(
-        "Статистика модели:\n{}\n\nВопрос пользователя: {}", 
-        payload.mesh_stats, 
+        "Статистика модели:\n{}\n\nВопрос пользователя: {}",
+        payload.mesh_stats,
         payload.user_prompt
     );
 
@@ -64,17 +81,17 @@ async fn analyze_mesh(Json(payload): Json<AnalyzeRequest>) -> Json<AnalyzeRespon
         Ok(res) => {
             let body: serde_json::Value = res.json().await.unwrap_or_default();
             let advice = body["response"].as_str().unwrap_or("ИИ не вернул текстовый ответ").to_string();
-            Json(AnalyzeResponse { 
-                ai_advice: advice, 
+            (cors(), Json(AnalyzeResponse {
+                ai_advice: advice,
                 difficulty: "Medium".into() // В будущем можно парсить из ответа
-            })
+            }))
         },
         Err(e) => {
             log::error!("Ошибка запроса к Ollama: {}", e);
-            Json(AnalyzeResponse { 
-                ai_advice: "Ошибка: Ollama не запущена или модель не загружена.".into(), 
-                difficulty: "Unknown".into() 
-            })
+            (cors(), Json(AnalyzeResponse {
+                ai_advice: "Ошибка: Ollama не запущена или модель не загружена.".into(),
+                difficulty: "Unknown".into()
+            }))
         }
     }
 }

@@ -1,0 +1,683 @@
+DUMP100: fix61-verify + texture pipeline
+=== [V] Верификация fix61 ===
+L143: /// [SMART-61] Видимость грани: 1.0 = фронт (+Z), 0.0 = бок/тыл.
+L144: fn face_visibility(mesh: &Mesh, fi: usize) -> f64 {
+L148: /// [SMART-61] Вес dual-ребра: ступени диэдральных углов как раньше;
+L160: let vis = 0.5 * (face_visibility(mesh, f1) + face_visibility(mesh, f2));
+L346: Ok(PapercraftUnfoldResult { pieces, metrics, parts: Vec::new(), face_pieces, vertices_2d: verts_2d, faces_2d, engine_used: "MST-Seam+61 (papercraft)".to_string() })
+L821: Ok(PapercraftUnfoldResult { pieces, metrics, parts: parts_meta, face_pieces, vertices_2d: verts_2d, faces_2d, engine_used: format!("MST-Seam+61 + {} parts", cfg.mode) })
+=== [1] Инвентарь: фронт (ui-desktop/src) ===
+packages\ui-desktop\src\components\ai\AiAssistantPanel.vue (16.1 KB)
+packages\ui-desktop\src\components\ai\AiMessageList.vue (8.7 KB)
+packages\ui-desktop\src\components\editor\PartsPanel.vue (8.3 KB)
+packages\ui-desktop\src\components\generation\GenerationProgress.vue (0 KB)
+packages\ui-desktop\src\components\generation\HardwareWarning.vue (0 KB)
+packages\ui-desktop\src\components\generation\ImageTo3DGenerator.vue (2 KB)
+packages\ui-desktop\src\components\generation\index.ts (0.1 KB)
+packages\ui-desktop\src\components\layout\AppHeader.vue (1.2 KB)
+packages\ui-desktop\src\components\layout\AppMainLayout.vue (0.6 KB)
+packages\ui-desktop\src\components\layout\AppShell.vue (3.9 KB)
+packages\ui-desktop\src\components\layout\AppSidebar.vue (1.5 KB)
+packages\ui-desktop\src\components\layout\LeftToolbar.vue (4 KB)
+packages\ui-desktop\src\components\layout\ModelViewer.vue (9.3 KB)
+packages\ui-desktop\src\components\layout\QuickActionsPanel.vue (10 KB)
+packages\ui-desktop\src\components\layout\RecentProjectsPanel.vue (9.8 KB)
+packages\ui-desktop\src\components\layout\RightPanel.vue (1.4 KB)
+packages\ui-desktop\src\components\layout\Scene3D.vue (10 KB)
+packages\ui-desktop\src\components\layout\SimpleStepperHeader.vue (3.9 KB)
+packages\ui-desktop\src\components\layout\StatusBar.vue (1.8 KB)
+packages\ui-desktop\src\components\layout\TopBar.vue (6 KB)
+packages\ui-desktop\src\components\layout\ViewerSection.vue (1.7 KB)
+packages\ui-desktop\src\components\paper-optimization\NestingEditor.vue (18.4 KB)
+packages\ui-desktop\src\components\paper-optimization\PaperOptimizationModal.test.ts (7.1 KB)
+packages\ui-desktop\src\components\paper-optimization\PaperOptimizationPanel.test.ts (6.5 KB)
+packages\ui-desktop\src\components\paper-optimization\PrintNestingPanel.vue (24.9 KB)
+packages\ui-desktop\src\components\paper-optimization\SheetPreview.vue (1.9 KB)
+packages\ui-desktop\src\components\stages\ThreeDStage.vue (14.2 KB)
+packages\ui-desktop\src\components\stages\TwoDStage.vue (13.8 KB)
+packages\ui-desktop\src\components\stages\TxtStage.vue (8.1 KB)
+packages\ui-desktop\src\components\stages\UnfoldStage.test.ts (8.2 KB)
+packages\ui-desktop\src\components\stages\UnfoldStage.vue (14.6 KB)
+packages\ui-desktop\src\components\ui\AppButton.vue (1.9 KB)
+packages\ui-desktop\src\components\ui\AppInput.vue (2 KB)
+packages\ui-desktop\src\components\ui\AppToggleTheme.vue (1.1 KB)
+packages\ui-desktop\src\components\ui\ContextMenu.vue (1.9 KB)
+packages\ui-desktop\src\components\ui\GlobalMessages.vue (1.4 KB)
+packages\ui-desktop\src\components\viewer\LogPane.vue (1.2 KB)
+packages\ui-desktop\src\components\viewer\ThreeDStage.vue (4 KB)
+packages\ui-desktop\src\components\viewer\ThreeDViewerCanvas.vue (7.8 KB)
+packages\ui-desktop\src\components\viewer\UnfoldViewer2D.vue (2 KB)
+packages\ui-desktop\src\components\viewer\ViewerPane.vue (8 KB)
+packages\ui-desktop\src\components\AutoSaveIndicator.vue (5.8 KB)
+packages\ui-desktop\src\components\DiagnosticsPanel.vue (2.3 KB)
+packages\ui-desktop\src\components\ImageTo3DGenerator.vue (9.3 KB)
+packages\ui-desktop\src\components\index.ts (3 KB)
+packages\ui-desktop\src\components\ModelViewer3D.vue (8.3 KB)
+packages\ui-desktop\src\components\NestingController.vue (6.6 KB)
+packages\ui-desktop\src\components\NotificationToast.vue (1.8 KB)
+packages\ui-desktop\src\components\PaperOptimizationModal.vue (8.5 KB)
+packages\ui-desktop\src\components\PaperOptimizationResults.vue (2.6 KB)
+packages\ui-desktop\src\components\PaperOptimizePanel.vue (6.8 KB)
+packages\ui-desktop\src\components\PaperOptimizeSettings.vue (5.3 KB)
+packages\ui-desktop\src\components\PDOFileLoader.vue (6.3 KB)
+packages\ui-desktop\src\components\PepakuraEditor.vue (10.3 KB)
+packages\ui-desktop\src\components\SheetPreview.vue (0.1 KB)
+packages\ui-desktop\src\components\SplitView.vue (44 KB)
+packages\ui-desktop\src\components\SVGExporter.vue (7.8 KB)
+packages\ui-desktop\src\components\TestThreeJS.vue (1.8 KB)
+packages\ui-desktop\src\components\TextTo3DGenerator.vue (9.6 KB)
+packages\ui-desktop\src\components\ThreeDViewer.vue (20.4 KB)
+packages\ui-desktop\src\composables\useAutoSave.ts (4.3 KB)
+packages\ui-desktop\src\composables\useFilePicker.ts (2.4 KB)
+packages\ui-desktop\src\composables\useGenaiClient.ts (1.8 KB)
+packages\ui-desktop\src\composables\useImport3DModel.ts (1.5 KB)
+packages\ui-desktop\src\composables\useNotifications.ts (0.8 KB)
+packages\ui-desktop\src\composables\useTauriModelLoader.ts (2.3 KB)
+packages\ui-desktop\src\debug-tests\system-debug.test.ts (18.1 KB)
+packages\ui-desktop\src\integration-tests\ai-generation.integration.test.ts (13.1 KB)
+packages\ui-desktop\src\integration-tests\paper-optimization.integration.test.ts (15.5 KB)
+packages\ui-desktop\src\modules\ai\image-to-3d\imageTo3DClient.test.ts (5.3 KB)
+packages\ui-desktop\src\modules\ai\text-to-3d\textTo3dClient.test.ts (3.7 KB)
+packages\ui-desktop\src\modules\renderer-3d\sceneRuntime.ts (0.6 KB)
+packages\ui-desktop\src\modules\renderer-3d\SeamVisualizer.ts (1.8 KB)
+packages\ui-desktop\src\pages\AiAssistantPage.vue (0.5 KB)
+packages\ui-desktop\src\pages\EditorPage.vue (0.3 KB)
+packages\ui-desktop\src\pages\NestingEditorPage.vue (0.3 KB)
+packages\ui-desktop\src\pages\SettingsPage.vue (6.3 KB)
+packages\ui-desktop\src\pages\WelcomePage.vue (3.1 KB)
+packages\ui-desktop\src\performance-tests\ai-generation.performance.test.ts (10.6 KB)
+packages\ui-desktop\src\performance-tests\paper-optimization.performance.test.ts (14.9 KB)
+packages\ui-desktop\src\router\index.ts (0.8 KB)
+packages\ui-desktop\src\stores\aiStore.ts (15.1 KB)
+packages\ui-desktop\src\stores\autoSaveStore.test.ts (9.7 KB)
+packages\ui-desktop\src\stores\autoSaveStore.ts (3.2 KB)
+packages\ui-desktop\src\stores\index.ts (0.1 KB)
+packages\ui-desktop\src\stores\project.store.ts (9.7 KB)
+packages\ui-desktop\src\stores\project.ts (5.6 KB)
+packages\ui-desktop\src\stores\projectsStore.ts (3.9 KB)
+packages\ui-desktop\src\stores\projectStore.ts (14.7 KB)
+packages\ui-desktop\src\stores\ui.ts (2.2 KB)
+packages\ui-desktop\src\stores\undoRedoStore.ts (5.4 KB)
+packages\ui-desktop\src\stores\UnfoldStage.vue (2.7 KB)
+packages\ui-desktop\src\stores\unfoldStore.ts (2.9 KB)
+packages\ui-desktop\src\test\setup.ts (5.5 KB)
+packages\ui-desktop\src\types\pdo.ts (1.2 KB)
+packages\ui-desktop\src\types\pepa-types.ts (5.8 KB)
+packages\ui-desktop\src\types\pepakura.ts (0.8 KB)
+packages\ui-desktop\src\types\project.ts (1.6 KB)
+packages\ui-desktop\src\types\seam-set.type.ts (0.1 KB)
+packages\ui-desktop\src\utils\parser-example.ts (3.9 KB)
+packages\ui-desktop\src\utils\pdo-parser-wrapper.ts (0.8 KB)
+packages\ui-desktop\src\utils\pepa-converters.ts (11.1 KB)
+packages\ui-desktop\src\utils\pepa-scene-adapter.ts (8 KB)
+packages\ui-desktop\src\views\EditorPage.vue (15.1 KB)
+packages\ui-desktop\src\views\HomeView.vue (16.5 KB)
+packages\ui-desktop\src\views\ProjectsView.vue (0.5 KB)
+packages\ui-desktop\src\views\SettingsView.vue (0.5 KB)
+packages\ui-desktop\src\views\ThreeDStage.vue (4.1 KB)
+packages\ui-desktop\src\views\UnfoldEditorView.vue (9.8 KB)
+packages\ui-desktop\src\App.vue (2.3 KB)
+packages\ui-desktop\src\cam.js (2.8 KB)
+packages\ui-desktop\src\i18n.ts (0.3 KB)
+packages\ui-desktop\src\main.ts (0.4 KB)
+=== [1b] Инвентарь: Rust (src-tauri/src, crates) ===
+src-tauri\src\pdo\converter.rs (1.9 KB)
+src-tauri\src\pdo\mod.rs (0.1 KB)
+src-tauri\src\pdo\parser.rs (9.2 KB)
+src-tauri\src\ai_commands.rs (9.9 KB)
+src-tauri\src\ai_service.rs (2 KB)
+src-tauri\src\commands.rs (50.7 KB)
+src-tauri\src\lib.rs (1.7 KB)
+src-tauri\src\main.rs (3.6 KB)
+src-tauri\src\model_generator.rs (0.1 KB)
+src-tauri\src\orchestrator.rs (4 KB)
+src-tauri\src\persistence.rs (17.3 KB)
+crates\ai_bridge\src\commands.rs (0 KB)
+crates\ai_bridge\src\lib.rs (2.2 KB)
+crates\ai_bridge\src\mock.rs (0 KB)
+crates\ai_bridge\src\sandbox.rs (0 KB)
+crates\ai_bridge\src\types.rs (0 KB)
+crates\ai_bridge\tests\e2e_generation.rs (0 KB)
+crates\pepakura_addons\src\error.rs (1.7 KB)
+crates\pepakura_addons\src\lib.rs (1.8 KB)
+crates\pepakura_addons\src\manifest.rs (3.7 KB)
+crates\pepakura_addons\src\registry.rs (9 KB)
+crates\pepakura_addons\src\traits.rs (2.3 KB)
+crates\pepakura_core\examples\json_smoke.rs (3 KB)
+crates\pepakura_core\src\ai\local_llm.rs (1.1 KB)
+crates\pepakura_core\src\ai\prompts.rs (1.6 KB)
+crates\pepakura_core\src\analysis\distortion_analysis.rs (35.3 KB)
+crates\pepakura_core\src\analysis\mesh_analyzer.rs (14.4 KB)
+crates\pepakura_core\src\analysis\mesh_stats.rs (16.9 KB)
+crates\pepakura_core\src\analysis\mod.rs (0.7 KB)
+crates\pepakura_core\src\analysis\nesting_optimization.rs (29.5 KB)
+crates\pepakura_core\src\conversion\geometry\face_converter.rs (10.3 KB)
+crates\pepakura_core\src\conversion\geometry\mod.rs (3.3 KB)
+crates\pepakura_core\src\conversion\geometry\normal_calculator.rs (9.1 KB)
+crates\pepakura_core\src\conversion\geometry\uv_mapper.rs (11.8 KB)
+crates\pepakura_core\src\conversion\geometry\vertex_converter.rs (8.1 KB)
+crates\pepakura_core\src\conversion\materials\material_converter.rs (6.9 KB)
+crates\pepakura_core\src\conversion\materials\mod.rs (1.6 KB)
+crates\pepakura_core\src\conversion\materials\texture_extractor.rs (13 KB)
+crates\pepakura_core\src\conversion\validation\error_recovery.rs (12.1 KB)
+crates\pepakura_core\src\conversion\validation\geometry_validator.rs (11.1 KB)
+crates\pepakura_core\src\conversion\validation\mod.rs (2.1 KB)
+crates\pepakura_core\src\conversion\validation\pdo_validator.rs (6.5 KB)
+crates\pepakura_core\src\conversion\config.rs (7.1 KB)
+crates\pepakura_core\src\conversion\error.rs (4.6 KB)
+crates\pepakura_core\src\conversion\mod.rs (15.8 KB)
+crates\pepakura_core\src\conversion\progress.rs (7.5 KB)
+crates\pepakura_core\src\conversion\traits.rs (7.6 KB)
+crates\pepakura_core\src\export\dxf.rs (21.1 KB)
+crates\pepakura_core\src\export\mod.rs (0.5 KB)
+crates\pepakura_core\src\export\pdf.rs (18.9 KB)
+crates\pepakura_core\src\export\svg.rs (11.3 KB)
+crates\pepakura_core\src\export\texture.rs (13.4 KB)
+crates\pepakura_core\src\geometry\mesh.rs (15 KB)
+crates\pepakura_core\src\geometry\mod.rs (0.4 KB)
+crates\pepakura_core\src\geometry\vertex.rs (1.8 KB)
+crates\pepakura_core\src\nesting\genetic.rs (20.9 KB)
+crates\pepakura_core\src\paper\craft.rs (0 KB)
+crates\pepakura_core\src\paper\model.rs (0 KB)
+crates\pepakura_core\src\paper\project.rs (0.2 KB)
+crates\pepakura_core\src\plugins\builtin.rs (7.6 KB)
+crates\pepakura_core\src\plugins\mod.rs (0.8 KB)
+crates\pepakura_core\src\plugins\registry.rs (11.2 KB)
+crates\pepakura_core\src\plugins\traits.rs (5.5 KB)
+crates\pepakura_core\src\sanitize\mod.rs (0.4 KB)
+crates\pepakura_core\src\unfold\lscm.rs (10.7 KB)
+crates\pepakura_core\src\unfold\mds_optimized.rs (0.1 KB)
+crates\pepakura_core\src\unfold\mod.rs (18.8 KB)
+crates\pepakura_core\src\unfold\seam_cut.rs (9.6 KB)
+crates\pepakura_core\src\ai.rs (1.3 KB)
+crates\pepakura_core\src\compat.rs (1.1 KB)
+crates\pepakura_core\src\error.rs (2.1 KB)
+crates\pepakura_core\src\import.rs (5.5 KB)
+crates\pepakura_core\src\lib.rs (3.4 KB)
+crates\pepakura_core\src\nesting.rs (2.2 KB)
+crates\pepakura_core\src\paper.rs (0 KB)
+crates\pepakura_core\src\papercraft_adapter.rs (44.2 KB)
+crates\pepakura_core\src\pdo_parser.rs (7.1 KB)
+crates\pepakura_core\src\pdo_to_pepa.rs (0.2 KB)
+crates\pepakura_core\src\pepa_scene_adapter.rs (1.8 KB)
+crates\pepakura_core\src\persistence.rs (10.9 KB)
+crates\pepakura_core\src\project.rs (0.7 KB)
+crates\pepakura_core\src\unwrap_types.rs (1.1 KB)
+crates\pepakura_core\src_backup\analysis\distortion_analysis.rs (36.2 KB)
+crates\pepakura_core\src_backup\analysis\mesh_analyzer.rs (14.8 KB)
+crates\pepakura_core\src_backup\analysis\mesh_stats.rs (16.9 KB)
+crates\pepakura_core\src_backup\analysis\mod.rs (1.6 KB)
+crates\pepakura_core\src_backup\analysis\nesting_optimization.rs (31.2 KB)
+crates\pepakura_core\src_backup\conversion\geometry\face_converter.rs (10.3 KB)
+crates\pepakura_core\src_backup\conversion\geometry\mod.rs (3.3 KB)
+crates\pepakura_core\src_backup\conversion\geometry\normal_calculator.rs (9.1 KB)
+crates\pepakura_core\src_backup\conversion\geometry\uv_mapper.rs (11.8 KB)
+crates\pepakura_core\src_backup\conversion\geometry\vertex_converter.rs (8.1 KB)
+crates\pepakura_core\src_backup\conversion\materials\material_converter.rs (6.9 KB)
+crates\pepakura_core\src_backup\conversion\materials\mod.rs (1.6 KB)
+crates\pepakura_core\src_backup\conversion\materials\texture_extractor.rs (13.4 KB)
+crates\pepakura_core\src_backup\conversion\validation\error_recovery.rs (11.9 KB)
+crates\pepakura_core\src_backup\conversion\validation\geometry_validator.rs (10.8 KB)
+crates\pepakura_core\src_backup\conversion\validation\mod.rs (2.1 KB)
+crates\pepakura_core\src_backup\conversion\validation\pdo_validator.rs (6.1 KB)
+crates\pepakura_core\src_backup\conversion\config.rs (7.1 KB)
+crates\pepakura_core\src_backup\conversion\error.rs (4.6 KB)
+crates\pepakura_core\src_backup\conversion\mod.rs (15.8 KB)
+crates\pepakura_core\src_backup\conversion\progress.rs (7.5 KB)
+crates\pepakura_core\src_backup\conversion\traits.rs (7.6 KB)
+crates\pepakura_core\src_backup\export\dxf.rs (4.4 KB)
+crates\pepakura_core\src_backup\export\mod.rs (0.5 KB)
+crates\pepakura_core\src_backup\export\pdf.rs (4.3 KB)
+crates\pepakura_core\src_backup\export\svg.rs (11.6 KB)
+crates\pepakura_core\src_backup\export\texture.rs (13.9 KB)
+crates\pepakura_core\src_backup\geometry\mesh.rs (15.4 KB)
+crates\pepakura_core\src_backup\geometry\mod.rs (0.5 KB)
+crates\pepakura_core\src_backup\geometry\vertex.rs (4.3 KB)
+crates\pepakura_core\src_backup\nesting\genetic.rs (20.9 KB)
+crates\pepakura_core\src_backup\plugins\builtin.rs (7.6 KB)
+crates\pepakura_core\src_backup\plugins\mod.rs (0.9 KB)
+crates\pepakura_core\src_backup\plugins\registry.rs (11.5 KB)
+crates\pepakura_core\src_backup\plugins\traits.rs (5.5 KB)
+crates\pepakura_core\src_backup\sanitize\mod.rs (6.5 KB)
+crates\pepakura_core\src_backup\unfold\lscm.rs (11 KB)
+crates\pepakura_core\src_backup\unfold\mds_optimized.rs (0.1 KB)
+crates\pepakura_core\src_backup\unfold\seam_cut.rs (9.6 KB)
+crates\pepakura_core\src_backup\ai.rs (1.2 KB)
+crates\pepakura_core\src_backup\analysis.rs (0.3 KB)
+crates\pepakura_core\src_backup\compat.rs (1.1 KB)
+crates\pepakura_core\src_backup\error.rs (2.1 KB)
+crates\pepakura_core\src_backup\export.rs (2.2 KB)
+crates\pepakura_core\src_backup\geometry.rs (0.6 KB)
+crates\pepakura_core\src_backup\import.rs (2.1 KB)
+crates\pepakura_core\src_backup\lib.rs (16.6 KB)
+crates\pepakura_core\src_backup\nesting.rs (1.5 KB)
+crates\pepakura_core\src_backup\papercraft_adapter.rs (37 KB)
+crates\pepakura_core\src_backup\pdo_parser.rs (5.4 KB)
+crates\pepakura_core\src_backup\pdo_to_pepa.rs (0.2 KB)
+crates\pepakura_core\src_backup\pepa_scene_adapter.rs (0.5 KB)
+crates\pepakura_core\src_backup\persistence.rs (10.6 KB)
+crates\pepakura_core\src_backup\project.rs (0.7 KB)
+crates\pepakura_core\src_backup\sanitize.rs (0.3 KB)
+crates\pepakura_core\src_backup\unfold.rs (1.1 KB)
+crates\pepakura_debug\src\commands.rs (9.3 KB)
+crates\pepakura_debug\src\main.rs (2.8 KB)
+crates\pepakura_platform\src\fs.rs (13.1 KB)
+crates\pepakura_platform\src\lib.rs (0.8 KB)
+crates\pepakura_platform\src\storage.rs (9.7 KB)
+crates\pepakura_wasm\src\lib.rs (11.8 KB)
+=== [2] Фронт: DPR / pixelRatio / antialias ===
+packages\ui-desktop\src\components\layout\Scene3D.vue:76: renderer = new THREE.WebGLRenderer({ antialias: true })
+packages\ui-desktop\src\components\layout\Scene3D.vue:77: renderer.setPixelRatio(window.devicePixelRatio)
+packages\ui-desktop\src\components\viewer\ThreeDViewerCanvas.vue:47: renderer = new THREE.WebGLRenderer({ antialias: true })
+packages\ui-desktop\src\components\ModelViewer3D.vue:45: renderer = new THREE.WebGLRenderer({ antialias: true });
+packages\ui-desktop\src\components\ModelViewer3D.vue:47: renderer.setPixelRatio(window.devicePixelRatio);
+packages\ui-desktop\src\components\ThreeDViewer.vue:47: renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+packages\ui-desktop\src\components\ThreeDViewer.vue:49: renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+packages\ui-desktop\src\cam.js:41: const dpr = window.devicePixelRatio || 1;
+=== [3] Фронт: загрузка/фильтры текстур ===
+packages\ui-desktop\src\components\ModelViewer3D.vue:48: renderer.outputColorSpace = THREE.SRGBColorSpace;
+packages\ui-desktop\src\components\ModelViewer3D.vue:160: tex.colorSpace = THREE.SRGBColorSpace;
+packages\ui-desktop\src\utils\pepa-scene-adapter.ts:30: const textureLoader = new THREE.TextureLoader()
+packages\ui-desktop\src\utils\pepa-scene-adapter.ts:31: const map = textureLoader.load(pepaMat.texture.uri)
+packages\ui-desktop\src\utils\pepa-scene-adapter.ts:41: const normalLoader = new THREE.TextureLoader()
+=== [4] Фронт: canvas 2D (отрисовка кусков) ===
+packages\ui-desktop\src\components\SplitView.vue:307: g.transform(a, b, c, d, e, f); g.drawImage(img, 0, 0); g.restore();
+packages\ui-desktop\src\components\SplitView.vue:319: const g: any = cnv.getContext("2d"); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+packages\ui-desktop\src\components\SplitView.vue:451: const g: any = cnv.getContext("2d");
+packages\ui-desktop\src\components\SplitView.vue:453: g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+packages\ui-desktop\src\components\SplitView.vue:460: jpgs.push(cnv.toDataURL("image/jpeg", 0.9));
+packages\ui-desktop\src\components\SplitView.vue:535: const ctx = canvas.getContext('2d');
+packages\ui-desktop\src\components\SplitView.vue:582: ctx.drawImage(texLayer.canvas, tx(texLayer.minX), ty(texLayer.minY), texLayer.w * totalScale, texLayer.h * totalScale);
+packages\ui-desktop\src\components\SplitView.vue:646: const ctx = canvas.getContext('2d');
+=== [5] Фронт: экспорт PDF / передача текстуры в Rust ===
+packages\ui-desktop\src\components\ImageTo3DGenerator.vue:165: const result = await invoke('start_image_to_3d_generation', {
+packages\ui-desktop\src\components\PaperOptimizationModal.vue:117: const defaultParams: any = await invoke('get_default_paper_optimize_params')
+packages\ui-desktop\src\components\PaperOptimizationModal.vue:139: const defaultParams: any = await invoke('get_default_paper_optimize_params')
+packages\ui-desktop\src\components\PaperOptimizationModal.vue:181: const result: any = await invoke('optimize_model_for_paper', { model, params })
+packages\ui-desktop\src\components\PaperOptimizePanel.vue:73: const defaultParams: any = await invoke('get_default_paper_optimize_params')
+packages\ui-desktop\src\components\PaperOptimizePanel.vue:108: const result: any = await invoke('optimize_model_for_paper', { model, params })
+packages\ui-desktop\src\components\PaperOptimizePanel.vue:127: const defaultParams: any = await invoke('get_default_paper_optimize_params')
+packages\ui-desktop\src\components\SplitView.vue:174: const r = await invoke('unfold_mesh', {
+packages\ui-desktop\src\components\SplitView.vue:462: const r: any = await invoke("export_pdf", { vertices: [], faces: [], islandIds: null, path: PDF55_PATH, pages: jpgs });
+packages\ui-desktop\src\components\SplitView.vue:844: console.log('[Export] export_pieces_pdf, pieces:', pieces2D.length);
+packages\ui-desktop\src\components\SplitView.vue:845: const res78 = await invoke<string>('export_pieces_pdf', { pieces: pieces2D, path: filePath });
+packages\ui-desktop\src\stores\aiStore.ts:307: await invoke('ai_chat_stream_native', {
+packages\ui-desktop\src\stores\projectStore.ts:337: await invoke('save_project', {
+packages\ui-desktop\src\stores\projectStore.ts:402: await invoke('save_project', {
+packages\ui-desktop\src\stores\UnfoldStage.vue:28: await invoke("read_model_file", {
+packages\ui-desktop\src\stores\unfoldStore.ts:121: await invoke("export_unfold_pdf", {
+packages\ui-desktop\src\utils\pdo-parser-wrapper.ts:15: const result: ParsePdoResult = await invoke("parse_pdo_to_pepa", {
+packages\ui-desktop\src\utils\pepa-converters.ts:163: const result = await (window as any).__TAURI__.invoke('parse_pdo_to_pepa', { data: Array.from(new Uint8Array(data)) });
+=== [6] Rust: texture/image/resize ===
+src-tauri\src\pdo\converter.rs:30: pub texture_uri: Option<String>,
+src-tauri\src\pdo\parser.rs:143: pub struct PdoTexture {
+src-tauri\src\pdo\parser.rs:151: impl PdoTexture {
+src-tauri\src\pdo\parser.rs:191: Ok(PdoTexture {
+src-tauri\src\pdo\parser.rs:207: pub textures: Vec<PdoTexture>,
+src-tauri\src\pdo\parser.rs:247: // Parse textures
+src-tauri\src\pdo\parser.rs:248: let textures_count = cursor.read_u32::<LittleEndian>()?;
+src-tauri\src\pdo\parser.rs:249: let mut textures = Vec::with_capacity(textures_count as usize);
+src-tauri\src\pdo\parser.rs:250: for _ in 0..textures_count {
+src-tauri\src\pdo\parser.rs:251: textures.push(PdoTexture::parse(&mut cursor)?);
+src-tauri\src\pdo\parser.rs:262: textures,
+src-tauri\src\commands.rs:19: export::TextureExportConfig,
+src-tauri\src\commands.rs:884: // Texture Export Commands
+src-tauri\src\commands.rs:890: pub async fn export_unfold_textures(
+src-tauri\src\commands.rs:893: texture_width: Option<u32>,
+src-tauri\src\commands.rs:894: texture_height: Option<u32>,
+src-tauri\src\commands.rs:904: let config = TextureExportConfig {
+src-tauri\src\commands.rs:905: texture_width: texture_width.unwrap_or(1024),
+src-tauri\src\commands.rs:906: texture_height: texture_height.unwrap_or(1024),
+src-tauri\src\commands.rs:913: // let result = export_textures(&unfolded, &config, &fs, &output_dir)
+src-tauri\src\commands.rs:914: //     .map_err(|e| format!("Failed to export textures: {}", e))?;
+src-tauri\src\commands.rs:919: "texture_path": "",
+src-tauri\src\commands.rs:922: "texture_width": 0,
+src-tauri\src\commands.rs:923: "texture_height": 0,
+src-tauri\src\commands.rs:980: // [PDF-B] многостраничный режим: pages = массив JPEG dataURL
+src-tauri\src\commands.rs:1297: fn jpeg_dims_b(d: &[u8]) -> (u32, u32) {
+src-tauri\src\commands.rs:1319: let b64: &str = match s.find("base64,") { Some(p) => &s[p + 7..], None => s.as_str() };
+src-tauri\src\commands.rs:1321: if raw.len() < 100 { return Err(format!("страница {}: JPEG пуст или слишком мал", i + 1)); }
+src-tauri\src\commands.rs:1334: for (i, jpeg) in imgs.iter().enumerate() {
+src-tauri\src\commands.rs:1336: let dims: (u32, u32) = jpeg_dims_b(jpeg);
+src-tauri\src\commands.rs:1345: pdf.extend_from_slice(format!("{} 0 obj\n<< /Type /XObject /Subtype /Image /Width {} /Height {} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {} >>\nstream\n", base + 2, dims.0, dims.1, jpeg.len()).as_bytes());
+src-tauri\src\commands.rs:1346: pdf.extend_from_slice(jpeg);
+src-tauri\src\lib.rs:39: commands::export_unfold_textures
+src-tauri\src\main.rs:77: commands::export_unfold_textures,
+crates\pepakura_core\src\conversion\materials\material_converter.rs:3: use crate::pdo_parser::PdoTexture;
+crates\pepakura_core\src\conversion\materials\material_converter.rs:12: pub fn convert_materials(textures: &[PdoTexture]) -> Result<Vec<PepaMaterial>> {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:13: let materials = textures
+crates\pepakura_core\src\conversion\materials\material_converter.rs:15: .map(|texture| {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:17: id: texture.id,
+crates\pepakura_core\src\conversion\materials\material_converter.rs:18: name: if texture.name.is_empty() {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:19: format!("Material_{}", texture.id)
+crates\pepakura_core\src\conversion\materials\material_converter.rs:21: texture.name.clone()
+crates\pepakura_core\src\conversion\materials\material_converter.rs:24: texture_id: Some(texture.id),
+crates\pepakura_core\src\conversion\materials\material_converter.rs:38: texture_id: None,
+crates\pepakura_core\src\conversion\materials\material_converter.rs:43: pub fn convert_materials_or_default(textures: &[PdoTexture]) -> Vec<PepaMaterial> {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:44: if textures.is_empty() {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:47: textures
+crates\pepakura_core\src\conversion\materials\material_converter.rs:49: .map(|texture| PepaMaterial {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:50: id: texture.id,
+crates\pepakura_core\src\conversion\materials\material_converter.rs:51: name: if texture.name.is_empty() {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:52: format!("Material_{}", texture.id)
+crates\pepakura_core\src\conversion\materials\material_converter.rs:54: texture.name.clone()
+crates\pepakura_core\src\conversion\materials\material_converter.rs:57: texture_id: Some(texture.id),
+crates\pepakura_core\src\conversion\materials\material_converter.rs:85: pub fn has_textured_materials(materials: &[PepaMaterial]) -> bool {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:86: materials.iter().any(|m| m.texture_id.is_some())
+crates\pepakura_core\src\conversion\materials\material_converter.rs:90: pub fn get_textured_materials(materials: &[PepaMaterial]) -> Vec<&PepaMaterial> {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:93: .filter(|m| m.texture_id.is_some())
+crates\pepakura_core\src\conversion\materials\material_converter.rs:104: let textures = vec![
+crates\pepakura_core\src\conversion\materials\material_converter.rs:105: PdoTexture {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:110: name: "Texture1".to_string(),
+crates\pepakura_core\src\conversion\materials\material_converter.rs:112: PdoTexture {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:121: let materials = MaterialConverter::convert_materials(&textures).unwrap();
+crates\pepakura_core\src\conversion\materials\material_converter.rs:124: assert_eq!(materials[0].name, "Texture1");
+crates\pepakura_core\src\conversion\materials\material_converter.rs:134: assert!(material.texture_id.is_none());
+crates\pepakura_core\src\conversion\materials\material_converter.rs:139: let textures: Vec<PdoTexture> = vec![];
+crates\pepakura_core\src\conversion\materials\material_converter.rs:140: let materials = MaterialConverter::convert_materials_or_default(&textures);
+crates\pepakura_core\src\conversion\materials\material_converter.rs:148: let textures = vec![PdoTexture {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:156: let materials = MaterialConverter::convert_materials_or_default(&textures);
+crates\pepakura_core\src\conversion\materials\material_converter.rs:168: texture_id: None,
+crates\pepakura_core\src\conversion\materials\material_converter.rs:174: texture_id: None,
+crates\pepakura_core\src\conversion\materials\material_converter.rs:187: texture_id: None,
+crates\pepakura_core\src\conversion\materials\material_converter.rs:199: fn test_has_textured_materials() {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:200: let materials_no_texture = vec![PepaMaterial {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:204: texture_id: None,
+crates\pepakura_core\src\conversion\materials\material_converter.rs:206: assert!(!MaterialConverter::has_textured_materials(&materials_no_texture));
+crates\pepakura_core\src\conversion\materials\material_converter.rs:208: let materials_with_texture = vec![PepaMaterial {
+crates\pepakura_core\src\conversion\materials\material_converter.rs:212: texture_id: Some(0),
+crates\pepakura_core\src\conversion\materials\material_converter.rs:214: assert!(MaterialConverter::has_textured_materials(&materials_with_texture));
+crates\pepakura_core\src\conversion\materials\mod.rs:4: mod texture_extractor;
+crates\pepakura_core\src\conversion\materials\mod.rs:7: pub use texture_extractor::{TextureExtractor, TextureAtlasRegion};
+=== [7] Rust: PDF/DPI ===
+crates\pepakura_core\src\conversion\materials\texture_extractor.rs:4: use image::{RgbaImage, ImageFormat};
+crates\pepakura_core\src\conversion\materials\texture_extractor.rs:18: RgbaImage::from_raw(pdo_texture.width, pdo_texture.height, pdo_texture.data.clone())
+crates\pepakura_core\src\conversion\materials\texture_extractor.rs:39: let rgb_image = image::DynamicImage::ImageRgba8(image).to_rgb8();
+crates\pepakura_core\src\conversion\materials\texture_extractor.rs:62: let mut atlas = RgbaImage::new(total_width, max_height);
+crates\pepakura_core\src\conversion\materials\texture_extractor.rs:122: let mut atlas = RgbaImage::new(atlas_size, atlas_size);
+crates\pepakura_core\src\export\texture.rs:13: use image::{ImageBuffer, Rgba, codecs::jpeg::JpegEncoder, ImageEncoder};
+crates\pepakura_core\src\export\texture.rs:14: use image::EncodableLayout;
+crates\pepakura_core\src\export\texture.rs:93: ImageError(#[from] image::ImageError),
+crates\pepakura_core\src\export\texture.rs:153: image::ColorType::Rgba8,
+crates\pepakura_core\src_backup\conversion\materials\texture_extractor.rs:4: use image::{RgbaImage, ImageFormat};
+crates\pepakura_core\src_backup\conversion\materials\texture_extractor.rs:18: RgbaImage::from_raw(pdo_texture.width, pdo_texture.height, pdo_texture.data.clone())
+crates\pepakura_core\src_backup\conversion\materials\texture_extractor.rs:39: let rgb_image = image::DynamicImage::ImageRgba8(image).to_rgb8();
+crates\pepakura_core\src_backup\conversion\materials\texture_extractor.rs:62: let mut atlas = RgbaImage::new(total_width, max_height);
+crates\pepakura_core\src_backup\conversion\materials\texture_extractor.rs:122: let mut atlas = RgbaImage::new(atlas_size, atlas_size);
+crates\pepakura_core\src_backup\export\pdf.rs:3: //! TODO: Восстановить после обновления библиотеки printpdf.
+crates\pepakura_core\src_backup\export\pdf.rs:59: /// Ошибка printpdf
+crates\pepakura_core\src_backup\export\texture.rs:13: use image::{ImageBuffer, Rgba, codecs::jpeg::JpegEncoder, ImageEncoder};
+crates\pepakura_core\src_backup\export\texture.rs:14: use image::EncodableLayout;
+crates\pepakura_core\src_backup\export\texture.rs:93: ImageError(#[from] image::ImageError),
+crates\pepakura_core\src_backup\export\texture.rs:153: image::ColorType::Rgba8,
+=== [8] faces2D/faces2d: фронт vs serde ===
+packages\ui-desktop\src\components\SplitView.vue:87: let vertices2D: number[][] = [];
+packages\ui-desktop\src\components\SplitView.vue:88: let faces2D: number[][] = [];
+packages\ui-desktop\src\components\SplitView.vue:183: vertices2D = r.vertices_2d || [];
+packages\ui-desktop\src\components\SplitView.vue:184: faces2D = r.faces_2d || [];
+packages\ui-desktop\src\components\SplitView.vue:185: islandIds = r.face_pieces || [];
+packages\ui-desktop\src\components\SplitView.vue:189: lastMetrics = { vertex_count: (r.vertices_2d || []).length, face_count: (r.faces || []).length, islands: new Set(r.face_pieces || []).size, total_area: 0 }; // FIX40
+packages\ui-desktop\src\components\SplitView.vue:282: if (!faces2D || !faces2D.length) { console.warn("[TEX-A] faces2D пуст"); return; }
+packages\ui-desktop\src\components\SplitView.vue:294: texReady = vt.length > 0 && out.length === faces2D.length && out.some((t: any) => !!t.uv);
+packages\ui-desktop\src\components\SplitView.vue:295: if (!texReady) { console.warn("[TEX-A] UV отключены: vt=" + vt.length + " objFaces=" + out.length + " unfoldFaces=" + faces2D.length); } else { console.log("[TEX-A] UV готовы: граней=" + out.length + " vt=" + vt.length); }
+packages\ui-desktop\src\components\SplitView.vue:311: if (!texReady || !faces2D || !faces2D.length || !vertices2D || !vertices2D.length) { return; }
+packages\ui-desktop\src\components\SplitView.vue:313: faces2D.forEach((f: any) => { if (!f) { return; } f.forEach((vi: any) => { const v: any = vertices2D[vi]; if (!v || !isFinite(v[0]) || !isFinite(v[1])) { return; } if (v[0] < minX) { minX = v[0]; } if (v[0] > maxX) { maxX = v[0]; } if (v[1] < minY) { minY = v[1]; } if (v[1] > maxY) { maxY = v[1]; } }); });
+packages\ui-desktop\src\components\SplitView.vue:323: for (let i = 0; i < faces2D.length; i++) {
+packages\ui-desktop\src\components\SplitView.vue:328: const f: any = faces2D[i];
+packages\ui-desktop\src\components\SplitView.vue:329: const va: any = vertices2D[f[0]]; const vb: any = vertices2D[f[1]]; const vc: any = vertices2D[f[2]];
+packages\ui-desktop\src\components\SplitView.vue:337: console.log("[TEX-A] слой: " + drawn + "/" + faces2D.length + " граней, " + cnv.width + "x" + cnv.height + "px");
+packages\ui-desktop\src\components\SplitView.vue:354: console.log("[TEX-A] сдвинутых граней: " + texShiftHits + "/" + (faces2D ? faces2D.length : 0));
+packages\ui-desktop\src\components\SplitView.vue:424: const f: any = faces2D[fi]; if (!f) { return; }
+packages\ui-desktop\src\components\SplitView.vue:425: const va: any = vertices2D[f[0]]; const vb: any = vertices2D[f[1]]; const vc: any = vertices2D[f[2]];
+packages\ui-desktop\src\components\SplitView.vue:509: if (!islandIds || !islandIds.length || !faces2D || !faces2D.length || !vertices2D || !vertices2D.length) { return; }
+packages\ui-desktop\src\components\SplitView.vue:511: for (let fi = 0; fi < Math.min(islandIds.length, faces2D.length); fi++) {
+packages\ui-desktop\src\components\SplitView.vue:513: const f: any = faces2D[fi];
+packages\ui-desktop\src\components\SplitView.vue:516: f.forEach((vi: any) => { if (doneV.has(vi)) { return; } doneV.set(vi, true); const v: any = vertices2D[vi]; if (v) { v[0] += dx; v[1] += dy; } });
+packages\ui-desktop\src\components\SplitView.vue:824: console.log('[Export] pieces2D:', pieces2D.length, 'vertices2D:', vertices2D.length, 'faces2D:', faces2D.length);
+packages\ui-desktop\src\components\SplitView.vue:825: if (pieces2D.length === 0 && (vertices2D.length === 0 || faces2D.length === 0)) {
+packages\ui-desktop\src\components\SplitView.vue:829: console.log('[Export] sample vertices2D[0..2]:', vertices2D.slice(0,3));
+packages\ui-desktop\src\components\SplitView.vue:830: console.log('[Export] sample faces2D[0..2]:', faces2D.slice(0,3));
+packages\ui-desktop\src\components\SplitView.vue:849: console.log('[Export] export_pdf_cmd fallback, vertices:', vertices2D.length);
+packages\ui-desktop\src\components\SplitView.vue:851: vertices: vertices2D,
+packages\ui-desktop\src\components\SplitView.vue:852: faces: faces2D,
+adapter L93: #[serde(default)] pub vertices_2d: Vec<[f64; 2]>,
+adapter L94: /// [TEX-B] грань -> 3 индекса в vertices_2d (формат старого фронта)
+adapter L95: #[serde(default)] pub faces_2d: Vec<[u32; 3]>,
+adapter L326: let mut faces_2d: Vec<[u32; 3]> = vec![[0, 0, 0]; mesh.faces.len()];
+adapter L330: for (ff, tri) in &face2d_isl { if *ff < faces_2d.len() { let base = verts_2d.len() as u32; verts_2d.push(tri[0]); verts_2d.push(tri[1]); verts_2d.push(tri[2]); faces_2d[*ff] = [base, base + 1, base + 2]; } }
+adapter L346: Ok(PapercraftUnfoldResult { pieces, metrics, parts: Vec::new(), face_pieces, vertices_2d: verts_2d, faces_2d, engine_used: "MST-Seam+61 (papercraft)".to_string() })
+adapter L779: let mut faces_2d: Vec<[u32; 3]> = vec![[0, 0, 0]; mesh.faces.len()];
+adapter L794: for p in &res.vertices_2d { verts_2d.push(*p); }
+adapter L795: for (ff, tri) in res.faces_2d.iter().enumerate() {
+adapter L798: if of < faces_2d.len() { faces_2d[of] = [off + tri[0], off + tri[1], off + tri[2]]; }
+adapter L821: Ok(PapercraftUnfoldResult { pieces, metrics, parts: parts_meta, face_pieces, vertices_2d: verts_2d, faces_2d, engine_used: format!("MST-Seam+61 + {} parts", cfg.mode) })
+=== [9] Контекст: текстура в Rust (+-8 строк, до 2 зон на файл) ===
+--- crates\pepakura_core\src_backup\conversion\config.rs around L25 ---
+  17: 
+  18:     /// Вычислять нормали
+  19:     pub compute_normals: bool,
+  20: 
+  21:     /// Вычислять UV координаты
+  22:     pub compute_uvs: bool,
+  23: 
+  24:     /// Создавать текстуры атласы
+  25:     pub create_texture_atlas: bool,
+  26: 
+  27:     /// Максимальный размер чанка для асинхронной обработки
+  28:     pub chunk_size: usize,
+  29: 
+  30:     /// Порог для переключения на асинхронный режим
+  31:     pub async_threshold_vertices: usize,
+  32: 
+  33:     /// Строгость валидации
+--- crates\pepakura_core\src_backup\conversion\config.rs around L54 ---
+  46: impl Default for ConversionConfig {
+  47:     fn default() -> Self {
+  48:         Self {
+  49:             extract_3d_geometry: true,
+  50:             extract_2d_unfolds: true,
+  51:             auto_generate_tabs: true,
+  52:             compute_normals: true,
+  53:             compute_uvs: true,
+  54:             create_texture_atlas: true,
+  55:             chunk_size: 10_000,
+  56:             async_threshold_vertices: 100_000,
+  57:             validation_mode: ValidationMode::Strict,
+  58:             error_handling: ErrorHandlingMode::Recover,
+  59:             max_vertices: 10_000_000,
+  60:             max_faces: 50_000_000,
+  61:         }
+  62:     }
+--- crates\pepakura_core\src_backup\conversion\error.rs around L31 ---
+  23:     #[error("Некорректный индекс вершины {vertex_index} в грани #{face_index} (max: {max_valid})")]
+  24:     InvalidVertexIndex {
+  25:         face_index: usize,
+  26:         vertex_index: usize,
+  27:         max_valid: usize,
+  28:     },
+  29: 
+  30:     #[error("Поврежденные данные текстуры #{id}: {reason}")]
+  31:     CorruptedTexture {
+  32:         id: u32,
+  33:         reason: String,
+  34:     },
+  35: 
+  36:     #[error("Ошибка валидации: {0}")]
+  37:     ValidationError(String),
+  38: 
+  39:     #[error("Ошибка выделения памяти: {0}")]
+--- crates\pepakura_core\src_backup\conversion\materials\material_converter.rs around L3 ---
+   1: //! Конвертер материалов PDO → Pepa
+   2: 
+   3: use crate::pdo_parser::PdoTexture;
+   4: use crate::pepa_scene_adapter::PepaMaterial;
+   5: use crate::conversion::error::Result;
+   6: 
+   7: /// Конвертер материалов PDO → Pepa
+   8: pub struct MaterialConverter;
+   9: 
+  10: impl MaterialConverter {
+  11:     /// Конвертирует текстуры PDO в материалы Pepa
+--- crates\pepakura_core\src_backup\conversion\materials\material_converter.rs around L12 ---
+   4: use crate::pepa_scene_adapter::PepaMaterial;
+   5: use crate::conversion::error::Result;
+   6: 
+   7: /// Конвертер материалов PDO → Pepa
+   8: pub struct MaterialConverter;
+   9: 
+  10: impl MaterialConverter {
+  11:     /// Конвертирует текстуры PDO в материалы Pepa
+  12:     pub fn convert_materials(textures: &[PdoTexture]) -> Result<Vec<PepaMaterial>> {
+  13:         let materials = textures
+  14:             .iter()
+  15:             .map(|texture| {
+  16:                 PepaMaterial {
+  17:                     id: texture.id,
+  18:                     name: if texture.name.is_empty() {
+  19:                         format!("Material_{}", texture.id)
+  20:                     } else {
+--- crates\pepakura_core\src_backup\conversion\materials\mod.rs around L4 ---
+   1: //! Модуль конвертации материалов и текстур
+   2: 
+   3: mod material_converter;
+   4: mod texture_extractor;
+   5: 
+   6: pub use material_converter::MaterialConverter;
+   7: pub use texture_extractor::{TextureExtractor, TextureAtlasRegion};
+   8: 
+   9: use crate::pepa_scene_adapter::PepaMaterial;
+  10: use crate::conversion::error::Result;
+  11: 
+  12: /// Конвертирует текстуры PDO в материалы Pepa
+--- crates\pepakura_core\src_backup\conversion\materials\mod.rs around L7 ---
+   1: //! Модуль конвертации материалов и текстур
+   2: 
+   3: mod material_converter;
+   4: mod texture_extractor;
+   5: 
+   6: pub use material_converter::MaterialConverter;
+   7: pub use texture_extractor::{TextureExtractor, TextureAtlasRegion};
+   8: 
+   9: use crate::pepa_scene_adapter::PepaMaterial;
+  10: use crate::conversion::error::Result;
+  11: 
+  12: /// Конвертирует текстуры PDO в материалы Pepa
+  13: pub fn convert_materials(textures: &[crate::pdo_parser::PdoTexture]) -> Result<Vec<PepaMaterial>> {
+  14:     MaterialConverter::convert_materials(textures)
+  15: }
+--- crates\pepakura_core\src_backup\conversion\materials\texture_extractor.rs around L3 ---
+   1: //! Экстрактор текстур из PDO
+   2: 
+   3: use crate::pdo_parser::PdoTexture;
+   4: use image::{RgbaImage, ImageFormat};
+   5: use std::io::Cursor;
+   6: 
+   7: /// Экстрактор текстур из PDO
+   8: pub struct TextureExtractor;
+   9: 
+  10: impl TextureExtractor {
+  11:     /// Конвертирует PDO текстуру в изображение
+=== [10] Контекст: фронт готовит текстуру для экспорта (+-8 строк) ===
+--- packages\ui-desktop\src\components\SplitView.vue around L844 ---
+ 836:         defaultPath: 'unfold.pdf'
+ 837:       });
+ 838:     } catch (eDialog) {
+ 839:       console.error('[Export] save() недоступен, пишу в фиксированный путь:', eDialog);
+ 840:       filePath = 'G:\\Dev\\pepakura-next\\assets\\models\\unfold.pdf';
+ 841:     }
+ 842:     if (!filePath) { console.log('[Export] отменено пользователем'); return; }
+ 843:     if (pieces2D.length > 0) {
+ 844:       console.log('[Export] export_pieces_pdf, pieces:', pieces2D.length);
+ 845:       const res78 = await invoke<string>('export_pieces_pdf', { pieces: pieces2D, path: filePath });
+ 846:       console.log('[Export] invoke result:', res78);
+ 847:       alert('[EXP78] ' + String(res78));
+ 848:     } else {
+ 849:       console.log('[Export] export_pdf_cmd fallback, vertices:', vertices2D.length);
+ 850:       const res44 = await invoke<string>('export_pdf_cmd', {
+ 851:         vertices: vertices2D,
+ 852:         faces: faces2D,
+--- packages\ui-desktop\src\components\SplitView.vue around L845 ---
+ 837:       });
+ 838:     } catch (eDialog) {
+ 839:       console.error('[Export] save() недоступен, пишу в фиксированный путь:', eDialog);
+ 840:       filePath = 'G:\\Dev\\pepakura-next\\assets\\models\\unfold.pdf';
+ 841:     }
+ 842:     if (!filePath) { console.log('[Export] отменено пользователем'); return; }
+ 843:     if (pieces2D.length > 0) {
+ 844:       console.log('[Export] export_pieces_pdf, pieces:', pieces2D.length);
+ 845:       const res78 = await invoke<string>('export_pieces_pdf', { pieces: pieces2D, path: filePath });
+ 846:       console.log('[Export] invoke result:', res78);
+ 847:       alert('[EXP78] ' + String(res78));
+ 848:     } else {
+ 849:       console.log('[Export] export_pdf_cmd fallback, vertices:', vertices2D.length);
+ 850:       const res44 = await invoke<string>('export_pdf_cmd', {
+ 851:         vertices: vertices2D,
+ 852:         faces: faces2D,
+ 853:         islandIds: islandIds,
+=== [11] Контекст: WebGLRenderer setup (+-10 строк) ===
+--- packages\ui-desktop\src\components\layout\Scene3D.vue around L33 ---
+  29: const containerRef = ref<HTMLElement | null>(null)
+  30: 
+  31: let scene: THREE.Scene | null = null
+  32: let camera: THREE.PerspectiveCamera | null = null
+  33: let renderer: THREE.WebGLRenderer | null = null
+  34: let controls: OrbitControls | null = null
+  35: let currentObject: THREE.Object3D | null = null
+  36: 
+  37: onMounted(() => {
+  38:   nextTick(() => {
+  39:     initScene()
+  40:     if (props.modelPath && props.format) {
+  41:       loadModel(props.modelPath, props.format, props.mtlPath || null)
+  42:     }
+  43:   })
+  44: })
+  45: 
+  46: onBeforeUnmount(() => {
+  47:   disposeScene()
+  48: })
+--- packages\ui-desktop\src\components\ModelViewer3D.vue around L30 ---
+  26: const containerRef = ref<HTMLDivElement | null>(null);
+  27: 
+  28: let scene: THREE.Scene;
+  29: let camera: THREE.PerspectiveCamera;
+  30: let renderer: THREE.WebGLRenderer;
+  31: let controls: OrbitControls;
+  32: let animationFrameId: number;
+  33: let currentModel: THREE.Group | null = null;
+  34: 
+  35: const init = () => {
+  36:   if (!containerRef.value) return;
+  37: 
+  38:   scene = new THREE.Scene();
+  39:   scene.background = new THREE.Color(0x1e1e1e);
+  40: 
+  41:   const aspect = containerRef.value.clientWidth / containerRef.value.clientHeight;
+  42:   camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+  43:   camera.position.set(0, 5, 15);
+  44: 
+  45:   renderer = new THREE.WebGLRenderer({ antialias: true });
+--- packages\ui-desktop\src\components\TestThreeJS.vue around L34 ---
+  30:     
+  31:     const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000)
+  32:     log.value.push(`  ✅ Камера создана: ${camera}`)
+  33:     
+  34:     const renderer = new THREE.WebGLRenderer()
+  35:     log.value.push(`  ✅ Рендерер создан: ${renderer}`)
+  36:     
+  37:     const geometry = new THREE.BoxGeometry()
+  38:     const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+  39:     const cube = new THREE.Mesh(geometry, material)
+  40:     log.value.push(`  ✅ Куб создан: ${cube}`)
+  41:     
+  42:     scene.add(cube)
+  43:     log.value.push(`  ✅ Куб добавлен в сцену`)
+  44:     
+  45:     log.value.push('\n✅ Все компоненты Three.js работают!')
+  46:   } catch (error: any) {
+  47:     log.value.push(`\n❌ Ошибка: ${error.message}`)
+  48:     console.error(error)
+  49:   }
+FAILS: 
+BUILD_EXIT=0
+EXE: 11/15/2026 12:07:58 | 20955648 байт

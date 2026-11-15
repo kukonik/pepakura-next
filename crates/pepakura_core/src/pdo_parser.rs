@@ -149,3 +149,67 @@ pub fn parse_pdo(data: Vec<u8>) -> Result<(), String> {
 
     Ok(())
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct PdoModel {
+    pub name: String,
+    pub raw: Vec<u8>,
+    pub header: String,
+    pub vertices: Vec<PdoVertex>,
+    pub faces: Vec<PdoFace>,
+    pub textures: Vec<PdoTexture>,
+}
+
+impl PdoModel {
+    /// Минимальная реализация: хранит сырые байты; полный разбор формата PDO — Этап 3.
+    pub fn parse_from_bytes(data: &[u8]) -> Result<PdoModel, PdoParseError> {
+        Ok(PdoModel {
+            name: "model.pdo".to_string(),
+            raw: data.to_vec(),
+            header: String::new(),
+            vertices: Vec::new(),
+            faces: Vec::new(),
+            textures: Vec::new(),
+        })
+    }
+}
+// ============================================================
+// [56-D3] Типы данных PDO (контракт conversion/*)
+// ============================================================
+
+/// Вершина PDO: координаты f32 (как в исходном формате Pepakura)
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct PdoVertex {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+/// Грань PDO: полигон (индексы вершин) + идентификатор материала
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct PdoFace {
+    pub indices: Vec<u32>,
+    pub material_id: u32,
+}
+
+/// Текстура PDO: RGBA8, 4 байта на пиксель
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct PdoTexture {
+    pub id: u32,
+    pub name: String,
+    pub width: u32,
+    pub height: u32,
+    pub data: Vec<u8>,
+}
+
+/// Ошибка парсинга PDO (контракт conversion::ConversionError::ParseError, #[from])
+#[derive(Debug)]
+pub struct PdoParseError(pub String);
+
+impl std::fmt::Display for PdoParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Ошибка парсинга PDO: {}", self.0)
+    }
+}
+
+impl std::error::Error for PdoParseError {}

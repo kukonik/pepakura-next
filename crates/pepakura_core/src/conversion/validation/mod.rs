@@ -47,11 +47,13 @@ pub fn try_recover_pdo(data: &[u8]) -> Result<PdoModel, ConversionError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pdo_parser::{PdoVertex, PdoFace, PdoTexture};
+    
 
     #[test]
     fn test_validate_empty_model() {
         let pdo = PdoModel {
+            name: Default::default(),
+            raw: Default::default(),
             header: "TEST".to_string(),
             vertices: vec![],
             faces: vec![],

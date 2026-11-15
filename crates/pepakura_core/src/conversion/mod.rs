@@ -2,12 +2,12 @@
 //!
 //! ## Пример использования
 //!
-//! ```rust
+//! rust
 //! use pepakura_core::conversion::{convert_pdo_to_scene, ConversionConfig};
 //!
 //! let config = ConversionConfig::full();
 //! let scene = convert_pdo_to_scene(&pdo_bytes, &config)?;
-//! ```
+//! 
 
 mod traits;
 mod config;

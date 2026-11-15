@@ -11,7 +11,7 @@ use std::path::Path;
 /// 
 /// ## Пример
 /// 
-/// ```rust
+/// rust
 /// pub struct ObjImporter;
 /// 
 /// impl ImportPlugin for ObjImporter {
@@ -22,7 +22,7 @@ use std::path::Path;
 ///         todo!()
 ///     }
 /// }
-/// ```
+/// 
 pub trait ImportPlugin: Send + Sync {
     /// Возвращает имя плагина.
     fn name(&self) -> &str;
@@ -33,11 +33,11 @@ pub trait ImportPlugin: Send + Sync {
     /// Импортирует модель из файла.
     /// 
     /// # Аргументы
-    /// * `path` - путь к файлу
+    /// * path - путь к файлу
     /// 
     /// # Возвращает
-    /// * `Ok(Mesh)` - загруженный меш
-    /// * `Err(PepakuraError)` - ошибка импорта
+    /// * Ok(Mesh) - загруженный меш
+    /// * Err(PepakuraError) - ошибка импорта
     fn import(&self, path: &Path) -> Result<Mesh, PepakuraError>;
     
     /// Проверяет, поддерживает ли плагин данное расширение.
@@ -61,12 +61,12 @@ pub trait ExportPlugin: Send + Sync {
     /// Экспортирует развёрнутый меш в файл.
     /// 
     /// # Аргументы
-    /// * `unfolded` - развёрнутый меш
-    /// * `path` - путь к файлу
+    /// * unfolded - развёрнутый меш
+    /// * path - путь к файлу
     /// 
     /// # Возвращает
-    /// * `Ok(())` - успех
-    /// * `Err(PepakuraError)` - ошибка экспорта
+    /// * Ok(()) - успех
+    /// * Err(PepakuraError) - ошибка экспорта
     fn export(&self, unfolded: &UnfoldedMesh, path: &Path) -> Result<(), PepakuraError>;
     
     /// Проверяет, поддерживает ли плагин данное расширение.
@@ -92,12 +92,12 @@ pub trait UnfoldPlugin: Send + Sync {
     /// Разворачивает меш.
     /// 
     /// # Аргументы
-    /// * `mesh` - исходный 3D-меш
-    /// * `config` - параметры развёртки
+    /// * mesh - исходный 3D-меш
+    /// * config - параметры развёртки
     /// 
     /// # Возвращает
-    /// * `Ok(UnfoldedMesh)` - развёрнутый меш
-    /// * `Err(PepakuraError)` - ошибка развёртки
+    /// * Ok(UnfoldedMesh) - развёрнутый меш
+    /// * Err(PepakuraError) - ошибка развёртки
     fn unfold(&self, mesh: &Mesh, config: &UnfoldConfig) -> Result<UnfoldedMesh, PepakuraError>;
 }
 

@@ -366,7 +366,7 @@ mod tests {
     #[test]
     fn test_compute_average_color() {
         // Создаем текстуру с одинаковыми пикселями
-        let mut data = vec![128u8; 4 * 4 * 4]; // RGBA = 128, 128, 128, 255
+        let data = vec![128u8; 4 * 4 * 4]; // RGBA = 128, 128, 128, 255
         let texture = PdoTexture {
             id: 0,
             width: 4,
@@ -407,7 +407,8 @@ mod tests {
 
         assert_eq!(region.width(), 64);
         assert_eq!(region.height(), 32);
-        assert_eq!(region.uv_size(), [0.4, 0.4]);
+        let sz = region.uv_size();
+        assert!((sz[0] - 0.4).abs() < 1e-5 && (sz[1] - 0.4).abs() < 1e-5, "uv_size={:?}", sz);
         assert_eq!(region.uv_center(), [0.3, 0.4]);
     }
 }

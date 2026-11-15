@@ -14,11 +14,11 @@ use std::sync::Arc;
 /// 
 /// ## Пример
 /// 
-/// ```rust
+/// rust
 /// use pepakura_core::plugins::PluginRegistry;
 /// 
 /// let registry = PluginRegistry::new();
-/// ```
+/// 
 pub struct PluginRegistry {
     importers: HashMap<String, Arc<dyn ImportPlugin>>,
     exporters: HashMap<String, Arc<dyn ExportPlugin>>,
@@ -40,13 +40,13 @@ impl PluginRegistry {
     /// Регистрирует плагин импорта.
     /// 
     /// # Аргументы
-    /// * `plugin` - плагин для регистрации
+    /// * plugin - плагин для регистрации
     /// 
     /// # Пример
     /// 
-    /// ```rust
+    /// rust
     /// registry.register_importer(Box::new(ObjImporter));
-    /// ```
+    /// 
     pub fn register_importer(&mut self, plugin: Box<dyn ImportPlugin>) {
         let name = plugin.name().to_string();
         let extensions: Vec<String> = plugin
@@ -98,11 +98,11 @@ impl PluginRegistry {
     /// Получает плагин импорта по расширению.
     /// 
     /// # Аргументы
-    /// * `ext` - расширение файла (без точки)
+    /// * ext - расширение файла (без точки)
     /// 
     /// # Возвращает
-    /// * `Some(&dyn ImportPlugin)` - плагин найден
-    /// * `None` - плагин не найден
+    /// * Some(&dyn ImportPlugin) - плагин найден
+    /// * None - плагин не найден
     pub fn get_importer(&self, ext: &str) -> Option<&dyn ImportPlugin> {
         self.importers
             .get(&ext.to_lowercase())
@@ -126,11 +126,11 @@ impl PluginRegistry {
     /// Импортирует модель из файла, автоматически выбирая плагин.
     /// 
     /// # Аргументы
-    /// * `path` - путь к файлу
+    /// * path - путь к файлу
     /// 
     /// # Возвращает
-    /// * `Ok(Mesh)` - загруженный меш
-    /// * `Err(PepakuraError)` - ошибка импорта
+    /// * Ok(Mesh) - загруженный меш
+    /// * Err(PepakuraError) - ошибка импорта
     pub fn import(&self, path: &Path) -> Result<Mesh, PepakuraError> {
         let ext = path
             .extension()
@@ -265,6 +265,7 @@ mod tests {
         
         fn unfold(&self, mesh: &Mesh, _config: &UnfoldConfig) -> Result<UnfoldedMesh, PepakuraError> {
             Ok(UnfoldedMesh {
+                uv_coords: Default::default(),
                 vertices_2d: mesh.vertices.iter().map(|v| [v.position[0], v.position[1]]).collect(),
                 faces: mesh.faces.clone(),
                 source_mesh: mesh.clone(),

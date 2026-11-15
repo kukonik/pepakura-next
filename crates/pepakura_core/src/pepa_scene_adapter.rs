@@ -1,4 +1,69 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PepaMaterial {
+    pub id: u32,
+    pub name: String,
+    pub diffuse_color: [f32; 4],
+    pub texture_id: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PepaMesh {
+    pub positions: Vec<f32>,
+    pub indices: Vec<u32>,
+    pub normals: Vec<f32>,
+    pub uvs: Vec<f32>,
+    pub material_id: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PepaBoundingBox {
+    pub min: [f32; 3],
+    pub max: [f32; 3],
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PepaScene {
+    pub scene_version: String,
+    pub meshes: Vec<PepaMesh>,
+    pub materials: Vec<PepaMaterial>,
+    pub bounding_box: Option<PepaBoundingBox>,
+}
+
 use crate::pdo_parser::PdoModel;
-#[derive(Debug, Clone)] pub struct PepaScene;
-pub trait FromPdoModel { fn frompdo(_model: &PdoModel) -> Result<Self, String> where Self: Sized; }
-impl FromPdoModel for PepaScene { fn frompdo(_: &PdoModel) -> Result<Self, String> { Ok(PepaScene) } }
+use crate::conversion::{convert_model_to_scene, ConversionConfig};
+
+/// Trait для конвертации PDO -> PepaScene
+pub trait FromPdoModel {
+    fn from_pdo_model(pdo: &PdoModel) -> Self;
+}
+
+impl FromPdoModel for PepaScene {
+    fn from_pdo_model(pdo: &PdoModel) -> Self {
+        match convert_model_to_scene(pdo, &ConversionConfig::default()) {
+            Ok(scene) => scene,
+            Err(_) => PepaScene {
+                scene_version: "1.0".to_string(),
+                meshes: vec![],
+                materials: vec![],
+                bounding_box: None,
+            },
+        }
+    }
+}
+
+impl PepaScene {
+    pub fn empty() -> Self {
+        Self {
+            scene_version: "1.0".to_string(),
+            meshes: vec![],
+            materials: vec![],
+            bounding_box: None,
+        }
+    }
+
+    pub fn from_pdo_model_with_config(pdo: &PdoModel, config: &ConversionConfig) -> Result<Self, String> {
+        convert_model_to_scene(pdo, config).map_err(|e| e.to_string())
+    }
+}

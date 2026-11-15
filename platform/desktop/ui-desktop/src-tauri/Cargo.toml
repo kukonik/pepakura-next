@@ -32,7 +32,7 @@ dashmap = "5.5"
 gltf = "1.0"
 
 # Pepakura Core
-pepakura_core = { path = "../../../../crates/pepakura_core", features = ["dxf", "pdf", "llm"] }
+pepakura_core = { path = "../../../../crates/pepakura_core", features = ["dxf", "pdf", "llm"], version = "0.2.0" }
 pepakura_platform = { path = "../../../../crates/pepakura_platform" }
 ai_bridge = { path = "../../../../crates/ai_bridge" }
 axum = "0.7.9"

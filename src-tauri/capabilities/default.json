@@ -1,26 +1,19 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
+  "description": "Pepakura Next: core + dialog + fs read permissions",
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "path:default",
-    "event:default",
-    "window:default",
-    "app:default",
-    "image:default",
-    "resources:default",
-    "menu:default",
-    "tray:default",
-    "shell:allow-open",
     "dialog:default",
-    "dialog:allow-open",
-    "dialog:allow-save",
     "fs:default",
-    "fs:allow-read-text-file",
-    "fs:allow-read-file",
-    "fs:allow-exists",
-    "fs:read-all"
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "**" }]
+    }
   ]
 }

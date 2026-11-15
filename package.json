@@ -16,6 +16,7 @@
     "@types/three": "^0.160.0"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.12.1",
     "@vue/tsconfig": "^0.9.1"
   }
 }

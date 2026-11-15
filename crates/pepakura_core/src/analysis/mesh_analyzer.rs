@@ -1,10 +1,10 @@
-﻿//! # Mesh Analyzer
+//! # Mesh Analyzer
 //!
 //! Анализатор мешей с использованием LLM для рекомендаций.
 //!
 //! ## Пример использования
 //!
-//! ```rust
+//! rust
 //! use pepakura_core::analysis::mesh_analyzer::MeshAnalyzer;
 //! use pepakura_core::geometry::Mesh;
 //!
@@ -29,7 +29,7 @@
 //!         println!("  [{}] {}: {}", issue.severity, issue.code, issue.message);
 //!     }
 //! }
-//! ```
+//! 
 
 use crate::geometry::Mesh;
 #[cfg(feature = "llm")] use crate::ai::prompts::{
@@ -112,10 +112,10 @@ impl MeshAnalyzer {
     }
 
     /// Создать анализатор с кастомным URL LLM-бэкенда
-    pub fn with_backend(url: &str) -> Self {
+    pub fn with_backend(_url: &str) -> Self {
         Self {
             #[cfg(feature = "llm")]
-            llm_router: Some(LocalLlmRouter::new(url)),
+            llm_router: Some(LocalLlmRouter::new(_url)),
             model_name: "qwen2.5:7b".to_string(),
             use_cache: true,
         }
@@ -274,6 +274,7 @@ impl MeshAnalyzer {
     }
 
     /// Распарсить ответ LLM
+    #[allow(dead_code)]
     fn parse_llm_response(json: &serde_json::Value) -> Option<AiAnalysisResult> {
         // Пытаемся распарсить difficulty_analysis
         let difficulty_analysis = json.get("difficulty_analysis")?;
@@ -430,6 +431,7 @@ mod tests {
 
     #[test]
     fn test_analyzer_creation() {
+        #[allow(unused_variables)]
         let analyzer = MeshAnalyzer::new();
         #[cfg(feature = "llm")]
         {

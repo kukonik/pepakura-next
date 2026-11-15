@@ -1,0 +1,9 @@
+use serde::{Deserialize, Serialize};
+use cgmath::{Vector2, Vector3};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub mod project;`n`npub mod project;`n`npub struct UnfoldResult {
+    pub vertices_2d: Vec<[f32; 2]>,
+    pub faces: Vec<[usize; 3]>,
+    pub island_ids: Vec<usize>,
+}

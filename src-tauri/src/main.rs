@@ -6,22 +6,24 @@
 
 mod commands;
 mod ai_commands;
+mod orchestrator; // [78-A] AI-сервер (порт 3000)
 pub mod pdo;
 pub mod persistence;
 
 use tauri::Manager;
 use ai_commands::AiState;
 use pepakura_core::ai::AiConfig;
-use persistence::StatePersistence;
-use std::path::PathBuf;
+
 
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_shell::init())
         .manage(AiState::default())
         .setup(|app| {
+            // [78-A] Запуск AI Orchestrator (порт 3000) параллельно с окном
+            tauri::async_runtime::spawn(orchestrator::run_ai_server());
+
             // Инициализация AI конфигурации
             let ai_state = app.state::<AiState>();
             let config = AiConfig::default();
@@ -54,7 +56,8 @@ fn main() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(tauri::generate_handler![commands::export_pdf_cmd, 
+            commands::export_pieces_pdf,
             commands::parse_pdo_to_pepa,
             commands::import_pdo,
             commands::nest_project,

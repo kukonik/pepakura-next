@@ -8,9 +8,9 @@
 //! ## Пример использования
 //!
 //! ```rust
-//! use pepakura_platform::fs::{FileSystem, FileError};
+//! use pepakura_platform::fs::{FileData, FileSystem, FileError};
 //!
-//! pub fn process_file<F: FileSystem>(fs: &F, path: &str) -> Result<Vec<u8>, FileError> {
+//! pub fn process_file<F: FileSystem>(fs: &F, path: &str) -> Result<FileData, FileError> {
 //!     fs.read_file(path)
 //! }
 //! ```

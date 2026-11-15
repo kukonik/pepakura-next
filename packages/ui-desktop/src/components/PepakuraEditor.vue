@@ -154,7 +154,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useProjectStore } from '@/stores/projectStore'
 import PDOFileLoader from './PDOFileLoader.vue'
 import NestingController from './NestingController.vue'
@@ -162,6 +162,8 @@ import SVGExporter from './SVGExporter.vue'
 import ImageTo3DGenerator from './ImageTo3DGenerator.vue'
 
 const projectStore = useProjectStore()
+const isProcessing = ref(false)
+const error = ref<string | null>(null)
 
 // Проверяем, есть ли развертки для вложения
 const hasUnfolds = computed(() => {

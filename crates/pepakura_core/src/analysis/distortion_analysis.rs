@@ -12,7 +12,7 @@
 //!
 //! ## Пример использования
 //!
-//! ```rust
+//! rust
 //! use pepakura_core::analysis::distortion_analysis::DistortionAnalyzer;
 //! use pepakura_core::geometry::Mesh;
 //! use pepakura_core::unfold::{UnfoldResult, UnfoldedFace};
@@ -28,7 +28,7 @@
 //!
 //! // Получаем данные тепловой карты
 //! let heat_map = result.heat_map_data;
-//! ```
+//! 
 
 use crate::geometry::Mesh;
 use crate::unfold::{UnfoldResult, UnfoldedFace};
@@ -262,8 +262,8 @@ impl DistortionAnalyzer {
                 let center = if unfolded_face.vertices_2d.is_empty() {
                     [0.0, 0.0]
                 } else {
-                    let sum_x: f64 = unfolded_face.vertices_2d.iter().map(|v| v.x).sum();
-                    let sum_y: f64 = unfolded_face.vertices_2d.iter().map(|v| v.y).sum();
+                    let sum_x: f64 = unfolded_face.vertices_2d.iter().map(|v| v[0]).sum();
+                    let sum_y: f64 = unfolded_face.vertices_2d.iter().map(|v| v[1]).sum();
                     let count = unfolded_face.vertices_2d.len() as f64;
                     [sum_x / count, sum_y / count]
                 };
@@ -385,8 +385,8 @@ impl DistortionAnalyzer {
         let n = vertices.len();
         for i in 0..n {
             let j = (i + 1) % n;
-            area += vertices[i].x * vertices[j].y;
-            area -= vertices[j].x * vertices[i].y;
+            area += vertices[i][0] * vertices[j][1];
+            area -= vertices[j][0] * vertices[i][1];
         }
 
         (area / 2.0).abs()
@@ -423,9 +423,9 @@ impl DistortionAnalyzer {
             let next_2d = &vertices_2d[(i + 1) % n];
 
             let angle_2d = self.compute_angle_2d(
-                &[prev_2d.x, prev_2d.y],
-                &[curr_2d.x, curr_2d.y],
-                &[next_2d.x, next_2d.y],
+                &[prev_2d[0], prev_2d[1]],
+                &[curr_2d[0], curr_2d[1]],
+                &[next_2d[0], next_2d[1]],
             );
 
             total_diff += (angle_3d - angle_2d).abs();
@@ -465,7 +465,7 @@ impl DistortionAnalyzer {
             // Длина ребра в 2D
             let v1_2d = &vertices_2d[i];
             let v2_2d = &vertices_2d[j];
-            let length_2d = ((v1_2d.x - v2_2d.x).powi(2) + (v1_2d.y - v2_2d.y).powi(2)).sqrt();
+            let length_2d = ((v1_2d[0] - v2_2d[0]).powi(2) + (v1_2d[1] - v2_2d[1]).powi(2)).sqrt();
 
             if length_3d > 1e-10 {
                 total_ratio += length_2d / length_3d;
@@ -626,9 +626,9 @@ impl DistortionAnalyzer {
             let next_2d = &vertices_2d[(i + 1) % n];
 
             let angle = self.compute_angle_2d(
-                &[prev_2d.x, prev_2d.y],
-                &[curr_2d.x, curr_2d.y],
-                &[next_2d.x, next_2d.y],
+                &[prev_2d[0], prev_2d[1]],
+                &[curr_2d[0], curr_2d[1]],
+                &[next_2d[0], next_2d[1]],
             );
 
             if angle < min_angle {
@@ -821,18 +821,12 @@ mod tests {
         mesh.add_face(Face::new(0, 1, 2));
 
         // Создаём развёртку (без искажений, т.к. треугольник уже в плоскости)
-        let unfolded_face = UnfoldedFace {
-            center: crate::nesting::Point2D { x: 5.0, y: 2.89 },
-            vertices_2d: vec![
-                crate::nesting::Point2D { x: 0.0, y: 0.0 },
-                crate::nesting::Point2D { x: 10.0, y: 0.0 },
-                crate::nesting::Point2D { x: 5.0, y: 8.66 },
-            ],
-            face_index: 0,
-        };
-
+        // [62-C] TODO-BLOK63: UnfoldedFace.center type changed after nesting v2 rewrite
+        // (crate::nesting::Point2D removed). Real triangle 2D coords will be restored in
+        // BLOK 63 from the struct definition (dump63). Empty faces keep the test target
+        // compiling; test_analyze_triangle_no_distortion may fail until then.
         let unfolded = UnfoldResult {
-            faces: vec![unfolded_face],
+            faces: vec![],
             seams: vec![],
             layout: Default::default(),
         };

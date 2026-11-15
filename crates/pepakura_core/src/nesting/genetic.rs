@@ -82,10 +82,10 @@ impl GeneticNesting {
     /// Оптимизирует раскладку деталей.
     ///
     /// # Аргументы
-    /// * `parts` - детали для размещения
+    /// * parts - детали для размещения
     ///
     /// # Возвращает
-    /// * `NestResult` - оптимальная раскладка
+    /// * NestResult - оптимальная раскладка
     pub fn optimize(&mut self, parts: &[NestPart]) -> NestResult {
         // Инициализация популяции
         let mut population = self.initialize_population(parts);

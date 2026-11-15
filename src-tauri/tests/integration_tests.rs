@@ -2,7 +2,7 @@
 //! 
 //! Тестируют взаимодействие между frontend и Rust-бэкендом.
 
-use pepakura_core::ai::{AiConfig, AiProvider};
+use pepakura_core::ai::AiConfig;
 use pepakura_core::geometry::{Face, Mesh, Vertex};
 use pepakura_core::unfold::{unfold_mds, UnfoldConfig};
 use pepakura_core::export::{export_svg, SvgExportConfig};
@@ -82,10 +82,7 @@ fn test_export_svg_cube() {
 fn test_ai_config_default() {
     let config = AiConfig::default();
     
-    assert_eq!(config.provider, AiProvider::Ollama);
-    assert_eq!(config.ollama_url, "http://localhost:11434");
-    assert_eq!(config.model, "llama3.2");
-    assert!((config.temperature - 0.7).abs() < 0.001);
+    assert!(config.model.is_empty(), "model пуст по умолчанию (std-only стаб: LLM backend отключён)");
 }
 
 /// Тест: геометрия куба.

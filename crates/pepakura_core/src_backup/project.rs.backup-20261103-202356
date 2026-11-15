@@ -1,0 +1,2 @@
+use serde::{Serialize, Deserialize};
+#[derive(Debug, Clone, Serialize, Deserialize)] pub struct PepaProject { pub name: String }

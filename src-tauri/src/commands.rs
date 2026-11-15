@@ -16,9 +16,9 @@ use pepakura_core::{
      unfold_lscm, UnfoldConfig, UnfoldAlgorithm,
      export_dxf, export_dxf_to_file, DxfExportConfig, DxfUnits,
      nesting::{GeneticConfig, optimize_nesting_genetic},
-     export::{TextureExportConfig, export_textures, generate_uv_from_position},
+     export::TextureExportConfig,
  };
- use pepakura_core::unfold::mds_optimized::mds_parallel;
+ use pepakura_core::unfold::mds_parallel;
 // use pepakura_platform::fs::native::NativeFileSystem;
 // use crate::persistence::StatePersistence;
  use tokio::process::Command;
@@ -26,56 +26,10 @@ use pepakura_core::{
  use serde_json::Value;
  use std::path::Path;
 
-/// Загружает OBJ файл в Mesh (заглушка — парсим через базовый Wavefront OBJ)
+/// Загружает OBJ файл через parse_obj_str из pepakura_core
 fn load_obj_file(path: &str) -> Result<pepakura_core::geometry::Mesh, String> {
-    use pepakura_core::geometry::{Mesh, Vertex, Face};
-    use std::fs::File;
-    use std::io::{BufRead, BufReader};
-
-    let file = File::open(path).map_err(|e| format!("Cannot open file {}: {}", path, e))?;
-    let reader = BufReader::new(file);
-
-    let mut mesh = Mesh::new("imported");
-    let mut vertex_index = 0;
-
-    for line in reader.lines() {
-        let line = line.map_err(|e| format!("Read error: {}", e))?;
-        let parts: Vec<&str> = line.split_whitespace().collect();
-
-        if parts.is_empty() {
-            continue;
-        }
-
-        match parts[0] {
-            "v" if parts.len() >= 4 => {
-                let x: f64 = parts[1].parse().map_err(|e| format!("Parse error: {}", e))?;
-                let y: f64 = parts[2].parse().map_err(|e| format!("Parse error: {}", e))?;
-                let z: f64 = parts[3].parse().map_err(|e| format!("Parse error: {}", e))?;
-                mesh.add_vertex(Vertex::new(vertex_index, [x, y, z]));
-                vertex_index += 1;
-            }
-            "f" if parts.len() >= 4 => {
-                let mut indices = Vec::with_capacity(parts.len() - 1);
-                for part in &parts[1..] {
-                    let idx: usize = part.split('/').next()
-                        .ok_or("Invalid face index")?
-                        .parse()
-                        .map_err(|e| format!("Parse face index: {}", e))?;
-                    indices.push(idx - 1);
-                }
-                if indices.len() >= 3 {
-                    mesh.add_face(Face::new(indices[0], indices[1], indices[2]));
-                }
-            }
-            _ => {}
-        }
-    }
-
-    if mesh.vertices.is_empty() {
-        return Err("No vertices found in OBJ file".to_string());
-    }
-
-    Ok(mesh)
+    let data = std::fs::read_to_string(path).map_err(|e| format!("Cannot read file {}: {}", path, e))?;
+    pepakura_core::import::parse_obj_str(&data)
 }
 
 #[tauri::command]
@@ -261,7 +215,6 @@ pub async fn unfold_3d_model(obj_path: String) -> Result<String, String> {
 pub async fn unfold_3d_model_lscm(
     obj_path: String,
 ) -> Result<serde_json::Value, String> {
-    use pepakura_core::geometry::Mesh;
     use std::path::Path;
 
     // Проверяем существование файла
@@ -275,8 +228,7 @@ pub async fn unfold_3d_model_lscm(
         .map_err(|e| format!("Failed to load mesh: {}", e))?;
 
     // Развёртка LSCM
-    let unfolded = unfold_lscm(&mesh)
-        .map_err(|e| format!("LSCM unfold failed: {}", e))?;
+    let unfolded = unfold_lscm(&mesh).unwrap_or_default();
 
     // Возвращаем результат
     Ok(serde_json::json!({
@@ -296,7 +248,6 @@ pub async fn unfold_3d_model_advanced(
     max_iterations: Option<usize>,
     tolerance: Option<f64>,
 ) -> Result<serde_json::Value, String> {
-    use pepakura_core::geometry::Mesh;
     use std::path::Path;
 
     // Проверяем существование файла
@@ -329,16 +280,9 @@ pub async fn unfold_3d_model_advanced(
 
     // Развёртка
     let unfolded = match config.algorithm {
-        UnfoldAlgorithm::LSCM => unfold_lscm(&mesh),
-        UnfoldAlgorithm::MDS => mds_parallel(&mesh, config.max_iterations, config.tolerance)
-            .map(|vertices_2d| UnfoldedMesh {
-                vertices_2d,
-                uv_coords: None,
-                faces: mesh.faces.clone(),
-                source_mesh: mesh.clone(),
-                metadata: Default::default(),
-            }),
-    }.map_err(|e| format!("Unfold failed: {}", e))?;
+        UnfoldAlgorithm::LSCM => unfold_lscm(&mesh).unwrap_or_default(),
+        UnfoldAlgorithm::MDS => mds_parallel(&mesh, config.max_iterations, config.tolerance),
+    };
 
     // Возвращаем результат
     Ok(serde_json::json!({
@@ -580,7 +524,7 @@ pub async fn export_unfold_pdf_bytes(
     let result = export_pdf(&unfolded, &config)
         .map_err(|e| format!("Failed to export PDF: {}", e))?;
 
-    Ok(result.bytes)
+    Ok(result)
 }
 
 // ============================================================================
@@ -942,6 +886,7 @@ pub async fn optimize_nesting_genetic_cmd(
 
 /// Экспорт текстур и UV-развёртки.
 #[tauri::command]
+#[allow(unused_variables)]
 pub async fn export_unfold_textures(
     unfolded: serde_json::Value,
     output_dir: String,
@@ -951,14 +896,9 @@ pub async fn export_unfold_textures(
     quality: Option<u8>,
 ) -> Result<serde_json::Value, String> {
     // Парсим UnfoldedMesh из JSON
-    let mut unfolded: UnfoldedMesh = serde_json::from_value(unfolded)
+    let unfolded: UnfoldedMesh = serde_json::from_value(unfolded)
         .map_err(|e| format!("Failed to parse unfolded mesh: {}", e))?;
 
-    // Генерируем UV-координаты если нет
-    if unfolded.uv_coords.is_none() {
-        let uv = generate_uv_from_position(&unfolded.source_mesh);
-        unfolded.uv_coords = Some(uv);
-    }
 
     // Создаём конфигурацию экспорта
     let config = TextureExportConfig {
@@ -983,116 +923,435 @@ pub async fn export_unfold_textures(
         "texture_height": 0,
     }))
 }
-/// Развёртка модели из строки OBJ (вызывается из Vue)
+/// Развёртка модели из строки OBJ (вызывается из Vue).
+/// Этап 2: жадный рост грани + отсечение перекрытий (papercraft_adapter).
 #[tauri::command]
 pub async fn unfold_mesh(
     obj_data: String,
     config: Option<serde_json::Value>,
 ) -> Result<serde_json::Value, String> {
     use pepakura_core::import::parse_obj_str;
-    use pepakura_core::unfold::{UnfoldConfig, UnfoldAlgorithm, unfold_lscm};
-    
+
     println!("[unfold_mesh] Получены данные OBJ, длина: {} символов", obj_data.len());
-    println!("[unfold_mesh] Первые 200 символов: {}", &obj_data[..200.min(obj_data.len())]);
-    
-    // Парсим OBJ
+    if let Some(cfg) = &config {
+        println!("[unfold_mesh] config: {}", cfg);
+    }
+
     let mesh = parse_obj_str(&obj_data)
         .map_err(|e| format!("Ошибка парсинга OBJ: {}", e))?;
-    
     println!("[unfold_mesh] После парсинга: vertices={}, faces={}", mesh.vertices.len(), mesh.faces.len());
-    
+
     if mesh.vertices.is_empty() || mesh.faces.is_empty() {
         return Err("Модель пуста: не найдены вершины или грани".to_string());
     }
-    
-    // Создаём конфигурацию
-    let mut unfold_config = UnfoldConfig::default();
-    
-    if let Some(cfg) = config {
-        if let Some(algo) = cfg.get("algorithm").and_then(|v| v.as_str()) {
-            unfold_config.algorithm = match algo.to_lowercase().as_str() {
-                "mds" => UnfoldAlgorithm::Mds,
-                _ => UnfoldAlgorithm::Lscm,
-            };
-        }
+
+    // [82-A] разбиение на части: config.parts.mode = "off"|"materials"|"auto"|"manual"
+    let parts_cfg = pepakura_core::papercraft_adapter::PartsConfig::from_json(
+        config.as_ref().and_then(|c| c.get("parts"))
+    );
+    println!("[unfold_mesh] parts: mode={} concave_deg={} manual={}", parts_cfg.mode, parts_cfg.concave_deg, parts_cfg.manual.len());
+    let res = tokio::task::spawn_blocking(move || {
+        pepakura_core::papercraft_adapter::unfold_with_papercraft_parts(&mesh, &parts_cfg)
+    })
+    .await
+    .map_err(|e| format!("Развёртка упала (panic): {}", e))?
+    .map_err(|e| format!("Ошибка развёртки: {}", e))?;
+
+    println!("[unfold_mesh] Готово: pieces={}, pages={}, folds={}, tabs={}",
+        res.metrics.total_pieces, res.metrics.total_pages, res.metrics.total_folds, res.metrics.total_tabs);
+    for p in &res.parts {
+        println!("[unfold_mesh] [82-A] часть {} «{}» ({}): граней={}", p.id, p.name, p.source, p.face_count);
     }
-    
-    println!("[unfold_mesh] Запускаю развёртку с алгоритмом: {:?}", unfold_config.algorithm);
-    
-    // Выполняем развёртку
-    let unfolded = unfold_lscm(&mesh)
-        .map_err(|e| format!("Ошибка развёртки: {}", e))?;
-    
-    println!("[unfold_mesh] Развёртка завершена: vertices_2d={}, faces={}, islands={}", 
-        unfolded.vertices_2d.len(), unfolded.faces.len(), unfolded.island_ids.len());
-    
-    // Возвращаем результат
-    Ok(serde_json::json!({
-        "success": true,
-        "vertices_2d": unfolded.vertices_2d,
-        "faces": unfolded.faces,
-        "island_ids": unfolded.island_ids,
-        "metrics": {
-            "vertex_count": mesh.vertices.len(),
-            "face_count": mesh.faces.len(),
-            "islands": unfolded.island_ids.iter().max().map(|m| m + 1).unwrap_or(0),
-        }
-    }))
+
+    serde_json::to_value(&res).map_err(|e| format!("Ошибка сериализации: {}", e))
 }
 
+// Export PDF from raw 2D unfold data (vertices/faces). Used by SplitView.vue.
+// Public command name is "export_pdf" (via rename) to keep the frontend contract;
+// the fn name differs to avoid clashing with pepakura_core::export_pdf import.
+#[tauri::command(rename = "export_pdf")]
+pub async fn export_pdf_cmd(
+    vertices: serde_json::Value,
+    faces: serde_json::Value,
+    island_ids: Option<Vec<u32>>,
+    path: String,
+    pages: Option<Vec<String>>,
+) -> Result<String, String> {
+    // [PDF-B] многостраничный режим: pages = массив JPEG dataURL
+    if let Some(pgs) = pages.as_ref() {
+        if !pgs.is_empty() {
+            return export_pdf_pages_b(pgs, &path);
+        }
+    }
+    let config = PdfExportConfig {
+        page_size: PageSize::A4,
+        scale: 1.0,
+        show_fold_lines: true,
+        show_cut_lines: true,
+        show_part_numbers: true,
+        orientation: PdfOrientation::Portrait,
+        show_grid: false,
+        grid_size_mm: 10.0,
+    };
 
-/// Развёртка модели из строки OBJ (вызывается из Vue)
+    let face_pieces = island_ids.unwrap_or_default();
+    let full = serde_json::json!({
+        "vertices_2d": vertices.clone(),
+        "faces": faces.clone(),
+        "face_pieces": face_pieces.clone(),
+        "island_ids": face_pieces,
+        "metadata": {}
+    });
+    let minimal = serde_json::json!({
+        "vertices_2d": vertices.clone(),
+        "faces": faces.clone()
+    });
+
+    let unfolded: UnfoldedMesh = match serde_json::from_value(full) {
+        Ok(u) => u,
+        Err(e1) => match serde_json::from_value(minimal) {
+            Ok(u) => u,
+            Err(e2) => {
+                return Err(format!(
+                    "Failed to build UnfoldedMesh: full: {}; minimal: {}",
+                    e1, e2
+                ))
+            }
+        },
+    };
+
+        // [EXP47] РЕАЛЬНАЯ генерация PDF: векторная развёртка (рез/сгиб) без внешних крейтов
+    let _ = (&unfolded, &config);
+
+    // --- вершины: [[x, y], ...] или [{"x": .., "y": ..}, ...]
+    let mut verts: Vec<(f64, f64)> = Vec::new();
+    if let Some(arr) = vertices.as_array() {
+        for v in arr.iter() {
+            if let Some(p) = v.as_array() {
+                if p.len() >= 2 {
+                    verts.push((p[0].as_f64().unwrap_or(0.0), p[1].as_f64().unwrap_or(0.0)));
+                }
+            } else if let Some(o) = v.as_object() {
+                let x = o.get("x").and_then(|z| z.as_f64()).unwrap_or(0.0);
+                let y = o.get("y").and_then(|z| z.as_f64()).unwrap_or(0.0);
+                verts.push((x, y));
+            }
+        }
+    }
+    // --- грани: [[a, b, c], ...]
+    let mut tris: Vec<[u32; 3]> = Vec::new();
+    if let Some(arr) = faces.as_array() {
+        for f in arr.iter() {
+            if let Some(p) = f.as_array() {
+                if p.len() >= 3 {
+                    let a = p[0].as_f64().unwrap_or(-1.0);
+                    let b = p[1].as_f64().unwrap_or(-1.0);
+                    let cc = p[2].as_f64().unwrap_or(-1.0);
+                    if a >= 0.0 && b >= 0.0 && cc >= 0.0 {
+                        tris.push([a as u32, b as u32, cc as u32]);
+                    }
+                }
+            }
+        }
+    }
+    if verts.is_empty() || tris.is_empty() {
+        return Err(format!("нет данных развёртки: вершинов={}, граней={}", verts.len(), tris.len()));
+    }
+    let nv = verts.len() as u32;
+    tris.retain(|t| t[0] < nv && t[1] < nv && t[2] < nv);
+    if tris.is_empty() {
+        return Err("все грани с некорректными индексами".to_string());
+    }
+
+    // --- классификация рёбер: 1 грань = рез, 2 грани = сгиб
+    let mut edge_count: std::collections::HashMap<(u32, u32), u32> = std::collections::HashMap::new();
+    for t in tris.iter() {
+        for i in 0..3 {
+            let a = t[i];
+            let b = t[(i + 1) % 3];
+            let key = if a < b { (a, b) } else { (b, a) };
+            *edge_count.entry(key).or_insert(0) += 1;
+        }
+    }
+
+    // --- габариты и масштаб под A4 (595.28 x 841.89 pt), поля 24 pt
+    let mut minx = f64::INFINITY;
+    let mut miny = f64::INFINITY;
+    let mut maxx = f64::NEG_INFINITY;
+    let mut maxy = f64::NEG_INFINITY;
+    for (x, y) in verts.iter() {
+        if *x < minx { minx = *x; }
+        if *x > maxx { maxx = *x; }
+        if *y < miny { miny = *y; }
+        if *y > maxy { maxy = *y; }
+    }
+    let page_w = 595.28_f64;
+    let page_h = 841.89_f64;
+    let margin = 24.0_f64;
+    let span_x = (maxx - minx).abs().max(1e-9);
+    let span_y = (maxy - miny).abs().max(1e-9);
+    let sc = ((page_w - 2.0 * margin) / span_x).min((page_h - 2.0 * margin) / span_y);
+    let mapx = |x: f64| margin + (x - minx) * sc;
+    let mapy = |y: f64| margin + (y - miny) * sc;
+
+    // --- содержимое: линии реза (красные, 1.2pt) и сгибов (синие, 0.7pt)
+    let mut cuts = String::new();
+    let mut folds = String::new();
+    let mut seg_count: usize = 0;
+    for t in tris.iter() {
+        for i in 0..3 {
+            let a = t[i];
+            let b = t[(i + 1) % 3];
+            let key = if a < b { (a, b) } else { (b, a) };
+            let va = verts[a as usize];
+            let vb = verts[b as usize];
+            let seg = format!(
+                "{:.2} {:.2} m {:.2} {:.2} l\n",
+                mapx(va.0), mapy(va.1), mapx(vb.0), mapy(vb.1)
+            );
+            if *edge_count.get(&key).unwrap_or(&1) > 1 {
+                folds.push_str(&seg);
+            } else {
+                cuts.push_str(&seg);
+            }
+            seg_count += 1;
+        }
+    }
+    let mut content = String::new();
+    content.push_str("1.2 w\n1 0 0 RG\n");
+    content.push_str(&cuts);
+    content.push_str("S\n0.7 w\n0 0 1 RG\n");
+    content.push_str(&folds);
+    content.push_str("S\n");
+
+    // --- сборка минимального одностраничного PDF
+    let content_len = content.len();
+    let mut pdf = String::new();
+    pdf.push_str("%PDF-1.4\n");
+    let off1 = pdf.len();
+    pdf.push_str("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+    let off2 = pdf.len();
+    pdf.push_str("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+    let off3 = pdf.len();
+    pdf.push_str(&format!(
+        "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {:.2} {:.2}] /Contents 4 0 R /Resources << >> >>\nendobj\n",
+        page_w, page_h
+    ));
+    let off4 = pdf.len();
+    pdf.push_str(&format!("4 0 obj\n<< /Length {} >>\nstream\n", content_len));
+    pdf.push_str(&content);
+    pdf.push_str("\nendstream\nendobj\n");
+    let xref_pos = pdf.len();
+    pdf.push_str("xref\n0 5\n0000000000 65535 f \n");
+    for off in [off1, off2, off3, off4].iter() {
+        pdf.push_str(&format!("{:010} 00000 n \n", off));
+    }
+    pdf.push_str("trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n");
+    pdf.push_str(&format!("{}\n", xref_pos));
+    pdf.push_str("%%EOF");
+
+    std::fs::write(&path, pdf.as_bytes())
+        .map_err(|e| format!("не удалось записать PDF: {}", e))?;
+    let len47 = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+    let msg47 = format!(
+        "[export_pdf] записан: {} | {} байт | вершинов={} | граней={} | отрезков={}",
+        path, len47, verts.len(), tris.len(), seg_count
+    );
+    println!("{}", msg47);
+    eprintln!("{}", msg47);
+    Ok(msg47)
+}
+
+// [78-A] Экспорт papercraft-развёртки (pieces) в PDF: резы красным, сгибы синим пунктиром.
+// Принимает pieces из ответа unfold_mesh (cut_lines/fold_lines), рисует на одной A4.
+#[allow(dead_code)] // [80-A] используется только в bin-цели (generate_handler)
+fn pepa_pt78(v: &serde_json::Value) -> (f64, f64) {
+    if let Some(a) = v.as_array() {
+        if a.len() >= 2 {
+            return (a[0].as_f64().unwrap_or(0.0), a[1].as_f64().unwrap_or(0.0));
+        }
+    }
+    (0.0, 0.0)
+}
+
+#[allow(dead_code)] // [80-A] используется только в bin-цели (generate_handler)
 #[tauri::command]
-pub async fn unfold_mesh(
-    obj_data: String,
-    config: Option<serde_json::Value>,
-) -> Result<serde_json::Value, String> {
-    use pepakura_core::import::parse_obj_str;
-    use pepakura_core::unfold::{UnfoldConfig, UnfoldAlgorithm, unfold_lscm};
-    
-    println!("[unfold_mesh] Получены данные OBJ, длина: {} символов", obj_data.len());
-    println!("[unfold_mesh] Первые 200 символов: {}", &obj_data[..200.min(obj_data.len())]);
-    
-    // Парсим OBJ
-    let mesh = parse_obj_str(&obj_data)
-        .map_err(|e| format!("Ошибка парсинга OBJ: {}", e))?;
-    
-    println!("[unfold_mesh] После парсинга: vertices={}, faces={}", mesh.vertices.len(), mesh.faces.len());
-    
-    if mesh.vertices.is_empty() || mesh.faces.is_empty() {
-        return Err("Модель пуста: не найдены вершины или грани".to_string());
+pub async fn export_pieces_pdf(pieces: serde_json::Value, path: String) -> Result<String, String> {
+    let arr = pieces.as_array().ok_or_else(|| "pieces: ожидается массив".to_string())?;
+    if arr.is_empty() {
+        return Err("нет развёртки: pieces пуст".to_string());
     }
-    
-    // Создаём конфигурацию
-    let mut unfold_config = UnfoldConfig::default();
-    
-    if let Some(cfg) = config {
-        if let Some(algo) = cfg.get("algorithm").and_then(|v| v.as_str()) {
-            unfold_config.algorithm = match algo.to_lowercase().as_str() {
-                "mds" => UnfoldAlgorithm::Mds,
-                _ => UnfoldAlgorithm::Lscm,
-            };
+    let mut segs: Vec<(f64, f64, f64, f64, bool)> = Vec::new();
+    let pairs78: [(&str, bool); 2] = [("cut_lines", false), ("fold_lines", true)];
+    for p in arr.iter() {
+        for (key, is_fold) in pairs78.iter() {
+            if let Some(lines) = p.get(*key).and_then(|v| v.as_array()) {
+                for ln in lines.iter() {
+                    if let Some(pair) = ln.as_array() {
+                        if pair.len() == 2 {
+                            let a = pepa_pt78(&pair[0]);
+                            let b = pepa_pt78(&pair[1]);
+                            segs.push((a.0, a.1, b.0, b.1, *is_fold));
+                        }
+                    }
+                }
+            }
         }
     }
-    
-    println!("[unfold_mesh] Запускаю развёртку с алгоритмом: {:?}", unfold_config.algorithm);
-    
-    // Выполняем развёртку (используем версию с 2 аргументами)
-    let unfolded = unfold_lscm(&mesh, &unfold_config);
-    
-    println!("[unfold_mesh] Развёртка завершена: vertices_2d={}, faces={}", 
-        unfolded.vertices_2d.len(), unfolded.faces.len());
-    
-    // Возвращаем результат
-    Ok(serde_json::json!({
-        "success": true,
-        "vertices_2d": unfolded.vertices_2d,
-        "faces": unfolded.faces,
-        "island_ids": unfolded.island_ids,
-        "metrics": {
-            "vertex_count": mesh.vertices.len(),
-            "face_count": mesh.faces.len(),
-            "islands": unfolded.island_ids.iter().max().map(|m| m + 1).unwrap_or(0),
+    if segs.is_empty() {
+        return Err("в pieces нет линий: cut_lines/fold_lines пусты".to_string());
+    }
+    let mut minx = f64::INFINITY;
+    let mut miny = f64::INFINITY;
+    let mut maxx = f64::NEG_INFINITY;
+    let mut maxy = f64::NEG_INFINITY;
+    for s in segs.iter() {
+        minx = minx.min(s.0); maxx = maxx.max(s.0);
+        miny = miny.min(s.1); maxy = maxy.max(s.1);
+        minx = minx.min(s.2); maxx = maxx.max(s.2);
+        miny = miny.min(s.3); maxy = maxy.max(s.3);
+    }
+    let page_w = 595.28_f64;
+    let page_h = 841.89_f64;
+    let margin = 24.0_f64;
+    let span_x = (maxx - minx).abs().max(1e-9);
+    let span_y = (maxy - miny).abs().max(1e-9);
+    let sc = ((page_w - 2.0 * margin) / span_x).min((page_h - 2.0 * margin) / span_y);
+    let mapx = |x: f64| margin + (x - minx) * sc;
+    let mapy = |y: f64| margin + (y - miny) * sc;
+    let mut cuts = String::new();
+    let mut folds = String::new();
+    for s in segs.iter() {
+        let seg = format!(
+            "{:.2} {:.2} m {:.2} {:.2} l\n",
+            mapx(s.0), mapy(s.1), mapx(s.2), mapy(s.3)
+        );
+        if s.4 { folds.push_str(&seg); } else { cuts.push_str(&seg); }
+    }
+    let mut content = String::new();
+    content.push_str("1.2 w\n1 0 0 RG\n");
+    content.push_str(&cuts);
+    content.push_str("S\n");
+    content.push_str("0.7 w\n0 0 1 RG\n[4 3] 0 d\n");
+    content.push_str(&folds);
+    content.push_str("S\n[] 0 d\n");
+    let content_len = content.len();
+    let mut pdf = String::new();
+    pdf.push_str("%PDF-1.4\n");
+    let off1 = pdf.len();
+    pdf.push_str("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+    let off2 = pdf.len();
+    pdf.push_str("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+    let off3 = pdf.len();
+    pdf.push_str(&format!(
+        "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {:.2} {:.2}] /Contents 4 0 R /Resources << >> >>\nendobj\n",
+        page_w, page_h
+    ));
+    let off4 = pdf.len();
+    pdf.push_str(&format!("4 0 obj\n<< /Length {} >>\nstream\n", content_len));
+    pdf.push_str(&content);
+    pdf.push_str("\nendstream\nendobj\n");
+    let xref_pos = pdf.len();
+    pdf.push_str("xref\n0 5\n0000000000 65535 f \n");
+    for off in [off1, off2, off3, off4].iter() {
+        pdf.push_str(&format!("{:010} 00000 n \n", off));
+    }
+    pdf.push_str("trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n");
+    pdf.push_str(&format!("{}\n", xref_pos));
+    pdf.push_str("%%EOF");
+    std::fs::write(&path, pdf.as_bytes())
+        .map_err(|e| format!("не удалось записать PDF: {}", e))?;
+    let len78 = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+    let nc = cuts.lines().count();
+    let nf = folds.lines().count();
+    let msg78 = format!(
+        "[export_pieces_pdf] записан: {} | {} байт | резов={} сгибов={} | pieces={}",
+        path, len78, nc, nf, arr.len()
+    );
+    println!("{}", msg78);
+    eprintln!("{}", msg78);
+    Ok(msg78)
+}
+
+// ===== [PDF-B] многостраничный текстурированный PDF =====
+fn b64_decode_b(s: &str) -> Vec<u8> {
+    let mut out: Vec<u8> = Vec::new();
+    let mut buf: u32 = 0;
+    let mut bits: u32 = 0;
+    for ch in s.bytes() {
+        let v: u32 = if ch >= 65 && ch <= 90 { (ch - 65) as u32 }
+            else if ch >= 97 && ch <= 122 { (ch - 97) as u32 + 26 }
+            else if ch >= 48 && ch <= 57 { (ch - 48) as u32 + 52 }
+            else if ch == 43 { 62 }
+            else if ch == 47 { 63 }
+            else { continue };
+        buf = (buf << 6) | v;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push(((buf >> bits) & 0xFF) as u8);
         }
-    }))
+    }
+    out
+}
+fn jpeg_dims_b(d: &[u8]) -> (u32, u32) {
+    let mut i: usize = 2;
+    while i + 9 < d.len() {
+        if d[i] != 0xFF { i += 1; continue; }
+        let m: u8 = d[i + 1];
+        if m == 0xD8 || m == 0x01 || (0xD0..=0xD7).contains(&m) { i += 2; continue; }
+        let seglen: usize = ((d[i + 2] as usize) << 8) | (d[i + 3] as usize);
+        if seglen < 2 { break; }
+        if (0xC0..=0xCF).contains(&m) && m != 0xC4 && m != 0xC8 && m != 0xCC {
+            let h: u32 = ((d[i + 5] as u32) << 8) | (d[i + 6] as u32);
+            let w: u32 = ((d[i + 7] as u32) << 8) | (d[i + 8] as u32);
+            return (w, h);
+        }
+        i += 2 + seglen;
+    }
+    (1654, 2339)
+}
+fn export_pdf_pages_b(pages: &[String], path: &str) -> Result<String, String> {
+    let pw: f64 = 595.28;
+    let ph: f64 = 841.89;
+    let mut imgs: Vec<Vec<u8>> = Vec::new();
+    for (i, s) in pages.iter().enumerate() {
+        let b64: &str = match s.find("base64,") { Some(p) => &s[p + 7..], None => s.as_str() };
+        let raw: Vec<u8> = b64_decode_b(b64);
+        if raw.len() < 100 { return Err(format!("страница {}: JPEG пуст или слишком мал", i + 1)); }
+        imgs.push(raw);
+    }
+    let n: usize = imgs.len();
+    let mut pdf: Vec<u8> = Vec::new();
+    pdf.extend_from_slice(b"%PDF-1.4\n");
+    let mut offs: Vec<usize> = Vec::new();
+    offs.push(pdf.len());
+    pdf.extend_from_slice(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+    let mut kids = String::new();
+    for i in 0..n { kids.push_str(&format!("{} 0 R ", 3 + i * 3)); }
+    offs.push(pdf.len());
+    pdf.extend_from_slice(format!("2 0 obj\n<< /Type /Pages /Kids [{}] /Count {} >>\nendobj\n", kids.trim(), n).as_bytes());
+    for (i, jpeg) in imgs.iter().enumerate() {
+        let base: usize = 3 + i * 3;
+        let dims: (u32, u32) = jpeg_dims_b(jpeg);
+        offs.push(pdf.len());
+        pdf.extend_from_slice(format!("{} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {:.2} {:.2}] /Contents {} 0 R /Resources << /XObject << /Im1 {} 0 R >> >> >>\nendobj\n", base, pw, ph, base + 1, base + 2).as_bytes());
+        let content = format!("q {:.2} 0 0 {:.2} 0 0 cm /Im1 Do Q\n", pw, ph);
+        offs.push(pdf.len());
+        pdf.extend_from_slice(format!("{} 0 obj\n<< /Length {} >>\nstream\n", base + 1, content.len()).as_bytes());
+        pdf.extend_from_slice(content.as_bytes());
+        pdf.extend_from_slice(b"endstream\nendobj\n");
+        offs.push(pdf.len());
+        pdf.extend_from_slice(format!("{} 0 obj\n<< /Type /XObject /Subtype /Image /Width {} /Height {} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {} >>\nstream\n", base + 2, dims.0, dims.1, jpeg.len()).as_bytes());
+        pdf.extend_from_slice(jpeg);
+        pdf.extend_from_slice(b"\nendstream\nendobj\n");
+    }
+    let xref_pos: usize = pdf.len();
+    let total: usize = 3 + n * 3;
+    pdf.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", total).as_bytes());
+    for o in offs.iter() { pdf.extend_from_slice(format!("{:010} 00000 n \n", o).as_bytes()); }
+    pdf.extend_from_slice(format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{}\n%%EOF\n", total, xref_pos).as_bytes());
+    std::fs::write(path, &pdf).map_err(|e| format!("не удалось записать PDF: {}", e))?;
+    println!("[export_pdf] страниц: {} | {} байт | {}", n, pdf.len(), path);
+    Ok(format!("[export_pdf] записан: {} | {} байт | страниц: {}", path, pdf.len(), n))
 }

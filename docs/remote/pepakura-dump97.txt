@@ -1,0 +1,25 @@
+DUMP97: fix60c verification
+L93: #[serde(default)] pub vertices_2d: Vec<[f64; 2]>,
+L94: /// [TEX-B] грань -> 3 индекса в vertices_2d (формат старого фронта)
+L95: #[serde(default)] pub faces_2d: Vec<[u32; 3]>,
+L314: let mut faces_2d: Vec<[u32; 3]> = vec![[0, 0, 0]; mesh.faces.len()];
+L315: let mut verts_2d: Vec<[f64; 2]> = Vec::new();
+L318: for (ff, tri) in &face2d_isl { if *ff < faces_2d.len() { let base = verts_2d.len() as u32; verts_2d.push(tri[0]); verts_2d.push(tri[1]); verts_2d.push(tri[2]); faces_2d[*ff] = [base, base + 1, base + 2]; } }
+L334: Ok(PapercraftUnfoldResult { pieces, metrics, parts: Vec::new(), face_pieces, vertices_2d: verts_2d, faces_2d, engine_used: "MST-Seam (papercraft)".to_string() })
+L767: let mut faces_2d: Vec<[u32; 3]> = vec![[0, 0, 0]; mesh.faces.len()];
+L768: let mut verts_2d: Vec<[f64; 2]> = Vec::new();
+L781: for (ff, tri) in res.faces_2d.iter().enumerate() {
+L782: if *ff < faces_2d.len() && (tri[0] != [0.0, 0.0] || tri[1] != [0.0, 0.0] || tri[2] != [0.0, 0.0]) { faces_2d[*ff] = *tri; }
+L804: Ok(PapercraftUnfoldResult { pieces, metrics, parts: parts_meta, face_pieces, vertices_2d: verts_2d, faces_2d, engine_used: format!("MST-Seam + {} parts", cfg.mode) })
+SV L182: rustResult.value += '✅ Развёртка выполнена\nДвижок: ' + r.engine_used + '\nДеталей: ' + (r.pieces?.length || 0) + '\nЧасти: ' + (((r.parts || []).map(pp => pp.name + ' [' + pp.face_count + 'гр]').join(', ')) || '—') + '\nВершин 2D: ' + (r.vertices_2d?.length || 0) + '\nГраней: ' + (r.faces?.length || 0);
+SV L183: vertices2D = r.vertices_2d || [];
+SV L184: faces2D = r.faces_2d || [];
+SV L189: lastMetrics = { vertex_count: (r.vertices_2d || []).length, face_count: (r.faces || []).length, islands: new Set(r.face_pieces || []).size, total_area: 0 }; // FIX40
+SV L683: } else if (res.vertices_2d && res.faces) {
+SV L684: res.vertices_2d.forEach(v => points.push({ x: v[0], y: v[1] }));
+SV L688: ctx.fillText('Ошибка: в объекте ответа нет pieces или vertices_2d/faces.', 20, 30);
+SV L766: } else if (res.vertices_2d && res.faces) {
+SV L774: const v = res.vertices_2d[idx];
+===== parts-цикл: строки 720-835 из 909 =====
+FAILS: C5
+STATUS: FIX60C PATCHES DONE
