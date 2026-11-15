@@ -19,3 +19,8 @@ WSManStackVersion: 3.0
 **********************
 Transcript started, output file is G:\Dev\pepakura-next\fix64.txt
    Compiling aws-lc-sys v0.41.0
+
+=== FIX64 FINISH (ручное закрытие транскрипта после сбоя шелла) ===
+RELEASE BUILD OK: BUILD_EXIT=0, Finished release profile [optimized] in 36m 42s
+RELEASE_EXE: 2026-11-15 17:56:34 | 19.27 MB | target\x86_64-pc-windows-msvc\release\pepakura-next.exe
+Верификация: docs\remote\pepakura-dump102.txt; журнал: docs\fixlog.md (запись fix64 18:02)

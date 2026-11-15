@@ -1,0 +1,18 @@
+DUMP102: fix64 release build verification
+=== [V] Release build ===
+BUILD_EXIT=0
+BUILD_CMD: cargo build --release --target x86_64-pc-windows-msvc (detached cmd.exe PID 6148, workdir G:\Dev\pepakura-next)
+BUILD_RESULT: Finished `release` profile [optimized] target(s) in 36m 42s
+BUILD_LOG: docs\remote\fix64_build.log (копия в корне: fix64_build.log)
+RELEASE_EXE: 2026-11-15 17:56:34 | 19.27 MB | target\x86_64-pc-windows-msvc\release\pepakura-next.exe
+=== [V] Handoff-задачи закрыты (проверка по коду) ===
+- export_pieces_pdf зарегистрирован: src-tauri/src/lib.rs:21, src-tauri/src/main.rs:60; реализация src-tauri/src/commands.rs:1179 (pub async fn export_pieces_pdf), лог-метка commands.rs:1268
+- Статус «Движок:» в UI: packages/ui-desktop/src/components/SplitView.vue:182 ('Движок: ' + r.engine_used)
+- Клапаны без наложений (4f + overlap-guard): crates/pepakura_core/src/papercraft_adapter.rs:501 (секция 4f), L526-527 (при ω < 180° верх трапеции отодвигается от вершины на t >= tw/tan(ω/2))
+- PDF-B многорядная упаковка: SplitView.vue:361 pdf55PackPieces(); перенос ряда при PW=190мм (L383), новая страница при PH=277мм (L384); PDF55_DPI=200; PDF55_PATH=G:\Dev\pepakura-next\unfold_tex.pdf
+- PDF-C группы граней из face_ids: SplitView.vue:398-402 ([PDF-C]); exportPdfPages55: SplitView.vue:440
+=== [V] История сессии ===
+- fix60c: ABORT C5 → закрыт fix60d (merge faces_2d/vertices_2d через orig_of_sub, зелёный)
+- fix61 оригинал: ABORT-S1 (i1=142 i2=150), применён только S2; robust-S1 из fix62 переигран успешно (BUILD_EXIT=0, debug-exe 12:07:58)
+- fix64: единственная открытая задача handoff — Release-сборка; выполнена (см. BUILD_EXIT выше)
+DUMP102 DONE
