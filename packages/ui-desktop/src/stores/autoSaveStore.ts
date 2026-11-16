@@ -92,7 +92,7 @@ export const useAutoSaveStore = defineStore('autoSave', () => {
     if (autoSaveTimer) {
       clearInterval(autoSaveTimer)
     }
-    autoSaveTimer = setInterval(() => {
+    autoSaveTimer = window.setInterval(() => {
       saveProject()
     }, interval.value)
   }

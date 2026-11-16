@@ -247,6 +247,8 @@ describe('autoSaveStore', () => {
       // Проверяем, что проект был сохранен
       const savedData = window.localStorage.getItem('pepakura-project-test-project-id')
       expect(savedData).not.toBeNull()
+
+      autoSaveStore.setEnabled(false)
     })
 
     it('should not save project when disabled', async () => {

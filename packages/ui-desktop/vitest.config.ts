@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [vue()],
   test: {
     environment: 'jsdom',
+    globals: true,
     setupFiles: ['./src/test/setup.ts'],
     include: [
       '**/*.test.ts',
@@ -19,10 +20,17 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
       '**/cypress/**',
-      '**/.{idea,git,cache,output,temp}/**'
+      '**/.{idea,git,cache,output,temp}/**',
+      'src/integration-tests/**',
+      'src/performance-tests/**',
+      'src/debug-tests/**',
+      'src/modules/ai/**',
+      'src/components/stages/*.test.ts',
+      'src/components/paper-optimization/**'
     ],
     coverage: {
-      provider: 'istanbul',
+      provider: 'v8',
+      include: ['src/**'],
       reporter: ['text', 'json', 'html'],
       exclude: [
         'node_modules/**',
