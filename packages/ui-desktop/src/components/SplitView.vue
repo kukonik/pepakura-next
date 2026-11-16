@@ -525,7 +525,25 @@ const layoutPieces78 = (pieces) => {
       f.forEach((vi: any) => { if (doneV.has(vi)) { return; } doneV.set(vi, true); const v: any = vertices2D[vi]; if (v) { v[0] += dx; v[1] += dy; } });
     }
   };
-  let cx = 0, cy = 0, rowH = 0, placed = 0;
+  // [PAG-1] постраничная раскладка A4 (WYSIWYG с PDF55): масштаб по крупнейшей детали, страницы 190x277мм, сетка страниц
+  let maxW55: any = 0; let maxH55: any = 0;
+  boxes.forEach((b: any) => { if (b.w > maxW55) { maxW55 = b.w; } if (b.h > maxH55) { maxH55 = b.h; } });
+  const mmpu55: any = Math.max(2, Math.min(400, Math.min(170 / maxW55, 270 / maxH55)));
+  const pcols55: any = Math.max(1, Math.ceil(Math.sqrt(Math.max(1, boxes.length) * 277 / 210)));
+  let pno55: any = 0; let pcur55: any = 0; let inx55: any = 0; let iny55: any = 0; let rowH55: any = 0; let px55: any = 0; let py55: any = 0;
+  boxes.forEach((b: any, bi: any) => {
+    const bw55: any = b.w * mmpu55; const bh55: any = b.h * mmpu55;
+    if (inx55 > 0 && inx55 + bw55 > 190) { inx55 = 0; iny55 += rowH55 + 4; rowH55 = 0; }
+    if (pcur55 > 0 && iny55 + bh55 > 277) { pcur55 = 0; }
+    if (pcur55 === 0) { pno55++; pcur55 = 1; inx55 = 0; iny55 = 0; rowH55 = 0; px55 = ((pno55 - 1) % pcols55) * (196 / mmpu55); py55 = Math.floor((pno55 - 1) / pcols55) * (283 / mmpu55); }
+    const dx55: any = px55 + (4 + inx55) / mmpu55 - b.minX; const dy55: any = py55 + (4 + iny55) / mmpu55 - b.minY;
+    shift(b.p, dx55, dy55);
+    const pk55: any = pieceKeyOf(b.p, bi);
+    if (pk55 !== null) { shiftFacesOf(pk55, dx55, dy55); }
+    inx55 += bw55 + 4; if (bh55 > rowH55) { rowH55 = bh55; }
+  });
+  (window as any).__pageInfo55 = { count: pno55, cols: pcols55, mmpu: mmpu55 }; // [PAG-1] для рамок страниц
+  let cx = 0, cy = 0, rowH = 0, placed = 0; // [PAG-1] переменные старой раскладки (цикл отключён ниже)
   boxes.slice(0, 0).forEach((b: any, bi: any) => { // [PAG-1] старая раскладка полками отключена
     shift(b.p, cx - b.minX, cy - b.minY);
     const pk = pieceKeyOf(b.p, bi); // [TEX-A]
