@@ -526,7 +526,7 @@ const layoutPieces78 = (pieces) => {
     }
   };
   let cx = 0, cy = 0, rowH = 0, placed = 0;
-  boxes.forEach((b, bi) => {
+  boxes.slice(0, 0).forEach((b: any, bi: any) => { // [PAG-1] старая раскладка полками отключена
     shift(b.p, cx - b.minX, cy - b.minY);
     const pk = pieceKeyOf(b.p, bi); // [TEX-A]
     if (pk !== null) { shiftFacesOf(pk, cx - b.minX, cy - b.minY); }
@@ -589,6 +589,19 @@ const draw2D78 = () => {
   // [TEX-A] текстурный слой (под линиями реза/сгибов)
   if (texLayer && texLayer.canvas && texLayer.drawn > 0) {
     ctx.drawImage(texLayer.canvas, tx(texLayer.minX), ty(texLayer.minY), texLayer.w * totalScale, texLayer.h * totalScale);
+  }
+  // [PAG-2] рамки страниц A4 + номера страниц (постраничный вид)
+  const pi55: any = (window as any).__pageInfo55;
+  if (pi55 && pi55.count) {
+    ctx.strokeStyle = "#c0c0c0"; ctx.lineWidth = 1; ctx.setLineDash([8, 6]);
+    for (let k55 = 0; k55 < pi55.count; k55++) {
+      const gx55: any = (k55 % pi55.cols) * (196 / pi55.mmpu) - 10 / pi55.mmpu;
+      const gy55: any = Math.floor(k55 / pi55.cols) * (283 / pi55.mmpu) - 10 / pi55.mmpu;
+      ctx.strokeRect(tx(gx55), ty(gy55), (210 / pi55.mmpu) * totalScale, (297 / pi55.mmpu) * totalScale);
+      ctx.fillStyle = "#a0a0a0"; ctx.font = "11px sans-serif";
+      ctx.fillText("стр. " + (k55 + 1) + "/" + pi55.count + " | масштаб " + pi55.mmpu.toFixed(1) + " мм/юнит", tx(gx55) + 6, ty(gy55) + 14);
+    }
+    ctx.setLineDash([]);
   }
   // [82-A] резы по частям: каждая часть своим цветом (внутри части - один путь)
   const PART_COLORS = ['#e02020', '#e08a20', '#20a020', '#a020c0', '#20c0a0', '#c02080', '#806020', '#2050c0', '#c05020', '#508030'];
