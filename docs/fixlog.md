@@ -11,3 +11,4 @@
 - 2026-11-15 18:02 — fix64: Release-сборка (cargo build --release --target x86_64-pc-windows-msvc, 36м42с); BUILD_EXIT=0; exe 19.27 MB 17:56:34; handoff закрыт (экспорт PDF, статус движка, клапаны 4f, PDF-B/C); dump102
 - 2026-11-16 14:53 - fix65: [TEX-B] anisotropy+mipmaps в ModelViewer3D (3D-размытие); [TEX-C] клип текстуры по контуру в pdf55DrawPiece (клапаны чистые); [TEX-D] fallback единственной текстуры (глаза-атлас); fe_exit=0 build_exit=0
 - 2026-11-16 18:58 - fix66: [TEX-E] счётчик зеркальных UV-граней (изнанка-факты); [TEX-F] отчёт материалы/текстуры (глаза-факты); [TEX-R] текстурный слой 2048->4096; [PDF-D] PDF55 200->300 DPI; fe_exit=0 build_exit=0
+- 2026-11-16 21:32 - fix66: [TEX-E] счётчик зеркальных UV-граней (изнанка-факты); [TEX-F] отчёт материалы/текстуры (глаза-факты); [TEX-R] текстурный слой 2048->4096; [PDF-D] PDF55 200->300 DPI; fe_exit=0 build_exit=0
