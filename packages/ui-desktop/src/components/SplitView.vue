@@ -183,6 +183,8 @@ unfoldData.value = r;
       vertices2D = r.vertices_2d || [];
         faces2D = r.faces_2d || [];
         islandIds = r.face_pieces || [];
+        (r.vertices_2d || []).forEach((v: any) => { v[1] = -v[1]; }); // [TEX-M] ядро отдаёт y вверх (unfold_hinge n2=[-uy,ux]), рендер рисует y вниз — разворачиваем данные один раз при загрузке
+        (r.pieces || []).forEach((p: any) => { (p.outline_2d || []).forEach((v: any) => { v[1] = -v[1]; }); (p.cut_lines || []).forEach((s: any) => { s[0][1] = -s[0][1]; s[1][1] = -s[1][1]; }); (p.fold_lines || []).forEach((s: any) => { s[0][1] = -s[0][1]; s[1][1] = -s[1][1]; }); }); // [TEX-M]
         buildTexFaces(unref(currentObjData)); // [TEX-A] UV из OBJ (до раскладки)
         pieces2D = layoutPieces78(r.pieces || []); // [80-A] раскладка полками
         loadTexImages(); // [TEX-A] картинки + текстурный слой
@@ -313,7 +315,7 @@ function buildTexLayer() {
   faces2D.forEach((f: any) => { if (!f) { return; } f.forEach((vi: any) => { const v: any = vertices2D[vi]; if (!v || !isFinite(v[0]) || !isFinite(v[1])) { return; } if (v[0] < minX) { minX = v[0]; } if (v[0] > maxX) { maxX = v[0]; } if (v[1] < minY) { minY = v[1]; } if (v[1] > maxY) { maxY = v[1]; } }); });
   if (!isFinite(minX) || !isFinite(minY)) { return; }
   const spanX: any = Math.max(1e-9, maxX - minX); const spanY: any = Math.max(1e-9, maxY - minY);
-  const ppmm: any = Math.min(16, 4096 / spanX, 4096 / spanY); // [TEX-R] слой 4K
+  const ppmm: any = Math.min(1024, 4096 / spanX, 4096 / spanY); // [TEX-L] cap 1024 px/юнит — старый cap 16 давал слой 90x45px
   const cnv: any = document.createElement("canvas");
   cnv.width = Math.max(1, Math.min(4096, Math.ceil(spanX * ppmm))); cnv.height = Math.max(1, Math.min(4096, Math.ceil(spanY * ppmm))); // [TEX-R] слой 4K
   const g: any = cnv.getContext("2d"); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
