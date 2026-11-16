@@ -341,8 +341,8 @@ function loadTexImages() {
   const mats: any = new Map();
   texFaces.forEach((t: any) => { if (t && t.mat && !mats.has(t.mat)) { mats.set(t.mat, true); } });
   mats.forEach((_v: any, mat: any) => {
-    const url: any = resolveTexUrl(mat);
-    if (!url) { console.warn("[TEX-A] материал без текстуры: " + mat); return; }
+    let url: any = resolveTexUrl(mat); // [TEX-D] let — для fallback атласа
+    if (!url) { const tk: any = texMapGet(); const kk: any = tk ? Object.keys(tk) : []; if (kk.length === 1) { url = tk[kk[0]]; console.warn("[TEX-D] материал " + mat + " без своей текстуры — беру единственную (атлас): " + kk[0]); } else { console.warn("[TEX-A] материал без текстуры: " + mat); return; } }
     texImgs.set("m:" + mat, url);
     if (texImgs.get("u:" + url) === undefined) {
       const im: any = new Image(); texImgs.set("u:" + url, im);
@@ -414,6 +414,7 @@ function pdf55DrawPiece(g: any, it: any, ox: any, oy: any, mmpu: any, groups: an
     for (let i = 1; i < outline.length; i++) { g.lineTo(X(outline[i][0]), Y(outline[i][1])); }
     g.closePath(); g.fillStyle = "#ffffff"; g.fill(); g.strokeStyle = "#b0b0b0"; g.lineWidth = 1; g.stroke();
   }
+  g.save(); if (outline.length >= 3) { g.beginPath(); g.moveTo(X(outline[0][0]), Y(outline[0][1])); for (let i2 = 1; i2 < outline.length; i2++) { g.lineTo(X(outline[i2][0]), Y(outline[i2][1])); } g.closePath(); g.clip(); } // [TEX-C] текстура клипится по контуру детали — не заходит на клапаны
   const arr: any = (it.p.__k55 === null || it.p.__k55 === undefined) ? null : groups.get(it.p.__k55);
   if (arr) {
     arr.forEach((fi: any) => {
@@ -430,6 +431,7 @@ function pdf55DrawPiece(g: any, it: any, ox: any, oy: any, mmpu: any, groups: an
       drawTexTri(g, img, src, dst);
     });
   }
+  g.restore(); // [TEX-C] конец клипа текстуры
   g.strokeStyle = "#e02020"; g.lineWidth = 2.2; g.setLineDash([]); g.beginPath();
   (it.p.cut_lines || []).forEach((s: any) => { g.moveTo(X(s[0][0]), Y(s[0][1])); g.lineTo(X(s[1][0]), Y(s[1][1])); });
   g.stroke();

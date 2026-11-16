@@ -158,6 +158,8 @@ const loadModel = async (objText: string, mtlText: string | null, texMap: Record
             img.onload = () => {
               const tex = new THREE.Texture(img);
               tex.colorSpace = THREE.SRGBColorSpace;
+              tex.anisotropy = renderer.capabilities.getMaxAnisotropy(); // [TEX-B] анизотропная фильтрация — убирает размытие текстуры под углом
+              tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter; // [TEX-B]
               // [U1-v2] tiling support for intentional UV repeats (eyes etc.)
               tex.wrapS = THREE.RepeatWrapping;
               tex.wrapT = THREE.RepeatWrapping;
