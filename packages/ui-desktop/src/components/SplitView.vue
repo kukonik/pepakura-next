@@ -313,13 +313,14 @@ function buildTexLayer() {
   faces2D.forEach((f: any) => { if (!f) { return; } f.forEach((vi: any) => { const v: any = vertices2D[vi]; if (!v || !isFinite(v[0]) || !isFinite(v[1])) { return; } if (v[0] < minX) { minX = v[0]; } if (v[0] > maxX) { maxX = v[0]; } if (v[1] < minY) { minY = v[1]; } if (v[1] > maxY) { maxY = v[1]; } }); });
   if (!isFinite(minX) || !isFinite(minY)) { return; }
   const spanX: any = Math.max(1e-9, maxX - minX); const spanY: any = Math.max(1e-9, maxY - minY);
-  const ppmm: any = Math.min(16, 2048 / spanX, 2048 / spanY);
+  const ppmm: any = Math.min(16, 4096 / spanX, 4096 / spanY); // [TEX-R] слой 4K
   const cnv: any = document.createElement("canvas");
-  cnv.width = Math.max(1, Math.min(2048, Math.ceil(spanX * ppmm))); cnv.height = Math.max(1, Math.min(2048, Math.ceil(spanY * ppmm)));
+  cnv.width = Math.max(1, Math.min(4096, Math.ceil(spanX * ppmm))); cnv.height = Math.max(1, Math.min(4096, Math.ceil(spanY * ppmm))); // [TEX-R] слой 4K
   const g: any = cnv.getContext("2d"); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
   const lx: any = (x: any) => (x - minX) * ppmm; const ly: any = (y: any) => (y - minY) * ppmm;
   const inflate = (tri: any, px: any) => { const cx: any = (tri[0][0] + tri[1][0] + tri[2][0]) / 3; const cy: any = (tri[0][1] + tri[1][1] + tri[2][1]) / 3; return tri.map((p: any) => { const vx: any = p[0] - cx; const vy: any = p[1] - cy; const len: any = Math.hypot(vx, vy) || 1; const k: any = (len + px) / len; return [cx + vx * k, cy + vy * k]; }); };
   let drawn: any = 0;
+  let mir: any = 0; // [TEX-E1] счётчик зеркальных граней (det(src)*det(dst)<0)
   for (let i = 0; i < faces2D.length; i++) {
     const tf: any = texFaces[i];
     if (!tf || !tf.uv || !tf.mat) { continue; }
@@ -331,10 +332,12 @@ function buildTexLayer() {
     const iw: any = img.naturalWidth; const ih: any = img.naturalHeight;
     const src: any = tf.uv.map((p: any) => [p[0] * iw, (1 - p[1]) * ih]);
     const dst: any = inflate([[lx(va[0]), ly(va[1])], [lx(vb[0]), ly(vb[1])], [lx(vc[0]), ly(vc[1])]], 0.6);
+    const s55: any = (src[1][0] - src[0][0]) * (src[2][1] - src[0][1]) - (src[2][0] - src[0][0]) * (src[1][1] - src[0][1]); const d55: any = (dst[1][0] - dst[0][0]) * (dst[2][1] - dst[0][1]) - (dst[2][0] - dst[0][0]) * (dst[1][1] - dst[0][1]); if (s55 * d55 < 0) { mir++; } // [TEX-E2] отражение UV->2D
     drawTexTri(g, img, src, dst); drawn++;
   }
-  texLayer = { canvas: cnv, minX: minX, minY: minY, w: spanX, h: spanY, drawn: drawn };
+  texLayer = { canvas: cnv, minX: minX, minY: minY, w: spanX, h: spanY, drawn: drawn, mir: mir }; // [TEX-E3a]
   console.log("[TEX-A] слой: " + drawn + "/" + faces2D.length + " граней, " + cnv.width + "x" + cnv.height + "px");
+  console.log("[TEX-E3b] зеркальных граней: " + mir + "/" + drawn + " (если > 0 — в модели зеркальные UV-копии, текстура на них отражена)"); // [TEX-E3b]
 }
 function loadTexImages() {
   if (!texReady) { buildTexLayer(); return; }
@@ -352,10 +355,12 @@ function loadTexImages() {
     }
   });
   console.log("[TEX-A] сдвинутых граней: " + texShiftHits + "/" + (faces2D ? faces2D.length : 0));
+  const noTex55: any = []; const seen55: any = new Map(); texFaces.forEach((t: any) => { if (t && t.mat && !seen55.has(t.mat)) { seen55.set(t.mat, true); if (!texImgs.has("m:" + t.mat)) { noTex55.push(t.mat); } } }); // [TEX-F] материалы без текстуры
+  console.log("[TEX-F] без текстуры: " + noTex55.length + " " + JSON.stringify(noTex55) + " | ключи textureMap: " + JSON.stringify(Object.keys(texMapGet() || {})) + " | map_Kd: " + JSON.stringify(Array.from(texMtlMap.entries()))); // [TEX-F]
   buildTexLayer();
 }
 // ===== [PDF-B] текстурированный многостраничный PDF (A4, 200 dpi) =====
-const PDF55_DPI: any = 200;
+const PDF55_DPI: any = 300; // [PDF-D] 300 DPI — резче линии и текстура на печати (страница 2480x3508)
 const PDF55_PXMM: any = PDF55_DPI / 25.4;
 const PDF55_PATH: any = "G:\\Dev\\pepakura-next\\unfold_tex.pdf";
 function pdf55PackPieces(): any {
