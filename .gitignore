@@ -30,3 +30,10 @@ packages/ui-desktop.backup_*/
 *.bak_*
 coverage/
 *.pid
+
+*.bak*
+unfold_map.txt
+unfold_focus.txt
+hot_paths.txt
+unfold_timings.txt
+

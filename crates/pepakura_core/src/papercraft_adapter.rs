@@ -180,6 +180,7 @@ const MIN_PIECE_FACES: usize = 40;
 fn split_oversized_islands(mesh: &Mesh, dual: &mut [ForestEdge]) {
     let nf = mesh.faces.len();
     if nf == 0 { return; }
+    let mut cuts55 = 0usize;
     for _round in 0..nf {
         let mut uf = Uf::new(nf);
         for e in dual.iter() { if e.in_tree { uf.union(e.f1, e.f2); } }
@@ -195,6 +196,12 @@ fn split_oversized_islands(mesh: &Mesh, dual: &mut [ForestEdge]) {
         for (idx, e) in dual.iter().enumerate() {
             if e.in_tree && uf.find(e.f1) == big_root { tedges.push((idx, e.f1, e.f2)); }
         }
+        // [SPD-3] список смежности один раз на раунд: BFS за O(K) вместо скана tedges на каждом узле (было O(K^3) на раунд — источник ~385с)
+        let mut adj: Vec<Vec<(usize, usize)>> = vec![Vec::new(); nf];
+        for &(idx, a, b) in tedges.iter() {
+            adj[a].push((idx, b));
+            adj[b].push((idx, a));
+        }
         let side_size = |skip: usize, start: usize| -> usize {
             let mut seen = vec![false; nf];
             seen[start] = true;
@@ -202,9 +209,8 @@ fn split_oversized_islands(mesh: &Mesh, dual: &mut [ForestEdge]) {
             q.push_back(start);
             let mut cnt = 1usize;
             while let Some(cur) = q.pop_front() {
-                for &(idx, a, b) in tedges.iter() {
-                    if idx == skip { continue; }
-                    let nb = if a == cur { b } else if b == cur { a } else { continue; };
+                for &(eidx, nb) in adj[cur].iter() {
+                    if eidx == skip { continue; }
                     if !seen[nb] { seen[nb] = true; cnt += 1; q.push_back(nb); }
                 }
             }
@@ -220,10 +226,11 @@ fn split_oversized_islands(mesh: &Mesh, dual: &mut [ForestEdge]) {
             }
         }
         match best {
-            Some((_w, idx)) => { dual[idx].in_tree = false; }
-            None => { return; }
+            Some((_w, idx)) => { dual[idx].in_tree = false; cuts55 += 1; }
+            None => { println!("[SPD-3] split: разрезов {}, граней {}", cuts55, nf); return; }
         }
     }
+    println!("[SPD-3] split: разрезов {}, граней {}", cuts55, nf);
 }
 
 struct ForestEdge {
