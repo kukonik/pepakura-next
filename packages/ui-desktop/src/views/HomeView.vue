@@ -315,8 +315,8 @@ const sendAI = () => {
 .tool-btn{width:56px;height:56px;border-radius:28px;background:white;border:none;font-size:24px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,0.3);transition:all 0.3s cubic-bezier(0.175,0.885,0.32,1.275)}
 .tool-btn:hover{transform:scale(1.2) translateY(-5px);box-shadow:0 10px 30px rgba(99,102,241,0.7)}
 .panel{position:fixed;background:rgba(30,41,59,0.95);border-radius:20px;box-shadow:0 15px 50px rgba(0,0,0,0.5);z-index:900;backdrop-filter:blur(10px);border:1px solid rgba(99,102,241,0.4)}
-.left-panel{top:20px;left:20px;width:300px;height:calc(100%-40px);padding:25px;display:flex;flex-direction:column}
-.right-panel{top:20px;right:20px;width:320px;height:calc(100%-40px);padding:25px;display:flex;flex-direction:column}
+.left-panel{top:20px;left:20px;width:300px;height:calc(100% - 40px);padding:25px;display:flex;flex-direction:column}
+.right-panel{top:20px;right:20px;width:320px;height:calc(100% - 40px);padding:25px;display:flex;flex-direction:column}
 .control-group{margin-bottom:20px;padding:15px;background:rgba(255,255,255,0.05);border-radius:12px;border:1px solid rgba(99,102,241,0.2)}
 .control-group h4{margin:0 0 15px 0;color:#6366f1;font-size:16px;font-weight:600}
 .control-item{margin-bottom:12px;display:flex;flex-direction:column;gap:6px}
