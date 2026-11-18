@@ -1,0 +1,1015 @@
+<template>
+  <div style="display: flex; height: 100vh; background: #ffffff; color: #ccc; font-family: sans-serif;">
+    <div style="flex: 1; border-right: 1px solid #333;">
+      <ModelViewer3D :meshData="objData" :mtlData="mtlData" :textureMap="textureMap" />
+    </div>
+
+    <div style="flex: 1; border-right: 1px solid #333; display: flex; flex-direction: column; background: #ffffff;">
+      <div style="padding: 10px; border-bottom: 1px solid #333; display: flex; gap: 10px; align-items: center;">
+        <span style="font-size: 14px; font-weight: bold;">2D Развёртка</span>
+        <label style="font-size: 12px; display: flex; align-items: center; gap: 4px;">
+          <input type="checkbox" v-model="showWireframe2D" @change="draw2D" checked> Сетка
+        </label>
+        <label style="font-size: 12px; display: flex; align-items: center; gap: 4px;">
+          <input type="checkbox" v-model="showIslands2D" @change="draw2D" checked> Острова
+        </label>
+        <label style="font-size: 12px; display: flex; align-items: center; gap: 4px;">
+          Части:
+          <select v-model="partsMode" style="font-size: 12px; background: #333; color: #ccc; border: 1px solid #555;">
+            <option value="auto">авто</option>
+            <option value="materials">из файла</option>
+            <option value="off">выкл</option>
+          </select>
+        </label>
+      </div>
+      <div style="flex: 1; position: relative;">
+        <canvas ref="canvas2D" style="width: 100%; height: 100%;"></canvas>
+      </div>
+    </div>
+
+    <div style="width: 300px; display: flex; flex-direction: column; padding: 20px; background: #252526;">
+      <button @click="handleLoadObj" style="padding: 10px; margin-bottom: 10px; cursor: pointer; background: #0e639c; color: white; border: none; width: 100%;">
+        Загрузить .obj файл
+      </button>
+      <button @click="doUnfold" :disabled="!objData || isUnfolding" style="padding: 10px; margin-bottom: 10px; cursor: pointer; background: #333; color: white; border: 1px solid #555; width: 100%;">
+        {{ isUnfolding ? 'Обработка...' : 'Развернуть (MST-Seam)' }}
+      </button>
+      <button @click="callOrchestrator" :disabled="!objData || isAiThinking" style="padding: 10px; margin-bottom: 20px; cursor: pointer; background: #5a1e1e; color: white; border: 1px solid #771e1e; width: 100%;">
+        {{ isAiThinking ? 'AI думает...' : '🤖 AI Анализ геометрии' }}
+      </button>
+<button @click="handleExport" style="padding: 10px; margin-bottom: 10px; cursor: pointer; background: #0e639c; color: white; border: none; width: 100%;">📄 Экспорт PDF</button>
+<button @click="exportPdfPages55" style="padding: 10px; margin-bottom: 20px; cursor: pointer; background: #1e80ff; color: white; border: none; width: 100%;">🖨 PDF текстурный (A4)</button>
+
+      <div style="flex: 1; overflow: auto; background: #ffffff; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">
+        <div v-if="rustResult" style="color: #9cdcfe; margin-bottom: 10px; white-space: pre-wrap;">{{ rustResult }}</div>
+        <div v-if="aiError" style="color: #f48771; margin-bottom: 10px; white-space: pre-wrap;">AI Ошибка: {{ aiError }}</div>
+        <div v-if="aiResult" style="color: #b5cea8; margin-bottom: 10px; white-space: pre-wrap;">🤖 AI Ответ:\n{{ aiResult }}</div>
+        <div v-if="!objData" style="color: #666;">Файл не загружен</div>
+      </div>
+    </div>
+  </div>
+</template>
+<script setup lang="ts">
+import { initCam, applyCam, autoFitCam } from '../cam.js';
+
+// import { calcEdgeCounts, drawSeams } from '../seams.js';
+import { unref,  ref, nextTick, onMounted, watch, reactive } from 'vue';
+const unfoldData = ref(null);
+import { invoke } from '@tauri-apps/api/core';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { readTextFile, readFile } from '@tauri-apps/plugin-fs';
+import ModelViewer3D from './ModelViewer3D.vue';
+
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+
+const objData = ref('');
+const rustResult = ref('');
+const aiResult = ref('');
+const aiError = ref('');
+const isUnfolding = ref(false);
+const isAiThinking = ref(false);
+
+const canvas2D = ref<HTMLCanvasElement | null>(null);
+const mtlData = ref<string | null>(null)
+const textureMap = ref<Record<string, string>>({})
+const showWireframe2D = ref(true);
+const showIslands2D = ref(true);
+const partsMode = ref('auto'); // [82-A] режим разбиения на части
+
+let vertices2D: number[][] = [];
+let faces2D: number[][] = [];
+let islandIds: number[] = [];
+let degenerateIslands: number[] = [];
+
+let lastMetrics = {
+  vertex_count: 0,
+  face_count: 0,
+  islands: 0,
+  total_area: 0
+};
+
+const handleLoadObj = async () => {
+  objData.value = '';
+  rustResult.value = '';
+  aiError.value = '';
+  aiResult.value = '';
+  try {
+    const filePath = await open({
+      multiple: false,
+      filters: [{ name: '3D Models', extensions: ['obj'] }]
+    });
+    if (!filePath) return;
+    const text = await readTextFile(filePath as string);
+    objData.value = text;
+      console.log("[VUE LOAD] readTextFile returned. Length:", text?.length, "Snippet:", text?.substring(0, 100));
+    const mtlMatch = text.match(/mtllib\s+(.+)/);
+    if (mtlMatch) {
+        const objDir = (filePath as string).substring(
+          0,
+          Math.max(
+            (filePath as string).lastIndexOf('\\'),
+            (filePath as string).lastIndexOf('/')
+          ) + 1
+        );
+      const mtlPath = objDir + mtlMatch[1].trim();
+      try {
+        const mtlText = await readTextFile(mtlPath);
+        const lines = mtlText.split(/\r?\n/);
+        let currentMtl: string | null = null;
+        const texCache: Record<string, string>  = reactive({});
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line || line.startsWith('#')) continue;
+          const newMtlMatch = line.match(/^newmtl\s+(.+)/i);
+          if (newMtlMatch) {
+            currentMtl = newMtlMatch[1].trim();
+            continue;
+          }
+          const mapMatch = line.match(/^map_Kd\s+(.+)/i);
+          if (mapMatch && currentMtl) {
+            const texName = mapMatch[1].trim();
+            if (!texCache[texName]) {
+              const texPath = objDir + texName;
+              const texBytes = await readFile(texPath);
+              const tb = texBytes as Uint8Array;
+              const mime = (tb.length > 2 && tb[0] === 0xFF && tb[1] === 0xD8) ? 'image/jpeg' : 'image/png'; // FIX40
+              texCache[texName] = 'data:' + mime + ';base64,' + arrayBufferToBase64(texBytes);
+            }
+            textureMap.value[currentMtl] = texCache[texName];
+          }
+        }
+        mtlData.value = mtlText;
+
+      } catch (e) {
+        console.error('Ошибка загрузки MTL/текстур:', e);
+      }
+    }
+    rustResult.value = 'Файл загружен. Длина: ' + text.length + ' символов';
+  } catch (e: any) {
+      rustResult.value = 'Ошибка загрузки: ' + e.toString();
+  }
+};
+
+const doUnfold = async () => {
+  if (!objData.value) return;
+  isUnfolding.value = true;
+  rustResult.value = '';
+  aiError.value = '';
+  aiResult.value = '';
+
+  try {
+    rustResult.value = 'Выполняю MST-Seam развёртку...\n';
+
+    const currentObjData = String(objData.value || '');
+
+    console.log('[VUE DEBUG] objData type:', typeof objData.value, "len:", objData.value?.length, "val:", objData.value?.substring(0, 50));
+  (window as any).__unfoldT055 = performance.now(); (window as any).__unfoldMs55 = 0; // [SPD-1] таймер развёртки
+    const r = await invoke('unfold_mesh', {
+  objData: currentObjData,
+  config: { algorithm: 'smart', parts: { mode: partsMode.value, concave_deg: 30 } } // [82-A]
+});
+unfoldData.value = r;
+    console.log("[RUST RAW RESPONSE]", JSON.stringify(r)?.substring(0, 1500));
+    if (true) {
+      // lastMetrics deprecated
+      rustResult.value += '✅ Развёртка выполнена\nДвижок: ' + r.engine_used + '\nДеталей: ' + (r.pieces?.length || 0) + '\nЧасти: ' + (((r.parts || []).map(pp => pp.name + ' [' + pp.face_count + 'гр]').join(', ')) || '—') + '\nВершин 2D: ' + (r.vertices_2d?.length || 0) + '\nГраней: ' + (r.faces?.length || 0);
+      vertices2D = r.vertices_2d || [];
+        faces2D = r.faces_2d || [];
+        islandIds = r.face_pieces || [];
+        (r.vertices_2d || []).forEach((v: any) => { v[1] = -v[1]; }); // [TEX-M] ядро отдаёт y вверх (unfold_hinge n2=[-uy,ux]), рендер рисует y вниз — разворачиваем данные один раз при загрузке
+        (r.pieces || []).forEach((p: any) => { (p.outline_2d || []).forEach((v: any) => { v[1] = -v[1]; }); (p.cut_lines || []).forEach((s: any) => { s[0][1] = -s[0][1]; s[1][1] = -s[1][1]; }); (p.fold_lines || []).forEach((s: any) => { s[0][1] = -s[0][1]; s[1][1] = -s[1][1]; }); }); // [TEX-M]
+        buildTexFaces(unref(currentObjData)); // [TEX-A] UV из OBJ (до раскладки)
+        pieces2D = layoutPieces78(r.pieces || []); // [80-A] раскладка полками
+        loadTexImages(); // [TEX-A] картинки + текстурный слой
+        lastMetrics = { vertex_count: (r.vertices_2d || []).length, face_count: (r.faces || []).length, islands: new Set(r.face_pieces || []).size, total_area: 0 }; // FIX40
+        view2D.scale = 1; view2D.offsetX = 0; view2D.offsetY = 0; view2D.autoFitDone = true;
+      // islandIds deprecated
+      // degenerateIslands deprecated
+      await nextTick();
+draw2D();
+    } else {
+        rustResult.value = r.message;
+    }
+  } catch (e: any) {
+      rustResult.value = 'Ошибка Rust:\n' + e.toString();
+  } finally { isUnfolding.value = false; }
+};
+
+const islandColors = [
+  'rgba(0, 122, 204, 0.5)', 'rgba(204, 0, 122, 0.5)', 'rgba(122, 204, 0, 0.5)',
+  'rgba(204, 122, 0, 0.5)', 'rgba(0, 204, 204, 0.5)', 'rgba(204, 204, 0, 0.5)',
+  'rgba(122, 0, 204, 0.5)', 'rgba(0, 204, 122, 0.5)', 'rgba(204, 80, 80, 0.5)',
+  'rgba(80, 204, 80, 0.5)'
+];
+
+let pieces2D = [];
+let view2D = { scale: 1, offsetX: 0, offsetY: 0, isDragging: false, lastX: 0, lastY: 0 };
+let is2DInteractive = false;
+
+const handle2DWheel = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const canvas = canvas2D.value as HTMLCanvasElement;
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  const newScale = Math.max(0.1, Math.min(view2D.scale * delta, 50));
+  const scaleRatio = newScale / view2D.scale;
+  view2D.offsetX = mouseX - (mouseX - view2D.offsetX) * scaleRatio;
+  view2D.offsetY = mouseY - (mouseY - view2D.offsetY) * scaleRatio;
+  view2D.scale = newScale;
+  draw2D();
+};
+
+const handle2DMouseDown = (e) => {
+  view2D.isDragging = true;
+  view2D.lastX = e.clientX;
+  view2D.lastY = e.clientY;
+};
+
+const handle2DMouseMove = (e) => {
+  if (!view2D.isDragging) return;
+  view2D.offsetX += e.clientX - view2D.lastX;
+  view2D.offsetY += e.clientY - view2D.lastY;
+  view2D.lastX = e.clientX;
+  view2D.lastY = e.clientY;
+  draw2D();
+};
+
+const handle2DMouseUp = () => {
+  view2D.isDragging = false;
+};
+
+// ===== [TEX-A] текстурирование 2D-развёртки по UV исходного OBJ =====
+let texFaces: any[] = [];
+let texReady: any = false;
+let texImgs: any = new Map();
+let texLayer: any = null;
+let texMtlMap: any = new Map();
+let texMtlParsed: any = false;
+const texMapGet = (): any => { try { const v: any = unref(textureMap); return (v && typeof v === "object") ? v : null; } catch (e) { return null; } };
+const texNormKey = (s: any) => String(s || "").toLowerCase().replace(/^.*[\\\/]/, "").replace(/\.[a-z0-9]+$/, "").trim();
+function parseMtlMapKd(mtlText: any): any {
+  const map: any = new Map(); let cur: any = "";
+  if (typeof mtlText !== "string") { return map; }
+  mtlText.split(/\r?\n/).forEach((raw: any) => { const line: any = String(raw).trim(); if (line.startsWith("newmtl ")) { cur = line.slice(7).trim(); } else if (line.startsWith("map_Kd") && cur) { const f: any = line.slice(6).trim().split(/\s+/).pop(); if (f) { map.set(cur, String(f).replace(/^.*[\\\/]/, "")); } } });
+  return map;
+}
+function resolveTexUrl(mat: any): any {
+  const tm: any = texMapGet();
+  if (!tm || !mat) { return null; }
+  if (!texMtlParsed) { texMtlParsed = true; texMtlMap = parseMtlMapKd(unref(mtlData)); }
+  const keys: any = Object.keys(tm);
+  if (tm[mat]) { return tm[mat]; }
+  const file: any = texMtlMap.get(mat);
+  if (file) { if (tm[file]) { return tm[file]; } const f2: any = keys.find((k: any) => texNormKey(k) === texNormKey(file)); if (f2) { return tm[f2]; } }
+  const m: any = texNormKey(mat);
+  let hit: any = keys.find((k: any) => texNormKey(k) === m);
+  if (!hit) { hit = keys.find((k: any) => { const nk: any = texNormKey(k); return nk && (m.indexOf(nk) >= 0 || nk.indexOf(m) >= 0); }); }
+  return hit ? tm[hit] : null;
+}
+function buildTexFaces(objText: any) {
+  texFaces = []; texReady = false;
+  try {
+    if (typeof objText !== "string" || !objText.length) { console.warn("[TEX-A] нет текста OBJ"); return; }
+    if (!faces2D || !faces2D.length) { console.warn("[TEX-A] faces2D пуст"); return; }
+    const vt: any[] = []; const out: any[] = []; let mat: any = "";
+    objText.split(/\r?\n/).forEach((raw: any) => {
+      const line: any = String(raw).trim();
+      if (line.startsWith("vt ")) { const p: any = line.slice(3).trim().split(/\s+/); vt.push([parseFloat(p[0]) || 0, parseFloat(p[1]) || 0]); }
+      else if (line.startsWith("usemtl ")) { mat = line.slice(7).trim(); }
+      else if (line.startsWith("f ")) {
+        const vv: any = line.slice(2).trim().split(/\s+/).map((tok: any) => { const q: any = tok.split("/"); if (q.length < 2 || !q[1]) { return null; } let t: any = parseInt(q[1], 10); if (isNaN(t)) { return null; } if (t < 0) { t = vt.length + t; } return t - 1; });
+        for (let k = 1; k + 1 < vv.length; k++) { const ix: any = [vv[0], vv[k], vv[k + 1]]; const okq: any = ix.every((z: any) => z !== null && z >= 0 && z < vt.length); out.push(okq ? { uv: ix.map((z: any) => [vt[z][0], vt[z][1]]), mat: mat } : { uv: null, mat: mat }); }
+      }
+    });
+    texFaces = out;
+    texReady = vt.length > 0 && out.length === faces2D.length && out.some((t: any) => !!t.uv);
+    if (!texReady) { console.warn("[TEX-A] UV отключены: vt=" + vt.length + " objFaces=" + out.length + " unfoldFaces=" + faces2D.length); } else { console.log("[TEX-A] UV готовы: граней=" + out.length + " vt=" + vt.length); }
+  } catch (e) { console.warn("[TEX-A] ошибка разбора OBJ: " + e); }
+}
+function drawTexTri(g: any, img: any, src: any, dst: any) {
+  const dx1: any = src[1][0] - src[0][0]; const dy1: any = src[1][1] - src[0][1]; const dx2: any = src[2][0] - src[0][0]; const dy2: any = src[2][1] - src[0][1];
+  const det: any = dx1 * dy2 - dx2 * dy1;
+  if (!isFinite(det) || Math.abs(det) < 1e-9) { return; }
+  const du1: any = dst[1][0] - dst[0][0]; const dv1: any = dst[1][1] - dst[0][1]; const du2: any = dst[2][0] - dst[0][0]; const dv2: any = dst[2][1] - dst[0][1];
+  const a: any = (du1 * dy2 - du2 * dy1) / det; const c: any = (dx1 * du2 - dx2 * du1) / det;
+  const b: any = (dv1 * dy2 - dv2 * dy1) / det; const d: any = (dx1 * dv2 - dx2 * dv1) / det;
+  const e: any = dst[0][0] - a * src[0][0] - c * src[0][1]; const f: any = dst[0][1] - b * src[0][0] - d * src[0][1];
+  g.save(); g.beginPath(); g.moveTo(dst[0][0], dst[0][1]); g.lineTo(dst[1][0], dst[1][1]); g.lineTo(dst[2][0], dst[2][1]); g.closePath(); g.clip();
+  g.transform(a, b, c, d, e, f); g.drawImage(img, 0, 0); g.restore();
+}
+function buildTexLayer() {
+  texLayer = null;
+  if (!texReady || !faces2D || !faces2D.length || !vertices2D || !vertices2D.length) { return; }
+  let minX: any = Infinity; let minY: any = Infinity; let maxX: any = -Infinity; let maxY: any = -Infinity;
+  faces2D.forEach((f: any) => { if (!f) { return; } f.forEach((vi: any) => { const v: any = vertices2D[vi]; if (!v || !isFinite(v[0]) || !isFinite(v[1])) { return; } if (v[0] < minX) { minX = v[0]; } if (v[0] > maxX) { maxX = v[0]; } if (v[1] < minY) { minY = v[1]; } if (v[1] > maxY) { maxY = v[1]; } }); });
+  if (!isFinite(minX) || !isFinite(minY)) { return; }
+  const spanX: any = Math.max(1e-9, maxX - minX); const spanY: any = Math.max(1e-9, maxY - minY);
+  const ppmm: any = Math.min(1024, 4096 / spanX, 4096 / spanY); // [TEX-L] cap 1024 px/юнит — старый cap 16 давал слой 90x45px
+  const cnv: any = document.createElement("canvas");
+  cnv.width = Math.max(1, Math.min(4096, Math.ceil(spanX * ppmm))); cnv.height = Math.max(1, Math.min(4096, Math.ceil(spanY * ppmm))); // [TEX-R] слой 4K
+  const g: any = cnv.getContext("2d"); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+  const lx: any = (x: any) => (x - minX) * ppmm; const ly: any = (y: any) => (y - minY) * ppmm;
+  const inflate = (tri: any, px: any) => { const cx: any = (tri[0][0] + tri[1][0] + tri[2][0]) / 3; const cy: any = (tri[0][1] + tri[1][1] + tri[2][1]) / 3; return tri.map((p: any) => { const vx: any = p[0] - cx; const vy: any = p[1] - cy; const len: any = Math.hypot(vx, vy) || 1; const k: any = (len + px) / len; return [cx + vx * k, cy + vy * k]; }); };
+  let drawn: any = 0;
+  let mir: any = 0; // [TEX-E1] счётчик зеркальных граней (det(src)*det(dst)<0)
+  for (let i = 0; i < faces2D.length; i++) {
+    const tf: any = texFaces[i];
+    if (!tf || !tf.uv || !tf.mat) { continue; }
+    const url: any = texImgs.get("m:" + tf.mat); const img: any = url ? texImgs.get("u:" + url) : null;
+    if (!img || !img.complete || !img.naturalWidth) { continue; }
+    const f: any = faces2D[i];
+    const va: any = vertices2D[f[0]]; const vb: any = vertices2D[f[1]]; const vc: any = vertices2D[f[2]];
+    if (!va || !vb || !vc) { continue; }
+    const iw: any = img.naturalWidth; const ih: any = img.naturalHeight;
+    const src: any = tf.uv.map((p: any) => [p[0] * iw, (1 - p[1]) * ih]);
+    const dst: any = inflate([[lx(va[0]), ly(va[1])], [lx(vb[0]), ly(vb[1])], [lx(vc[0]), ly(vc[1])]], 0.6);
+    const s55: any = (src[1][0] - src[0][0]) * (src[2][1] - src[0][1]) - (src[2][0] - src[0][0]) * (src[1][1] - src[0][1]); const d55: any = (dst[1][0] - dst[0][0]) * (dst[2][1] - dst[0][1]) - (dst[2][0] - dst[0][0]) * (dst[1][1] - dst[0][1]); if (s55 * d55 < 0) { mir++; } // [TEX-E2] отражение UV->2D
+    drawTexTri(g, img, src, dst); drawn++;
+  }
+  texLayer = { canvas: cnv, minX: minX, minY: minY, w: spanX, h: spanY, drawn: drawn, mir: mir }; // [TEX-E3a]
+  console.log("[TEX-A] слой: " + drawn + "/" + faces2D.length + " граней, " + cnv.width + "x" + cnv.height + "px");
+  console.log("[TEX-E3b] зеркальных граней: " + mir + "/" + drawn + " (если > 0 — в модели зеркальные UV-копии, текстура на них отражена)"); // [TEX-E3b]
+}
+function loadTexImages() {
+  if (!texReady) { buildTexLayer(); return; }
+  const mats: any = new Map();
+  texFaces.forEach((t: any) => { if (t && t.mat && !mats.has(t.mat)) { mats.set(t.mat, true); } });
+  mats.forEach((_v: any, mat: any) => {
+    let url: any = resolveTexUrl(mat); // [TEX-D] let — для fallback атласа
+    if (!url) { const tk: any = texMapGet(); const kk: any = tk ? Object.keys(tk) : []; if (kk.length === 1) { url = tk[kk[0]]; console.warn("[TEX-D] материал " + mat + " без своей текстуры — беру единственную (атлас): " + kk[0]); } else { console.warn("[TEX-A] материал без текстуры: " + mat); return; } }
+    texImgs.set("m:" + mat, url);
+    if (texImgs.get("u:" + url) === undefined) {
+      const im: any = new Image(); texImgs.set("u:" + url, im);
+      im.onload = () => { buildTexLayer(); draw2D(); };
+      im.onerror = () => { console.warn("[TEX-A] картинка не загрузилась: " + url); };
+      im.src = url;
+    }
+  });
+  console.log("[TEX-A] сдвинутых граней: " + texShiftHits + "/" + (faces2D ? faces2D.length : 0));
+  const noTex55: any = []; const seen55: any = new Map(); texFaces.forEach((t: any) => { if (t && t.mat && !seen55.has(t.mat)) { seen55.set(t.mat, true); if (!texImgs.has("m:" + t.mat)) { noTex55.push(t.mat); } } }); // [TEX-F] материалы без текстуры
+  console.log("[TEX-F] без текстуры: " + noTex55.length + " " + JSON.stringify(noTex55) + " | ключи textureMap: " + JSON.stringify(Object.keys(texMapGet() || {})) + " | map_Kd: " + JSON.stringify(Array.from(texMtlMap.entries()))); // [TEX-F]
+  buildTexLayer();
+}
+// ===== [PDF-B] текстурированный многостраничный PDF (A4, 200 dpi) =====
+const PDF55_DPI: any = 300; // [PDF-D] 300 DPI — резче линии и текстура на печати (страница 2480x3508)
+const PDF55_PXMM: any = PDF55_DPI / 25.4;
+const PDF55_PATH: any = "G:\\Dev\\pepakura-next\\unfold_tex.pdf";
+function pdf55PackPieces(): any {
+  const items: any[] = [];
+  (pieces2D || []).forEach((p: any, pi: any) => {
+    let minX: any = Infinity; let minY: any = Infinity; let maxX: any = -Infinity; let maxY: any = -Infinity;
+    const up = (x: any, y: any) => { if (typeof x !== "number" || typeof y !== "number" || !isFinite(x) || !isFinite(y)) { return; } if (x < minX) { minX = x; } if (x > maxX) { maxX = x; } if (y < minY) { minY = y; } if (y > maxY) { maxY = y; } };
+    (p.outline_2d || []).forEach((v: any) => { up(v[0], v[1]); });
+    (p.cut_lines || []).forEach((s: any) => { up(s[0][0], s[0][1]); up(s[1][0], s[1][1]); });
+    (p.fold_lines || []).forEach((s: any) => { up(s[0][0], s[0][1]); up(s[1][0], s[1][1]); });
+    if (!isFinite(minX)) { return; }
+    items.push({ p: p, pi: pi, minX: minX, minY: minY, w: Math.max(1e-6, maxX - minX), h: Math.max(1e-6, maxY - minY), wmm: 0, hmm: 0, x: 0, y: 0 });
+  });
+  if (!items.length) { return null; }
+  let maxW: any = 0; let maxH: any = 0;
+  items.forEach((it: any) => { if (it.w > maxW) { maxW = it.w; } if (it.h > maxH) { maxH = it.h; } });
+  const mmPerUnit: any = Math.max(2, Math.min(400, Math.min(170 / maxW, 270 / maxH)));
+  items.forEach((it: any) => { it.wmm = it.w * mmPerUnit; it.hmm = it.h * mmPerUnit; });
+  items.sort((a: any, b: any) => b.hmm - a.hmm);
+  const PW: any = 190; const PH: any = 277;
+  const pgs: any[] = [];
+  let cur: any = null; let cx: any = 0; let cy: any = 0; let rowH: any = 0;
+  items.forEach((it: any) => {
+    if (it.wmm > PW) { it.wmm = PW; }
+    if (cur && cx > 0 && cx + it.wmm > PW) { cx = 0; cy += rowH + 4; rowH = 0; }
+    if (cur && cur.items.length > 0 && cy + it.hmm > PH) { cur = null; }
+    if (!cur) { cur = { items: [] }; pgs.push(cur); cx = 0; cy = 0; rowH = 0; }
+    it.x = cx; it.y = cy;
+    cur.items.push(it);
+    cx += it.wmm + 4; if (it.hmm > rowH) { rowH = it.hmm; }
+  });
+  return { pgs: pgs, mmPerUnit: mmPerUnit };
+}
+function pdf55FaceGroups(): any {
+  const idSet: any = new Map();
+  (islandIds || []).forEach((v: any) => { idSet.set(v, true); });
+  const groups: any = new Map();
+  (pieces2D || []).forEach((p: any, i: any) => {
+    let k: any = null;
+    k = i; (p.face_ids || []).forEach((f2: any) => { if (!groups.has(i)) { groups.set(i, []); } groups.get(i).push(f2); }); // [PDF-C] группы граней из face_ids детали (островId больше не нужен)
+    p.__k55 = k;
+    if (k !== null && !groups.has(k)) { groups.set(k, []); }
+  });
+    for (let fi = 0; fi < 0; fi++) { // [PDF-C] цикл по islandIds отключён — группы уже собраны из face_ids
+    const arr: any = groups.get(islandIds[fi]);
+    if (arr) { arr.push(fi); }
+  }
+  return groups;
+}
+function pdf55DrawPiece(g: any, it: any, ox: any, oy: any, mmpu: any, groups: any) {
+  const X: any = (x: any) => ox + (x - it.minX) * mmpu * PDF55_PXMM;
+  const Y: any = (y: any) => oy + (y - it.minY) * mmpu * PDF55_PXMM;
+  const outline: any = it.p.outline_2d || [];
+  if (outline.length >= 3) {
+    g.beginPath(); g.moveTo(X(outline[0][0]), Y(outline[0][1]));
+    for (let i = 1; i < outline.length; i++) { g.lineTo(X(outline[i][0]), Y(outline[i][1])); }
+    g.closePath(); g.fillStyle = "#ffffff"; g.fill(); g.strokeStyle = "#b0b0b0"; g.lineWidth = 1; g.stroke();
+  }
+  g.save(); if (outline.length >= 3) { g.beginPath(); g.moveTo(X(outline[0][0]), Y(outline[0][1])); for (let i2 = 1; i2 < outline.length; i2++) { g.lineTo(X(outline[i2][0]), Y(outline[i2][1])); } g.closePath(); g.clip(); } // [TEX-C] текстура клипится по контуру детали — не заходит на клапаны
+  const arr: any = (it.p.__k55 === null || it.p.__k55 === undefined) ? null : groups.get(it.p.__k55);
+  if (arr) {
+    arr.forEach((fi: any) => {
+      const tf: any = texFaces[fi];
+      if (!tf || !tf.uv || !tf.mat) { return; }
+      const url: any = texImgs.get("m:" + tf.mat); const img: any = url ? texImgs.get("u:" + url) : null;
+      if (!img || !img.complete || !img.naturalWidth) { return; }
+      const f: any = faces2D[fi]; if (!f) { return; }
+      const va: any = vertices2D[f[0]]; const vb: any = vertices2D[f[1]]; const vc: any = vertices2D[f[2]];
+      if (!va || !vb || !vc) { return; }
+      const iw: any = img.naturalWidth; const ih: any = img.naturalHeight;
+      const src: any = tf.uv.map((q: any) => [q[0] * iw, (1 - q[1]) * ih]);
+      const dst: any = [[X(va[0]), Y(va[1])], [X(vb[0]), Y(vb[1])], [X(vc[0]), Y(vc[1])]];
+      drawTexTri(g, img, src, dst);
+    });
+  }
+  g.restore(); // [TEX-C] конец клипа текстуры
+  g.strokeStyle = "#e02020"; g.lineWidth = 2.2; g.setLineDash([]); g.beginPath();
+  (it.p.cut_lines || []).forEach((s: any) => { g.moveTo(X(s[0][0]), Y(s[0][1])); g.lineTo(X(s[1][0]), Y(s[1][1])); });
+  g.stroke();
+  g.strokeStyle = "#2060e0"; g.lineWidth = 1.6; g.setLineDash([6, 4]); g.beginPath();
+  (it.p.fold_lines || []).forEach((s: any) => { g.moveTo(X(s[0][0]), Y(s[0][1])); g.lineTo(X(s[1][0]), Y(s[1][1])); });
+  g.stroke(); g.setLineDash([]);
+}
+async function exportPdfPages55() {
+  try {
+    if (!pieces2D || !pieces2D.length) { alert("PDF: сначала выполните развёртку"); return; }
+    const pack: any = pdf55PackPieces();
+    if (!pack) { alert("PDF: нет деталей"); return; }
+    const groups: any = pdf55FaceGroups();
+    const MARG: any = 10;
+    const jpgs: any[] = [];
+    for (let pg = 0; pg < pack.pgs.length; pg++) {
+      const cnv: any = document.createElement("canvas");
+      cnv.width = Math.round(210 * PDF55_PXMM); cnv.height = Math.round(297 * PDF55_PXMM);
+      const g: any = cnv.getContext("2d");
+      g.fillStyle = "#ffffff"; g.fillRect(0, 0, cnv.width, cnv.height);
+      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+      pack.pgs[pg].items.forEach((it: any) => {
+        pdf55DrawPiece(g, it, (MARG + it.x) * PDF55_PXMM, (MARG + it.y) * PDF55_PXMM, pack.mmPerUnit, groups);
+      });
+      g.fillStyle = "#909090"; g.font = "22px sans-serif"; g.textAlign = "center";
+      g.fillText("стр. " + (pg + 1) + "/" + pack.pgs.length + "  |  масштаб " + pack.mmPerUnit.toFixed(2) + " мм на единицу модели", cnv.width / 2, cnv.height - Math.round(6 * PDF55_PXMM));
+      g.strokeStyle = "#808080"; g.lineWidth = 2; g.beginPath(); const ry55 = cnv.height - Math.round(16 * PDF55_PXMM); const rx55 = cnv.width / 2 - 50 * PDF55_PXMM; g.moveTo(rx55, ry55); g.lineTo(rx55 + 100 * PDF55_PXMM, ry55); g.moveTo(rx55, ry55 - 6); g.lineTo(rx55, ry55 + 6); g.moveTo(rx55 + 100 * PDF55_PXMM, ry55 - 6); g.lineTo(rx55 + 100 * PDF55_PXMM, ry55 + 6); g.stroke(); g.fillStyle = "#808080"; g.font = "20px sans-serif"; g.fillText("100 мм", rx55 + 100 * PDF55_PXMM + 10, ry55 + 7); // [PDF-C] линейка 100 мм
+      jpgs.push(cnv.toDataURL("image/jpeg", 0.9));
+    }
+    const r: any = await invoke("export_pdf", { vertices: [], faces: [], islandIds: null, path: PDF55_PATH, pages: jpgs });
+    console.log("[PDF-B] " + r);
+    alert("PDF сохранён: " + PDF55_PATH + "\nстраниц: " + jpgs.length);
+  } catch (e) { console.error("[PDF-B] ошибка: " + e); alert("PDF ошибка: " + e); }
+}
+(window as any).__pdf55export = exportPdfPages55;
+if (false) { // [PDF-C] плавающая кнопка отключена — кнопка перенесена в панель
+  (window as any).__pdf55wired = true;
+  window.addEventListener("keydown", (ev: any) => { if (ev.ctrlKey && (ev.code === "KeyP" || ev.key === "p" || ev.key === "P")) { ev.preventDefault(); exportPdfPages55(); } });
+  const b: any = document.createElement("button");
+  b.textContent = "PDF текстурный [Ctrl+P]";
+  b.setAttribute("style", "position:fixed;top:8px;right:8px;z-index:99999;padding:6px 10px;background:#1e80ff;color:#ffffff;border:none;border-radius:6px;font:13px sans-serif;cursor:pointer;opacity:0.9;");
+  b.onclick = () => { exportPdfPages55(); };
+  document.body.appendChild(b);
+}
+// [80-A] раскладка деталей полками (без пересечений): сортировка по высоте, укладка рядами
+const layoutPieces78 = (pieces) => {
+  if (!pieces || pieces.length < 2) return pieces;
+  const boxes = pieces.map(p => {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const up = (x, y) => {
+      if (typeof x !== 'number' || typeof y !== 'number' || !isFinite(x) || !isFinite(y)) return;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    };
+    (p.outline_2d || []).forEach(v => up(v[0], v[1]));
+    (p.cut_lines || []).forEach(s => { up(s[0][0], s[0][1]); up(s[1][0], s[1][1]); });
+    (p.fold_lines || []).forEach(s => { up(s[0][0], s[0][1]); up(s[1][0], s[1][1]); });
+    if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 0; maxY = 0; }
+    return { p, minX, minY, w: maxX - minX, h: maxY - minY };
+  });
+  boxes.sort((a, b) => b.h - a.h);
+  const gap = boxes[0].h * 0.12 + 1e-9;
+  const perRow = Math.ceil(Math.sqrt(boxes.length));
+  const shift = (p, dx, dy) => {
+    (p.outline_2d || []).forEach(v => { v[0] += dx; v[1] += dy; });
+    (p.cut_lines || []).forEach(s => { s[0][0] += dx; s[0][1] += dy; s[1][0] += dx; s[1][1] += dy; });
+    (p.fold_lines || []).forEach(s => { s[0][0] += dx; s[0][1] += dy; s[1][0] += dx; s[1][1] += dy; });
+  };
+  // [TEX-A] сдвигаем 2D-грани вместе с деталями (текстуры совпадают с раскладкой)
+  const idSetT: any = new Map();
+  if (islandIds && islandIds.length) { islandIds.forEach((v: any) => { idSetT.set(v, true); }); }
+  const pieceKeyOf = (p: any, i: any) => { if (idSetT.has(p.id)) { return p.id; } if (idSetT.has(p.part_id)) { return p.part_id; } if (idSetT.has(i)) { return i; } return null; };
+  let texShiftHits: any = 0;
+  const shiftFacesOf = (pid: any, dx: any, dy: any) => {
+    if (!islandIds || !islandIds.length || !faces2D || !faces2D.length || !vertices2D || !vertices2D.length) { return; }
+    const doneV: any = new Map();
+    for (let fi = 0; fi < Math.min(islandIds.length, faces2D.length); fi++) {
+      if (islandIds[fi] !== pid) { continue; }
+      const f: any = faces2D[fi];
+      if (!f) { continue; }
+      texShiftHits++;
+      f.forEach((vi: any) => { if (doneV.has(vi)) { return; } doneV.set(vi, true); const v: any = vertices2D[vi]; if (v) { v[0] += dx; v[1] += dy; } });
+    }
+  };
+  // [PAG-1] постраничная раскладка A4 (WYSIWYG с PDF55): масштаб по крупнейшей детали, страницы 190x277мм, сетка страниц
+  let maxW55: any = 0; let maxH55: any = 0;
+  boxes.forEach((b: any) => { if (b.w > maxW55) { maxW55 = b.w; } if (b.h > maxH55) { maxH55 = b.h; } });
+  const mmpu55: any = Math.max(2, Math.min(400, Math.min(170 / maxW55, 270 / maxH55)));
+  // [PAG-5] аспект-подгонка отключена (давала полосу); аспект области пишется при отрисовке
+  let pnS55: any = 0; let inxS55: any = 0; let inyS55: any = 0; let rowHS55: any = 0;
+  boxes.forEach((b: any) => { const bwS55: any = b.w * mmpu55; const bhS55: any = b.h * mmpu55; if (inxS55 > 0 && inxS55 + bwS55 > 190) { inxS55 = 0; inyS55 += rowHS55 + 4; rowHS55 = 0; } if (pnS55 > 0 && inyS55 + bhS55 > 277) { pnS55 = 0; } if (pnS55 === 0) { pnS55++; inxS55 = 0; inyS55 = 0; rowHS55 = 0; } inxS55 += bwS55 + 4; if (bhS55 > rowHS55) { rowHS55 = bhS55; } });
+  const pcols55: any = Math.max(1, Math.min(pnS55, Math.round(Math.sqrt((pnS55 * 283) / 196)))); // [PAG-5] плитка: сбалансированная сетка
+  // [PAG-5] сетка-плитка: колонки из числа страниц
+  let pno55: any = 0; let pcur55: any = 0; let inx55: any = 0; let iny55: any = 0; let rowH55: any = 0; let px55: any = 0; let py55: any = 0; const pgOf55: any = []; // [PAG-3] страницы деталей
+  boxes.forEach((b: any, bi: any) => {
+    const bw55: any = b.w * mmpu55; const bh55: any = b.h * mmpu55;
+    if (inx55 > 0 && inx55 + bw55 > 190) { inx55 = 0; iny55 += rowH55 + 4; rowH55 = 0; }
+    if (pcur55 > 0 && iny55 + bh55 > 277) { pcur55 = 0; }
+    if (pcur55 === 0) { pno55++; pcur55 = 1; inx55 = 0; iny55 = 0; rowH55 = 0; px55 = ((pno55 - 1) % pcols55) * (196 / mmpu55); py55 = Math.floor((pno55 - 1) / pcols55) * (283 / mmpu55); }
+    pgOf55[bi] = pno55; // [PAG-3] страница детали
+    const dx55: any = px55 + (4 + inx55) / mmpu55 - b.minX; const dy55: any = py55 + (4 + iny55) / mmpu55 - b.minY;
+    shift(b.p, dx55, dy55);
+    const pk55: any = pieceKeyOf(b.p, bi);
+    if (pk55 !== null) { shiftFacesOf(pk55, dx55, dy55); }
+    inx55 += bw55 + 4; if (bh55 > rowH55) { rowH55 = bh55; }
+  });
+  const lastRow55: any = Math.floor((pno55 - 1) / pcols55); const lastLen55: any = Math.max(1, pno55 - lastRow55 * pcols55);
+  const cx55: any = ((pcols55 - lastLen55) / 2) * (196 / mmpu55);
+  if (cx55 > 0) { boxes.forEach((b: any, bi: any) => { if (pgOf55[bi] > lastRow55 * pcols55) { shift(b.p, cx55, 0); const pk55b: any = pieceKeyOf(b.p, bi); if (pk55b !== null) { shiftFacesOf(pk55b, cx55, 0); } } }); } // [PAG-3] центрируем последний ряд
+  (window as any).__pageInfo55 = { count: pno55, cols: pcols55, mmpu: mmpu55, lastRow: lastRow55, lastLen: lastLen55 }; // [PAG-1] для рамок страниц
+  let cx = 0, cy = 0, rowH = 0, placed = 0; // [PAG-1] переменные старой раскладки (цикл отключён ниже)
+  boxes.slice(0, 0).forEach((b: any, bi: any) => { // [PAG-1] старая раскладка полками отключена
+    shift(b.p, cx - b.minX, cy - b.minY);
+    const pk = pieceKeyOf(b.p, bi); // [TEX-A]
+    if (pk !== null) { shiftFacesOf(pk, cx - b.minX, cy - b.minY); }
+    cx += b.w + gap;
+    if (b.h > rowH) rowH = b.h;
+    placed++;
+    if (placed % perRow === 0) { cx = 0; cy += rowH + gap; rowH = 0; }
+  });
+  return pieces;
+};
+
+const draw2D78 = () => {
+  const canvas = canvas2D.value;
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const pieces = pieces2D || [];
+  if (!pieces.length) return;
+
+  // [79-A] габариты по реальным полям Rust: outline_2d / cut_lines / fold_lines
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const updB = (x, y) => {
+    if (typeof x !== 'number' || typeof y !== 'number' || !isFinite(x) || !isFinite(y)) return;
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  };
+  pieces.forEach(p => {
+    (p.outline_2d || []).forEach(v => updB(v[0], v[1]));
+    (p.cut_lines || []).forEach(seg => { updB(seg[0][0], seg[0][1]); updB(seg[1][0], seg[1][1]); });
+    (p.fold_lines || []).forEach(seg => { updB(seg[0][0], seg[0][1]); updB(seg[1][0], seg[1][1]); });
+  });
+  if (!isFinite(minX)) return;
+
+  // вписываем развёртку в канвас, поверх действует зум/панорама пользователя
+  const pad = 24;
+  const baseScale = Math.min(
+    (W - 2 * pad) / Math.max(1e-9, maxX - minX),
+    (H - 2 * pad) / Math.max(1e-9, maxY - minY)
+  );
+  const totalScale = baseScale * (view2D.scale || 1);
+  const tx = (x) => (x - minX) * totalScale + (view2D.offsetX || 0) + pad;
+  const ty = (y) => (y - minY) * totalScale + (view2D.offsetY || 0) + pad;
+
+  // заливка деталей белым (читаемость)
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  pieces.forEach(p => {
+    const outline = p.outline_2d || [];
+    if (outline.length < 3) return;
+    ctx.beginPath();
+    ctx.moveTo(tx(outline[0][0]), ty(outline[0][1]));
+    for (let i = 1; i < outline.length; i++) ctx.lineTo(tx(outline[i][0]), ty(outline[i][1]));
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  // [TEX-A] текстурный слой (под линиями реза/сгибов)
+  if (texLayer && texLayer.canvas && texLayer.drawn > 0) {
+    ctx.drawImage(texLayer.canvas, tx(texLayer.minX), ty(texLayer.minY), texLayer.w * totalScale, texLayer.h * totalScale);
+  }
+  // [PAG-2] рамки страниц A4 + номера страниц (постраничный вид)
+  if ((window as any).__unfoldT055 > 0 && !(window as any).__unfoldMs55) { (window as any).__unfoldMs55 = Math.round(performance.now() - (window as any).__unfoldT055); } // [SPD-1]
+  (window as any).__viewAspect55 = ctx.canvas.width / Math.max(1, ctx.canvas.height); // [PAG-4] аспект области 2D для раскладки
+  const pi55: any = (window as any).__pageInfo55;
+  if (pi55 && pi55.count) {
+    ctx.strokeStyle = "#c0c0c0"; ctx.lineWidth = 1; ctx.setLineDash([8, 6]);
+    for (let k55 = 0; k55 < pi55.count; k55++) {
+      const cc55: any = (k55 >= (pi55.lastRow || 0) * pi55.cols) ? ((pi55.cols - (pi55.lastLen || pi55.cols)) / 2) : 0;
+      const gx55: any = ((k55 % pi55.cols) + cc55) * (196 / pi55.mmpu) - 10 / pi55.mmpu; // [PAG-4] центрирование последнего ряда
+      const gy55: any = Math.floor(k55 / pi55.cols) * (283 / pi55.mmpu) - 10 / pi55.mmpu;
+      ctx.strokeRect(tx(gx55), ty(gy55), (210 / pi55.mmpu) * totalScale, (297 / pi55.mmpu) * totalScale);
+      ctx.fillStyle = "#a0a0a0"; ctx.font = "11px sans-serif";
+      ctx.fillText("стр. " + (k55 + 1) + "/" + pi55.count + " | масштаб " + pi55.mmpu.toFixed(1) + " мм/юнит" + ((window as any).__unfoldMs55 ? " | развёртка " + ((window as any).__unfoldMs55 / 1000).toFixed(1) + "с" : ""), tx(gx55) + 6, ty(gy55) + 14); // [SPD-1]
+    }
+    ctx.setLineDash([]);
+  }
+  // [82-A] резы по частям: каждая часть своим цветом (внутри части - один путь)
+  const PART_COLORS = ['#e02020', '#e08a20', '#20a020', '#a020c0', '#20c0a0', '#c02080', '#806020', '#2050c0', '#c05020', '#508030'];
+  const partColorOf = (pid) => {
+    const ids = [];
+    const seen = {};
+    pieces.forEach(p => { const k = p.part_id || 0; if (!seen[k]) { seen[k] = true; ids.push(k); } });
+    ids.sort((a, b) => a - b);
+    const idx = ids.indexOf(pid);
+    return PART_COLORS[(idx < 0 ? 0 : idx) % PART_COLORS.length];
+  };
+  ctx.lineWidth = 1.4;
+  ctx.setLineDash([]);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  const byPart = {};
+  pieces.forEach(p => {
+    const k = p.part_id || 0;
+    if (!byPart[k]) byPart[k] = [];
+    (p.cut_lines || []).forEach(seg => byPart[k].push(seg));
+  });
+  Object.keys(byPart).forEach(k => {
+    ctx.strokeStyle = partColorOf(Number(k));
+    ctx.beginPath();
+    byPart[k].forEach(seg => {
+      ctx.moveTo(tx(seg[0][0]), ty(seg[0][1]));
+      ctx.lineTo(tx(seg[1][0]), ty(seg[1][1]));
+    });
+    ctx.stroke();
+  });
+
+  // сгибы — синим пунктиром
+  ctx.strokeStyle = '#2060e0';
+  ctx.lineWidth = 1.1;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  pieces.forEach(p => {
+    (p.fold_lines || []).forEach(seg => {
+      ctx.moveTo(tx(seg[0][0]), ty(seg[0][1]));
+      ctx.lineTo(tx(seg[1][0]), ty(seg[1][1]));
+    });
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // номер детали в центре её габарита
+  ctx.fillStyle = '#909090';
+  ctx.font = '11px sans-serif';
+  pieces.forEach(p => {
+    const outline = p.outline_2d || [];
+    if (!outline.length) return;
+    let sx = 0, sy = 0;
+    outline.forEach(v => { sx += v[0]; sy += v[1]; });
+    ctx.fillText('#' + p.id + ' ' + (p.part || ''), tx(sx / outline.length), ty(sy / outline.length));
+  });
+};
+
+// [79-A] draw2D теперь рисует по реальным полям Rust (pieces: outline_2d/cut_lines/fold_lines).
+const draw2D = () => { draw2D78(); };
+
+const draw2D_legacy_unused = () => {
+  const canvas = canvas2D.value;
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#f0f0f0';
+  ctx.fillRect(0, 0, width, height);
+
+  if (!unfoldData.value) {
+    ctx.fillStyle = 'red';
+    ctx.font = '16px Arial';
+    ctx.fillText('Ошибка: нет данных от Rust (unfoldData пуст).', 20, 30);
+    return;
+  }
+
+  let res = unfoldData.value;
+  if (typeof res === 'string') {
+    try {
+      res = JSON.parse(res);
+    } catch (e) {
+      ctx.fillStyle = 'red';
+      ctx.font = '16px Arial';
+      ctx.fillText('Ошибка: unfoldData is string but not JSON. Смотреть консоль.', 20, 30);
+      console.error('Failed to parse JSON string in draw2D:', e, res);
+      return;
+    }
+  }
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  const points = [];
+
+  if (res.pieces && res.pieces.length > 0) {
+    res.pieces.forEach(p => {
+      if (p.outline && p.outline.points) {
+        p.outline.points.forEach(pt => points.push(pt));
+      }
+    });
+  } else if (res.vertices_2d && res.faces) {
+    res.vertices_2d.forEach(v => points.push({ x: v[0], y: v[1] }));
+  } else {
+    ctx.fillStyle = 'red';
+    ctx.font = '16px Arial';
+    ctx.fillText('Ошибка: в объекте ответа нет pieces или vertices_2d/faces.', 20, 30);
+    console.error('Некорректный ответ Rust (нет данных для отрисовки):', res);
+    return;
+  }
+
+  points.forEach(p => {
+    minX = Math.min(minX, p.x);
+    maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y);
+    maxY = Math.max(maxY, p.y);
+  });
+
+  if (minX === Infinity || maxX === -Infinity || minY === Infinity || maxY === -Infinity) {
+    ctx.fillStyle = 'red';
+    ctx.font = '16px Arial';
+    ctx.fillText('Ошибка: Не удалось вычислить границы 2D-проекции.', 20, 30);
+    return;
+  }
+
+  const padding = 50;
+  const meshWidth = maxX - minX;
+  const meshHeight = maxY - minY;
+  const scaleX = (width - padding * 2) / meshWidth;
+  const scaleY = (height - padding * 2) / meshHeight;
+  // FIX40: зум/пан через view2D
+  const fitScale = Math.min(scaleX, scaleY);
+  if (!view2D.autoFitDone) { view2D.scale = 1; view2D.offsetX = 0; view2D.offsetY = 0; view2D.autoFitDone = true; }
+  const scale = fitScale * view2D.scale;
+  
+  const fitOffsetX = (width - meshWidth * fitScale) / 2 - minX * fitScale;
+  const offsetX = fitOffsetX * view2D.scale + view2D.offsetX;
+  const fitOffsetY = (height - meshHeight * fitScale) / 2 - minY * fitScale;
+  const offsetY = fitOffsetY * view2D.scale + view2D.offsetY;
+
+  const tx = (x) => x * scale + offsetX;
+  const ty = (y) => y * scale + offsetY;
+
+  if (res.pieces && res.pieces.length > 0) {
+    res.pieces.forEach((piece) => {
+      if (piece.outline && piece.outline.points.length > 2) {
+        ctx.beginPath();
+        const p0 = piece.outline.points[0];
+        ctx.moveTo(tx(p0.x), ty(p0.y));
+        for (let i = 1; i < piece.outline.points.length; i++) {
+          const p = piece.outline.points[i];
+          ctx.lineTo(tx(p.x), ty(p.y));
+        }
+        ctx.closePath();
+        
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fill();
+        
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
+        ctx.stroke();
+      }
+
+      if (piece.folds && piece.folds.length > 0) {
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]); 
+        ctx.beginPath();
+        
+        piece.folds.forEach(fold => {
+          if (fold.start && fold.end) {
+            ctx.moveTo(tx(fold.start.x), ty(fold.start.y));
+            ctx.lineTo(tx(fold.end.x), ty(fold.end.y));
+          } else if (fold.points && fold.points.length === 2) {
+            ctx.moveTo(tx(fold.points[0].x), ty(fold.points[0].y));
+            ctx.lineTo(tx(fold.points[1].x), ty(fold.points[1].y));
+          }
+        });
+        
+        ctx.stroke();
+        ctx.setLineDash([]); 
+      }
+    });
+  } else if (res.vertices_2d && res.faces) {
+    ctx.strokeStyle = '#0055ff';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    
+    res.faces.forEach(face => {
+      ctx.beginPath();
+      face.forEach((idx, i) => {
+        const v = res.vertices_2d[idx];
+        if (v) {
+          if (i === 0) ctx.moveTo(tx(v[0]), ty(v[1]));
+          else ctx.lineTo(tx(v[0]), ty(v[1]));
+        }
+      });
+      ctx.closePath();
+      ctx.stroke();
+    });
+  }
+  
+  ctx.setLineDash([]);
+};;;;;;;;;;;;;;
+
+const callOrchestrator = async () => {
+  if (!objData.value) return;
+  isAiThinking.value = true;
+  aiError.value = ''; aiResult.value = 'Запрос к AI Orchestrator (localhost:3000/api/analyze)...';
+
+  try {
+    const meshStats = 'Vertices: ' + lastMetrics.vertex_count + ', Faces: ' + lastMetrics.face_count + ', Islands: ' + lastMetrics.islands + ', Area: ' + lastMetrics.total_area;
+    const userPrompt = "Analyze this papercraft unfolding. Why does it have " + lastMetrics.islands + " islands? How to optimize for paper crafting?";
+
+    const response = await fetch('http://127.0.0.1:3000/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mesh_stats: meshStats, user_prompt: userPrompt })
+    });
+
+    if (!response.ok) throw new Error('HTTP error! status: ' + response.status);
+    const data = await response.json();
+
+    if (data.ai_advice) {
+      aiResult.value = data.ai_advice;
+    } else if (data.error) {
+      aiError.value = data.error;
+    } else {
+      aiResult.value = JSON.stringify(data, null, 2);
+    }
+  } catch (e: any) {
+    aiError.value = 'Ошибка подключения:\n' + e.toString() + '\n\nУбедитесь, что запущен AI Orchestrator.';
+    aiResult.value = '';
+  } finally {
+    isAiThinking.value = false;
+  }
+};
+
+
+const handleExport = async () => {
+  try {
+    console.log('[Export] pieces2D:', pieces2D.length, 'vertices2D:', vertices2D.length, 'faces2D:', faces2D.length);
+    if (pieces2D.length === 0 && (vertices2D.length === 0 || faces2D.length === 0)) {
+      alert('Нет данных развёртки для экспорта.');
+      return;
+    }
+    console.log('[Export] sample vertices2D[0..2]:', vertices2D.slice(0,3));
+    console.log('[Export] sample faces2D[0..2]:', faces2D.slice(0,3));
+    // FIX42: если системный диалог save() недоступен (нет плагина/прав) — пишем в фиксированный путь
+    let filePath: string | null = null;
+    try {
+      filePath = await save({
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+        defaultPath: 'unfold.pdf'
+      });
+    } catch (eDialog) {
+      console.error('[Export] save() недоступен, пишу в фиксированный путь:', eDialog);
+      filePath = 'G:\\Dev\\pepakura-next\\assets\\models\\unfold.pdf';
+    }
+    if (!filePath) { console.log('[Export] отменено пользователем'); return; }
+    if (pieces2D.length > 0) {
+      console.log('[Export] export_pieces_pdf, pieces:', pieces2D.length);
+      const res78 = await invoke<string>('export_pieces_pdf', { pieces: pieces2D, path: filePath });
+      console.log('[Export] invoke result:', res78);
+      alert('[EXP78] ' + String(res78));
+    } else {
+      console.log('[Export] export_pdf_cmd fallback, vertices:', vertices2D.length);
+      const res44 = await invoke<string>('export_pdf_cmd', {
+        vertices: vertices2D,
+        faces: faces2D,
+        islandIds: islandIds,
+        path: filePath
+      });
+      console.log('[Export] invoke result:', res44);
+      alert('[EXP44] ' + String(res44));
+    }
+  } catch (e) {
+    console.error('[Export] invoke error:', e);
+    alert('Ошибка экспорта: ' + e);
+  }
+};
+
+//
+// === PATCH: интерактивность 2D canvas, добавлено PowerShell ===
+onMounted(() => {
+  const canvas = canvas2D?.value;
+  if (!canvas) return;
+  // FIX40: размер битмапа = размеру элемента (иначе рисуем в 300x150 и растягиваем)
+  const resize2D = () => {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(rect.width));
+    canvas.height = Math.max(1, Math.floor(rect.height));
+    draw2D();
+  };
+  resize2D();
+  if (!(canvas as any).__fix40r) { (canvas as any).__fix40r = true; window.addEventListener('resize', resize2D); } // FIX41
+
+  canvas.addEventListener('mousedown', (e) => {
+    view2D.isDragging = true;
+    view2D.lastX = e.clientX;
+    view2D.lastY = e.clientY;
+    canvas.style.cursor = 'grabbing';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!view2D.isDragging) return;
+    view2D.offsetX += e.clientX - view2D.lastX;
+    view2D.offsetY += e.clientY - view2D.lastY;
+    view2D.lastX = e.clientX;
+    view2D.lastY = e.clientY;
+    draw2D();
+  });
+
+  window.addEventListener('mouseup', () => {
+    view2D.isDragging = false;
+    canvas.style.cursor = 'grab';
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    view2D.isDragging = false;
+    canvas.style.cursor = 'grab';
+  });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const zoomFactor = 1.1;
+    const delta = e.deltaY < 0 ? zoomFactor : 1 / zoomFactor;
+
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const newScale = view2D.scale * delta;
+    const minScale = 0.1;
+    const maxScale = 20.0;
+
+    if (newScale < minScale || newScale > maxScale) return;
+
+    view2D.offsetX = mx - (mx - view2D.offsetX) * (newScale / view2D.scale);
+    view2D.offsetY = my - (my - view2D.offsetY) * (newScale / view2D.scale);
+    view2D.scale = newScale;
+    view2D.autoFitDone = true;
+    draw2D();
+  });
+
+  draw2D();
+});
+// === END PATCH ===
+</script>
+
+<style scoped>
+/* [STYLE-59] прежний блок вызывал SyntaxError в vite dev (lang.css); заменён минимальным. Оригинал: SplitView.vue.bak_style59 */
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

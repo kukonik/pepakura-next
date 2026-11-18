@@ -171,6 +171,7 @@ const doUnfold = async () => {
     const currentObjData = String(objData.value || '');
 
     console.log('[VUE DEBUG] objData type:', typeof objData.value, "len:", objData.value?.length, "val:", objData.value?.substring(0, 50));
+  (window as any).__unfoldT055 = performance.now(); (window as any).__unfoldMs55 = 0; // [SPD-1] таймер развёртки
     const r = await invoke('unfold_mesh', {
   objData: currentObjData,
   config: { algorithm: 'smart', parts: { mode: partsMode.value, concave_deg: 30 } } // [82-A]
@@ -341,6 +342,7 @@ function buildTexLayer() {
   console.log("[TEX-A] слой: " + drawn + "/" + faces2D.length + " граней, " + cnv.width + "x" + cnv.height + "px");
   console.log("[TEX-E3b] зеркальных граней: " + mir + "/" + drawn + " (если > 0 — в модели зеркальные UV-копии, текстура на них отражена)"); // [TEX-E3b]
 }
+function scheduleTex55() { if ((window as any).__texQ55) { return; } (window as any).__texQ55 = 1; setTimeout(() => { (window as any).__texQ55 = 0; buildTexLayer(); draw2D(); }, 120); } // [TEX-Q] один прогон слоя на пачку onload вместо N+1
 function loadTexImages() {
   if (!texReady) { buildTexLayer(); return; }
   const mats: any = new Map();
@@ -351,15 +353,14 @@ function loadTexImages() {
     texImgs.set("m:" + mat, url);
     if (texImgs.get("u:" + url) === undefined) {
       const im: any = new Image(); texImgs.set("u:" + url, im);
-      im.onload = () => { buildTexLayer(); draw2D(); };
+      im.onload = () => { scheduleTex55(); };
       im.onerror = () => { console.warn("[TEX-A] картинка не загрузилась: " + url); };
       im.src = url;
     }
   });
-  console.log("[TEX-A] сдвинутых граней: " + texShiftHits + "/" + (faces2D ? faces2D.length : 0));
   const noTex55: any = []; const seen55: any = new Map(); texFaces.forEach((t: any) => { if (t && t.mat && !seen55.has(t.mat)) { seen55.set(t.mat, true); if (!texImgs.has("m:" + t.mat)) { noTex55.push(t.mat); } } }); // [TEX-F] материалы без текстуры
   console.log("[TEX-F] без текстуры: " + noTex55.length + " " + JSON.stringify(noTex55) + " | ключи textureMap: " + JSON.stringify(Object.keys(texMapGet() || {})) + " | map_Kd: " + JSON.stringify(Array.from(texMtlMap.entries()))); // [TEX-F]
-  buildTexLayer();
+  scheduleTex55(); // [TEX-Q]
 }
 // ===== [PDF-B] текстурированный многостраничный PDF (A4, 200 dpi) =====
 const PDF55_DPI: any = 300; // [PDF-D] 300 DPI — резче линии и текстура на печати (страница 2480x3508)
@@ -529,20 +530,18 @@ const layoutPieces78 = (pieces) => {
   let maxW55: any = 0; let maxH55: any = 0;
   boxes.forEach((b: any) => { if (b.w > maxW55) { maxW55 = b.w; } if (b.h > maxH55) { maxH55 = b.h; } });
   const mmpu55: any = Math.max(2, Math.min(400, Math.min(170 / maxW55, 270 / maxH55)));
-  const pcols55: any = Math.max(1, Math.ceil(Math.sqrt(Math.max(1, boxes.length) * 277 / 210)));
-  let pno55: any = 0; let pcur55: any = 0; let inx55: any = 0; let iny55: any = 0; let rowH55: any = 0; let px55: any = 0; let py55: any = 0;
-  boxes.forEach((b: any, bi: any) => {
-    const bw55: any = b.w * mmpu55; const bh55: any = b.h * mmpu55;
-    if (inx55 > 0 && inx55 + bw55 > 190) { inx55 = 0; iny55 += rowH55 + 4; rowH55 = 0; }
-    if (pcur55 > 0 && iny55 + bh55 > 277) { pcur55 = 0; }
-    if (pcur55 === 0) { pno55++; pcur55 = 1; inx55 = 0; iny55 = 0; rowH55 = 0; px55 = ((pno55 - 1) % pcols55) * (196 / mmpu55); py55 = Math.floor((pno55 - 1) / pcols55) * (283 / mmpu55); }
-    const dx55: any = px55 + (4 + inx55) / mmpu55 - b.minX; const dy55: any = py55 + (4 + iny55) / mmpu55 - b.minY;
-    shift(b.p, dx55, dy55);
-    const pk55: any = pieceKeyOf(b.p, bi);
-    if (pk55 !== null) { shiftFacesOf(pk55, dx55, dy55); }
-    inx55 += bw55 + 4; if (bh55 > rowH55) { rowH55 = bh55; }
-  });
-  (window as any).__pageInfo55 = { count: pno55, cols: pcols55, mmpu: mmpu55 }; // [PAG-1] для рамок страниц
+  // [PAG-5] аспект-подгонка отключена (давала полосу); аспект области пишется при отрисовке
+  // [PAG-6] раскладка плиткой: полки по убыванию высоты, ширина ряда из суммарной площади (квазиквадрат), страницы убраны
+  const gapT55: any = Math.max(0.02 * maxW55, 0.5);
+  let areaT55: any = 0; boxes.forEach((b: any) => { areaT55 += b.w * b.h; });
+  const ordT55: any = boxes.map((_b: any, i: any) => i).sort((i: any, j: any) => boxes[j].h - boxes[i].h); // [PAG-7]
+  const packTile55 = (rowW: any) => { let cx = 0, cy = 0, rh = 0, mx = 0, my = 0, rows = 1; ordT55.forEach((bi: any) => { const b: any = boxes[bi]; if (cx > 0 && cx + b.w + gapT55 > rowW) { cx = 0; cy += rh + gapT55; rh = 0; rows++; } const dx: any = cx - b.minX; const dy: any = cy - b.minY; shift(b.p, dx, dy); const pk: any = pieceKeyOf(b.p, bi); if (pk !== null) { shiftFacesOf(pk, dx, dy); } cx += b.w + gapT55; if (b.h > rh) { rh = b.h; } if (cx > mx) { mx = cx; } if (cy + b.h > my) { my = cy + b.h; } }); return { mx: mx, my: my, rows: rows }; }; // [PAG-7]
+  let rw55: any = Math.max(maxW55 + gapT55, Math.sqrt(Math.max(1e-9, areaT55)) * 1.15); let res55: any = packTile55(rw55); for (let it55 = 0; it55 < 6; it55++) { const asp55b: any = res55.mx / Math.max(1e-9, res55.my); if (asp55b > 0.7 && asp55b < 1.5) { break; } rw55 = asp55b <= 0.7 ? rw55 * 1.35 : rw55 / 1.35; res55 = packTile55(rw55); } // [PAG-7] квадратим поле
+  const maxXT55: any = res55.mx; const maxYT55: any = res55.my; const rowsT55: any = res55.rows; // [PAG-7]
+  (window as any).__pageInfo55 = null; // [PAG-6] рамки страниц A4 отключены — чистая плитка
+  console.log("[PAG-6] плитка: деталей " + boxes.length + ", рядов " + rowsT55 + ", поле " + maxXT55.toFixed(1) + "x" + maxYT55.toFixed(1) + " юнитов (" + (maxXT55 * mmpu55).toFixed(0) + "x" + (maxYT55 * mmpu55).toFixed(0) + " мм при " + mmpu55.toFixed(1) + " мм/юнит)");
+  (window as any).__tileInfo55 = { n: boxes.length, rows: rowsT55, w: maxXT55, h: maxYT55, mmpu: mmpu55 }; // [PAG-6b] данные плитки для инфостроки
+  console.log("[TEX-A] сдвинутых граней: " + texShiftHits + "/" + (faces2D ? faces2D.length : 0)); // [FIX71B] перенесён из loadTexImages: там texShiftHits вне scope (ReferenceError)
   let cx = 0, cy = 0, rowH = 0, placed = 0; // [PAG-1] переменные старой раскладки (цикл отключён ниже)
   boxes.slice(0, 0).forEach((b: any, bi: any) => { // [PAG-1] старая раскладка полками отключена
     shift(b.p, cx - b.minX, cy - b.minY);
@@ -609,15 +608,19 @@ const draw2D78 = () => {
     ctx.drawImage(texLayer.canvas, tx(texLayer.minX), ty(texLayer.minY), texLayer.w * totalScale, texLayer.h * totalScale);
   }
   // [PAG-2] рамки страниц A4 + номера страниц (постраничный вид)
+  { const wasMs55: any = (window as any).__unfoldMs55; if ((window as any).__unfoldT055 > 0 && !wasMs55) { (window as any).__unfoldMs55 = Math.round(performance.now() - (window as any).__unfoldT055); console.log("[SPD-2] развёртка: " + ((window as any).__unfoldMs55 / 1000).toFixed(1) + " с"); } } // [SPD-1]+[FIX72]
+  (window as any).__viewAspect55 = ctx.canvas.width / Math.max(1, ctx.canvas.height); // [PAG-4] аспект области 2D для раскладки
+  { const ti55: any = (window as any).__tileInfo55; if (ti55) { ctx.fillStyle = "#707070"; ctx.font = "12px sans-serif"; ctx.fillText("деталей " + ti55.n + " | рядов " + ti55.rows + " | поле " + (ti55.w * ti55.mmpu).toFixed(0) + "x" + (ti55.h * ti55.mmpu).toFixed(0) + " мм | масштаб " + ti55.mmpu.toFixed(1) + " мм/юнит" + ((window as any).__unfoldMs55 ? " | развёртка " + ((window as any).__unfoldMs55 / 1000).toFixed(1) + "с" : ""), 10, 16); } } // [PAG-6b] инфострока плитки на холсте
   const pi55: any = (window as any).__pageInfo55;
   if (pi55 && pi55.count) {
     ctx.strokeStyle = "#c0c0c0"; ctx.lineWidth = 1; ctx.setLineDash([8, 6]);
     for (let k55 = 0; k55 < pi55.count; k55++) {
-      const gx55: any = (k55 % pi55.cols) * (196 / pi55.mmpu) - 10 / pi55.mmpu;
+      const cc55: any = (k55 >= (pi55.lastRow || 0) * pi55.cols) ? ((pi55.cols - (pi55.lastLen || pi55.cols)) / 2) : 0;
+      const gx55: any = ((k55 % pi55.cols) + cc55) * (196 / pi55.mmpu) - 10 / pi55.mmpu; // [PAG-4] центрирование последнего ряда
       const gy55: any = Math.floor(k55 / pi55.cols) * (283 / pi55.mmpu) - 10 / pi55.mmpu;
       ctx.strokeRect(tx(gx55), ty(gy55), (210 / pi55.mmpu) * totalScale, (297 / pi55.mmpu) * totalScale);
       ctx.fillStyle = "#a0a0a0"; ctx.font = "11px sans-serif";
-      ctx.fillText("стр. " + (k55 + 1) + "/" + pi55.count + " | масштаб " + pi55.mmpu.toFixed(1) + " мм/юнит", tx(gx55) + 6, ty(gy55) + 14);
+      ctx.fillText("стр. " + (k55 + 1) + "/" + pi55.count + " | масштаб " + pi55.mmpu.toFixed(1) + " мм/юнит" + ((window as any).__unfoldMs55 ? " | развёртка " + ((window as any).__unfoldMs55 / 1000).toFixed(1) + "с" : ""), tx(gx55) + 6, ty(gy55) + 14); // [SPD-1]
     }
     ctx.setLineDash([]);
   }
