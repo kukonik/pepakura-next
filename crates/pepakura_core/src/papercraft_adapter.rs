@@ -174,7 +174,7 @@ const FLAT_DEG: f64 = 10.0;
 // делится разрезом самого удобного ребра дерева (минимальный вес = самое
 // острое место), пока каждая часть не влезет в лимит. Осколки меньше
 // MIN_PIECE_FACES не образуются: кандидат обязан делить остров надвое.
-const MAX_PIECE_FACES: usize = 250;
+const MAX_PIECE_FACES: usize = 400;
 const MIN_PIECE_FACES: usize = 40;
 
 fn split_oversized_islands(mesh: &Mesh, dual: &mut [ForestEdge]) {

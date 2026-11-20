@@ -174,7 +174,7 @@ const doUnfold = async () => {
   (window as any).__unfoldT055 = performance.now(); (window as any).__unfoldMs55 = 0; // [SPD-1] таймер развёртки
     const r = await invoke('unfold_mesh', {
   objData: currentObjData,
-  config: { algorithm: 'smart', parts: { mode: partsMode.value, concave_deg: 30 } } // [82-A]
+  config: { algorithm: 'smart', parts: { mode: partsMode.value, concave_deg: 45 } } // [82-A]
 });
 unfoldData.value = r;
     console.log("[RUST RAW RESPONSE]", JSON.stringify(r)?.substring(0, 1500));
@@ -531,16 +531,47 @@ const layoutPieces78 = (pieces) => {
   boxes.forEach((b: any) => { if (b.w > maxW55) { maxW55 = b.w; } if (b.h > maxH55) { maxH55 = b.h; } });
   const mmpu55: any = Math.max(2, Math.min(400, Math.min(170 / maxW55, 270 / maxH55)));
   // [PAG-5] аспект-подгонка отключена (давала полосу); аспект области пишется при отрисовке
-  // [PAG-6] раскладка плиткой: полки по убыванию высоты, ширина ряда из суммарной площади (квазиквадрат), страницы убраны
-  const gapT55: any = Math.max(0.02 * maxW55, 0.5);
-  let areaT55: any = 0; boxes.forEach((b: any) => { areaT55 += b.w * b.h; });
-  const ordT55: any = boxes.map((_b: any, i: any) => i).sort((i: any, j: any) => boxes[j].h - boxes[i].h); // [PAG-7]
-  const packTile55 = (rowW: any) => { texShiftHits = 0; let cx = 0, cy = 0, rh = 0, mx = 0, my = 0, rows = 1; ordT55.forEach((bi: any) => { const b: any = boxes[bi]; if (cx > 0 && cx + b.w + gapT55 > rowW) { cx = 0; cy += rh + gapT55; rh = 0; rows++; } const dx: any = cx - b.minX; const dy: any = cy - b.minY; shift(b.p, dx, dy); const pk: any = pieceKeyOf(b.p, bi); if (pk !== null) { shiftFacesOf(pk, dx, dy); } cx += b.w + gapT55; if (b.h > rh) { rh = b.h; } if (cx > mx) { mx = cx; } if (cy + b.h > my) { my = cy + b.h; } }); return { mx: mx, my: my, rows: rows }; }; // [PAG-7]+[FIX75]
-  let rw55: any = Math.max(maxW55 + gapT55, Math.sqrt(Math.max(1e-9, areaT55)) * 1.15); let res55: any = packTile55(rw55); for (let it55 = 0; it55 < 6; it55++) { const asp55b: any = res55.mx / Math.max(1e-9, res55.my); if (asp55b > 0.7 && asp55b < 1.5) { break; } rw55 = asp55b <= 0.7 ? rw55 * 1.35 : rw55 / 1.35; res55 = packTile55(rw55); } // [PAG-7] квадратим поле
-  const maxXT55: any = res55.mx; const maxYT55: any = res55.my; const rowsT55: any = res55.rows; // [PAG-7]
-  (window as any).__pageInfo55 = null; // [PAG-6] рамки страниц A4 отключены — чистая плитка
-  console.log("[PAG-6] плитка: деталей " + boxes.length + ", рядов " + rowsT55 + ", поле " + maxXT55.toFixed(1) + "x" + maxYT55.toFixed(1) + " юнитов (" + (maxXT55 * mmpu55).toFixed(0) + "x" + (maxYT55 * mmpu55).toFixed(0) + " мм при " + mmpu55.toFixed(1) + " мм/юнит)");
-  (window as any).__tileInfo55 = { n: boxes.length, rows: rowsT55, w: maxXT55, h: maxYT55, mmpu: mmpu55 }; // [PAG-6b] данные плитки для инфостроки
+  // [PAG-8] A4 page layout: sheet 190x277mm (A4 minus printer margins), pieces zone 170x270mm (tab reserve)
+  // [PAG-8] zoom knob: __a4Zoom55 in app console (0.5 = half scale, fewer sheets)
+  const zoomW55: any = Math.max(0.05, Math.min(1, (window as any).__a4Zoom55 || 1));
+  const mmpuP8: any = mmpu55 * zoomW55;
+  const PAGEW8: any = 190 / mmpuP8, PAGEH8: any = 277 / mmpuP8; // sheet frame, units
+  const CW8: any = 170 / mmpuP8, CH8: any = 270 / mmpuP8; // pieces zone, units
+  const gapP8: any = Math.max(0.02 * maxW55, 0.5) * zoomW55;
+  const ordP8: any = boxes.map((_b: any, i: any) => i).sort((i: any, j: any) => boxes[j].h - boxes[i].h);
+  const pagesP8: any = [];
+  let cxP8 = 0, cyP8 = 0, rhP8 = 0, curP8: any = [];
+  ordP8.forEach((bi: any) => {
+    const b: any = boxes[bi];
+    if (cxP8 > 0 && cxP8 + b.w + gapP8 > CW8) { cxP8 = 0; cyP8 += rhP8 + gapP8; rhP8 = 0; }
+    if (cyP8 > 0 && cyP8 + b.h + gapP8 > CH8) { pagesP8.push(curP8); curP8 = []; cxP8 = 0; cyP8 = 0; rhP8 = 0; }
+    curP8.push(bi);
+    cxP8 += b.w + gapP8; if (b.h > rhP8) rhP8 = b.h;
+  });
+  if (curP8.length) pagesP8.push(curP8);
+  const nP8: any = pagesP8.length;
+  const colsP8: any = Math.max(1, Math.ceil(Math.sqrt(nP8)));
+  const PGAP8: any = Math.max(0.05 * maxW55, 0.5); // gap between sheets on canvas
+  texShiftHits = 0;
+  const listP8: any = [];
+  pagesP8.forEach((page: any, k: any) => {
+    const ox: any = (k % colsP8) * (PAGEW8 + PGAP8);
+    const oy: any = Math.floor(k / colsP8) * (PAGEH8 + PGAP8);
+    listP8.push({ x: ox, y: oy, no: k + 1 });
+    let px = 0, py = 0, prh = 0;
+    page.forEach((bi: any) => {
+      const b: any = boxes[bi];
+      if (px > 0 && px + b.w + gapP8 > CW8) { px = 0; py += prh + gapP8; prh = 0; }
+      shift(b.p, ox + px - b.minX, oy + py - b.minY);
+      const pk = pieceKeyOf(b.p, bi); // [TEX-A]
+      if (pk !== null) { shiftFacesOf(pk, ox + px - b.minX, oy + py - b.minY); }
+      px += b.w + gapP8; if (b.h > prh) prh = b.h;
+    });
+  });
+  (window as any).__pageInfo55 = { count: nP8, cols: colsP8, rows: Math.ceil(nP8 / colsP8), w: PAGEW8, h: PAGEH8, mmpu: mmpuP8, list: listP8 }; // [PAG-8] sheet frames for draw2D78
+  console.log("[PAG-8] \u043B\u0438\u0441\u0442\u043E\u0432 " + nP8 + ", \u0434\u0435\u0442\u0430\u043B\u0435\u0439 " + boxes.length + ", \u043C\u0430\u0441\u0448\u0442\u0430\u0431 " + mmpuP8.toFixed(1) + " \u043C\u043C/\u044E\u043D\u0438\u0442" + (zoomW55 < 1 ? " (zoom " + zoomW55 + ")" : ""));
+  const rowsT55: any = nP8; const maxXT55: any = colsP8 * (PAGEW8 + PGAP8); const maxYT55: any = Math.ceil(nP8 / colsP8) * (PAGEH8 + PGAP8); // [PAG-8] legacy aliases
+  (window as any).__tileInfo55 = { n: boxes.length, pages: nP8, w: PAGEW8, h: PAGEH8, mmpu: mmpuP8 }; // [PAG-8] info line data
   console.log("[TEX-A] сдвинутых граней: " + texShiftHits + "/" + (faces2D ? faces2D.length : 0)); // [FIX71B] перенесён из loadTexImages: там texShiftHits вне scope (ReferenceError)
   let cx = 0, cy = 0, rowH = 0, placed = 0; // [PAG-1] переменные старой раскладки (цикл отключён ниже)
   boxes.slice(0, 0).forEach((b: any, bi: any) => { // [PAG-1] старая раскладка полками отключена
@@ -610,9 +641,30 @@ const draw2D78 = () => {
   // [PAG-2] рамки страниц A4 + номера страниц (постраничный вид)
   { const wasMs55: any = (window as any).__unfoldMs55; if ((window as any).__unfoldT055 > 0 && !wasMs55) { (window as any).__unfoldMs55 = Math.round(performance.now() - (window as any).__unfoldT055); console.log("[SPD-2] развёртка: " + ((window as any).__unfoldMs55 / 1000).toFixed(1) + " с"); } } // [SPD-1]+[FIX72]
   (window as any).__viewAspect55 = ctx.canvas.width / Math.max(1, ctx.canvas.height); // [PAG-4] аспект области 2D для раскладки
-  { const ti55: any = (window as any).__tileInfo55; if (ti55) { ctx.fillStyle = "#707070"; ctx.font = "12px sans-serif"; ctx.fillText("деталей " + ti55.n + " | рядов " + ti55.rows + " | поле " + (ti55.w * ti55.mmpu).toFixed(0) + "x" + (ti55.h * ti55.mmpu).toFixed(0) + " мм | масштаб " + ti55.mmpu.toFixed(1) + " мм/юнит" + ((window as any).__unfoldMs55 ? " | развёртка " + ((window as any).__unfoldMs55 / 1000).toFixed(1) + "с" : ""), 10, 16); } } // [PAG-6b] инфострока плитки на холсте
+  { const ti55: any = (window as any).__tileInfo55; if (ti55) { ctx.fillStyle = "#707070"; ctx.font = "12px sans-serif"; ctx.fillText("\u0434\u0435\u0442\u0430\u043B\u0435\u0439 " + ti55.n + " | \u043B\u0438\u0441\u0442\u043E\u0432 A4 " + ti55.pages + " | \u043B\u0438\u0441\u0442 190x277 \u043C\u043C | " + ti55.mmpu.toFixed(1) + " \u043C\u043C/\u044E\u043D\u0438\u0442", 12, H - 12); } }
+  // [PAG-8b] A4 sheet frames from pi55.list in world coords (same tx/ty as pieces)
+  {
+    const pf55: any = (window as any).__pageInfo55;
+    if (pf55 && pf55.list && pf55.list.length) {
+      ctx.save();
+      ctx.strokeStyle = "#c0c0c0"; ctx.lineWidth = 1; ctx.setLineDash([8, 6]);
+      ctx.font = "11px sans-serif";
+      pf55.list.forEach((pg: any) => {
+        const x0: any = tx(pg.x), y0: any = ty(pg.y), x1: any = tx(pg.x + pf55.w), y1: any = ty(pg.y + pf55.h);
+        ctx.fillStyle = "rgba(255,255,255,0.05)";
+        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+        ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+      });
+      ctx.fillStyle = "#909090";
+      pf55.list.forEach((pg: any) => {
+        const x0: any = tx(pg.x), y0: any = ty(pg.y);
+        ctx.fillText("\u0441\u0442\u0440. " + pg.no + " / " + pf55.count, x0 + 4, y0 + 14);
+      });
+      ctx.restore();
+    }
+  }
   const pi55: any = (window as any).__pageInfo55;
-  if (pi55 && pi55.count) {
+  if (false) { // [PAG-8b] legacy frame drawer disabled (own grid, mismatched pieces)
     ctx.strokeStyle = "#c0c0c0"; ctx.lineWidth = 1; ctx.setLineDash([8, 6]);
     for (let k55 = 0; k55 < pi55.count; k55++) {
       const cc55: any = (k55 >= (pi55.lastRow || 0) * pi55.cols) ? ((pi55.cols - (pi55.lastLen || pi55.cols)) / 2) : 0;
