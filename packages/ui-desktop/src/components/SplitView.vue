@@ -537,41 +537,65 @@ const layoutPieces78 = (pieces) => {
   const mmpuP8: any = mmpu55 * zoomW55;
   const PAGEW8: any = 190 / mmpuP8, PAGEH8: any = 277 / mmpuP8; // sheet frame, units
   const CW8: any = 170 / mmpuP8, CH8: any = 270 / mmpuP8; // pieces zone, units
-  const gapP8: any = Math.max(0.02 * maxW55, 0.5) * zoomW55;
-  const ordP8: any = boxes.map((_b: any, i: any) => i).sort((i: any, j: any) => boxes[j].h - boxes[i].h);
-  const pagesP8: any = [];
-  let cxP8 = 0, cyP8 = 0, rhP8 = 0, curP8: any = [];
-  ordP8.forEach((bi: any) => {
+  // [PAG-9] compact packing: MaxRects (BSSF) + optional 90-deg rotation; knob __a4Rotate55=false
+  // [PAG-9] compact packing: MaxRects (BSSF) + optional 90-deg rotation; knob __a4Rotate55=false
+  const gapP8: any = 8 / mmpuP8; // [PAG-9b] gap 8 mm in units (bylo 0.5 UNITA = 72 mm - glavnyy bag)
+  const rotOn9: any = (window as any).__a4Rotate55 !== false;
+  const pick9 = (rects: any, dw: any, dh: any) => {
+    let lb: any = null;
+    for (const r of rects) for (let o = 0; o < 2; o++) {
+      if (o === 1 && (!rotOn9 || Math.abs(dw - dh) < 1e-9)) continue;
+      const w = (o === 0 ? dw : dh) + gapP8, h = (o === 0 ? dh : dw) + gapP8;
+      if (w > r.w + 1e-9 || h > r.h + 1e-9) continue;
+      const c: any = { x: r.x, y: r.y, w: o ? dh : dw, h: o ? dw : dh, rot: !!o, s0: Math.min(r.w - w, r.h - h), s1: Math.max(r.w - w, r.h - h), ry: r.y, rx: r.x };
+      if (!lb || c.s0 < lb.s0 - 1e-9 || (Math.abs(c.s0 - lb.s0) <= 1e-9 && (c.s1 < lb.s1 - 1e-9 || (Math.abs(c.s1 - lb.s1) <= 1e-9 && (c.ry < lb.ry - 1e-9 || (Math.abs(c.ry - lb.ry) <= 1e-9 && c.rx < lb.rx)))))) lb = c;
+    }
+    return lb;
+  };
+  const pagesR9: any = [], placeP9: any = [];
+  boxes.map((_b: any, i: any) => i).sort((i: any, j: any) => { const a = boxes[i].w * boxes[i].h, b = boxes[j].w * boxes[j].h; return a !== b ? b - a : boxes[j].h - boxes[i].h; }).forEach((bi: any) => {
     const b: any = boxes[bi];
-    if (cxP8 > 0 && cxP8 + b.w + gapP8 > CW8) { cxP8 = 0; cyP8 += rhP8 + gapP8; rhP8 = 0; }
-    if (cyP8 > 0 && cyP8 + b.h + gapP8 > CH8) { pagesP8.push(curP8); curP8 = []; cxP8 = 0; cyP8 = 0; rhP8 = 0; }
-    curP8.push(bi);
-    cxP8 += b.w + gapP8; if (b.h > rhP8) rhP8 = b.h;
+    let best: any = null, pg = -1;
+    for (let p = 0; p < pagesR9.length && !best; p++) { const t = pick9(pagesR9[p], b.w, b.h); if (t) { best = t; pg = p; } }
+    if (!best) { pagesR9.push([{ x: 0, y: 0, w: CW8, h: CH8 }]); pg = pagesR9.length - 1; best = pick9(pagesR9[pg], b.w, b.h); }
+    if (!best) best = { x: 0, y: 0, w: b.w, h: b.h, rot: false };
+    const hx0 = best.x, hy0 = best.y, hx1 = best.x + best.w + gapP8, hy1 = best.y + best.h + gapP8, keep9: any = [];
+    for (const f of pagesR9[pg]) {
+      const ix0 = Math.max(f.x, hx0), iy0 = Math.max(f.y, hy0), ix1 = Math.min(f.x + f.w, hx1), iy1 = Math.min(f.y + f.h, hy1);
+      if (ix1 <= ix0 + 1e-9 || iy1 <= iy0 + 1e-9) { keep9.push(f); continue; }
+      if (hx0 - f.x > 1e-9) keep9.push({ x: f.x, y: f.y, w: hx0 - f.x, h: f.h });
+      if (f.x + f.w - hx1 > 1e-9) keep9.push({ x: hx1, y: f.y, w: f.x + f.w - hx1, h: f.h });
+      if (hy0 - f.y > 1e-9) keep9.push({ x: f.x, y: f.y, w: f.w, h: hy0 - f.y });
+      if (f.y + f.h - hy1 > 1e-9) keep9.push({ x: f.x, y: hy1, w: f.w, h: f.y + f.h - hy1 });
+    }
+    pagesR9[pg] = keep9.filter((a: any) => !keep9.some((c: any) => c !== a && c.x <= a.x + 1e-9 && c.y <= a.y + 1e-9 && c.x + c.w >= a.x + a.w - 1e-9 && c.y + c.h >= a.y + a.h - 1e-9 && (c.w * c.h > a.w * a.h + 1e-9 || (Math.abs(c.w - a.w) < 1e-9 && Math.abs(c.h - a.h) < 1e-9 && keep9.indexOf(c) < keep9.indexOf(a)))));
+    placeP9.push({ bi, page: pg, x: best.x, y: best.y, rot: best.rot });
   });
-  if (curP8.length) pagesP8.push(curP8);
-  const nP8: any = pagesP8.length;
-  const colsP8: any = Math.max(1, Math.ceil(Math.sqrt(nP8)));
-  const PGAP8: any = Math.max(0.05 * maxW55, 0.5); // gap between sheets on canvas
+  const nP8: any = pagesR9.length, colsP8: any = Math.max(1, Math.ceil(Math.sqrt(nP8))), PGAP8: any = Math.max(0.05 * maxW55, 0.5);
+  let areaP9 = 0; boxes.forEach((b: any) => { areaP9 += b.w * b.h; });
+  const fillP9: any = nP8 > 0 ? Math.round(100 * areaP9 / (nP8 * CW8 * CH8)) : 0;
+  // [PAG-9] apply: rotate geometry+texture faces together (UV untouched), then shift to slot
   texShiftHits = 0;
+  const rot90cw = (p: any) => { const rp = (t: any) => { const x = t[0], y = t[1]; t[0] = y; t[1] = -x; }; (p.outline_2d || []).forEach(rp); (p.cut_lines || []).forEach((s: any) => { rp(s[0]); rp(s[1]); }); (p.fold_lines || []).forEach((s: any) => { rp(s[0]); rp(s[1]); }); };
+  const rotFacesOf = (pid: any) => {
+    if (!islandIds || !islandIds.length || !faces2D || !faces2D.length || !vertices2D || !vertices2D.length) return;
+    const doneR: any = new Map();
+    for (let fi = 0; fi < Math.min(islandIds.length, faces2D.length); fi++) { if (islandIds[fi] !== pid) continue; const f: any = faces2D[fi]; if (!f) continue; f.forEach((vi: any) => { if (doneR.has(vi)) return; doneR.set(vi, true); const v: any = vertices2D[vi]; if (v) { const x = v[0], y = v[1]; v[0] = y; v[1] = -x; } }); }
+  };
+  const bb9 = (p: any) => { let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity; const u = (x: any, y: any) => { if (x < mnx) mnx = x; if (x > mxx) mxx = x; if (y < mny) mny = y; if (y > mxy) mxy = y; }; (p.outline_2d || []).forEach((v: any) => u(v[0], v[1])); (p.cut_lines || []).forEach((s: any) => { u(s[0][0], s[0][1]); u(s[1][0], s[1][1]); }); (p.fold_lines || []).forEach((s: any) => { u(s[0][0], s[0][1]); u(s[1][0], s[1][1]); }); return isFinite(mnx) ? [mnx, mny, mxx, mxy] : [0, 0, 0, 0]; };
   const listP8: any = [];
-  pagesP8.forEach((page: any, k: any) => {
-    const ox: any = (k % colsP8) * (PAGEW8 + PGAP8);
-    const oy: any = Math.floor(k / colsP8) * (PAGEH8 + PGAP8);
-    listP8.push({ x: ox, y: oy, no: k + 1 });
-    let px = 0, py = 0, prh = 0;
-    page.forEach((bi: any) => {
-      const b: any = boxes[bi];
-      if (px > 0 && px + b.w + gapP8 > CW8) { px = 0; py += prh + gapP8; prh = 0; }
-      shift(b.p, ox + px - b.minX, oy + py - b.minY);
-      const pk = pieceKeyOf(b.p, bi); // [TEX-A]
-      if (pk !== null) { shiftFacesOf(pk, ox + px - b.minX, oy + py - b.minY); }
-      px += b.w + gapP8; if (b.h > prh) prh = b.h;
-    });
+  placeP9.forEach((pl: any) => {
+    const ox: any = (pl.page % colsP8) * (PAGEW8 + PGAP8), oy: any = Math.floor(pl.page / colsP8) * (PAGEH8 + PGAP8), b: any = boxes[pl.bi];
+    if (pl.rot) { rot90cw(b.p); const pk0 = pieceKeyOf(b.p, pl.bi); if (pk0 !== null) rotFacesOf(pk0); }
+    const q = bb9(b.p), dx: any = ox + pl.x - q[0], dy: any = oy + pl.y - q[1];
+    shift(b.p, dx, dy);
+    const pk = pieceKeyOf(b.p, pl.bi); if (pk !== null) shiftFacesOf(pk, dx, dy);
   });
+  for (let k = 0; k < nP8; k++) listP8.push({ x: (k % colsP8) * (PAGEW8 + PGAP8), y: Math.floor(k / colsP8) * (PAGEH8 + PGAP8), no: k + 1 });
   (window as any).__pageInfo55 = { count: nP8, cols: colsP8, rows: Math.ceil(nP8 / colsP8), w: PAGEW8, h: PAGEH8, mmpu: mmpuP8, list: listP8 }; // [PAG-8] sheet frames for draw2D78
-  console.log("[PAG-8] \u043B\u0438\u0441\u0442\u043E\u0432 " + nP8 + ", \u0434\u0435\u0442\u0430\u043B\u0435\u0439 " + boxes.length + ", \u043C\u0430\u0441\u0448\u0442\u0430\u0431 " + mmpuP8.toFixed(1) + " \u043C\u043C/\u044E\u043D\u0438\u0442" + (zoomW55 < 1 ? " (zoom " + zoomW55 + ")" : ""));
+  console.log("[PAG-9] \u043B\u0438\u0441\u0442\u043E\u0432 " + nP8 + ", \u0434\u0435\u0442\u0430\u043B\u0435\u0439 " + boxes.length + ", \u0437\u0430\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435 " + fillP9 + "%, \u043C\u0430\u0441\u0448\u0442\u0430\u0431 " + mmpuP8.toFixed(2) + " \u043C\u043C/\u044E\u043D\u0438\u0442"); // [PAG-9]
   const rowsT55: any = nP8; const maxXT55: any = colsP8 * (PAGEW8 + PGAP8); const maxYT55: any = Math.ceil(nP8 / colsP8) * (PAGEH8 + PGAP8); // [PAG-8] legacy aliases
-  (window as any).__tileInfo55 = { n: boxes.length, pages: nP8, w: PAGEW8, h: PAGEH8, mmpu: mmpuP8 }; // [PAG-8] info line data
+  (window as any).__tileInfo55 = { n: boxes.length, pages: nP8, w: PAGEW8, h: PAGEH8, mmpu: mmpuP8, fill: fillP9 }; // [PAG-8] info line data
   console.log("[TEX-A] сдвинутых граней: " + texShiftHits + "/" + (faces2D ? faces2D.length : 0)); // [FIX71B] перенесён из loadTexImages: там texShiftHits вне scope (ReferenceError)
   let cx = 0, cy = 0, rowH = 0, placed = 0; // [PAG-1] переменные старой раскладки (цикл отключён ниже)
   boxes.slice(0, 0).forEach((b: any, bi: any) => { // [PAG-1] старая раскладка полками отключена
