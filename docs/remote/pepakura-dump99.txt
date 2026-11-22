@@ -1,8 +1,0 @@
-DUMP99: fix61 verification
-L143: fn dual_edge_weight(mesh: &Mesh, f1: usize, f2: usize, va: usize, vb: usize) -> f64 {
-L159: /// Почти-плоские рёбра (порог = верхняя ступень веса в dual_edge_weight).
-L267: let w = dual_edge_weight(mesh, fi, fj, key.0, key.1);
-L334: Ok(PapercraftUnfoldResult { pieces, metrics, parts: Vec::new(), face_pieces, vertices_2d: verts_2d, faces_2d, engine_used: "MST-Seam+61 (papercraft)".to_string() })
-L809: Ok(PapercraftUnfoldResult { pieces, metrics, parts: parts_meta, face_pieces, vertices_2d: verts_2d, faces_2d, engine_used: format!("MST-Seam+61 + {} parts", cfg.mode) })
-FAILS: S1
-SKIP BUILD: есть ABORT
