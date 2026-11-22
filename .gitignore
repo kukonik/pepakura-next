@@ -43,3 +43,8 @@ unfold_timings.txt
 fix*.log
 repo-tree.txt
 $null
+# --- ai worker demo assets (kept on disk, untracked) ---
+services/ai_worker/Hunyuan3D-2/assets/
+services/ai_worker/Hunyuan3D-2/docs/
+services/ai_worker/TripoSR/figures/
+services/ai_worker/TripoSR/examples/
