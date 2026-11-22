@@ -398,19 +398,25 @@ function pdf55PackPieces(): any {
   return { pgs: pgs, mmPerUnit: mmPerUnit };
 }
 function pdf55FaceGroups(): any {
-  const idSet: any = new Map();
-  (islandIds || []).forEach((v: any) => { idSet.set(v, true); });
+  // [TEX-G] face groups from islandIds+faces2D (same source as screen): fixes white eye pieces in PDF
   const groups: any = new Map();
-  (pieces2D || []).forEach((p: any, i: any) => {
-    let k: any = null;
-    k = i; (p.face_ids || []).forEach((f2: any) => { if (!groups.has(i)) { groups.set(i, []); } groups.get(i).push(f2); }); // [PDF-C] группы граней из face_ids детали (островId больше не нужен)
-    p.__k55 = k;
-    if (k !== null && !groups.has(k)) { groups.set(k, []); }
-  });
-    for (let fi = 0; fi < 0; fi++) { // [PDF-C] цикл по islandIds отключён — группы уже собраны из face_ids
-    const arr: any = groups.get(islandIds[fi]);
-    if (arr) { arr.push(fi); }
+  if (islandIds && islandIds.length && faces2D && faces2D.length) {
+    for (let fi = 0; fi < Math.min(islandIds.length, faces2D.length); fi++) {
+      const k: any = islandIds[fi];
+      if (!groups.has(k)) { groups.set(k, []); }
+      groups.get(k).push(fi);
+    }
   }
+  const idVals: any = new Set(islandIds || []);
+  (pieces2D || []).forEach((p: any, i: any) => {
+    p.__k55 = idVals.has(p.id) ? p.id : (idVals.has(p.part_id) ? p.part_id : i);
+    if (!groups.has(p.__k55)) { groups.set(p.__k55, []); }
+    const g: any = groups.get(p.__k55);
+    if (g.length === 0 && p.face_ids && p.face_ids.length) { p.face_ids.forEach((f2: any) => g.push(f2)); }
+  });
+  let gsum55 = 0;
+  groups.forEach((v: any) => { gsum55 += v.length; });
+  console.log("[TEX-G] граней в группах PDF: " + gsum55 + "/" + (faces2D ? faces2D.length : 0) + " | деталей с пустыми группами: " + (pieces2D || []).filter((p: any) => !groups.get(p.__k55) || groups.get(p.__k55).length === 0).length);
   return groups;
 }
 function pdf55DrawPiece(g: any, it: any, ox: any, oy: any, mmpu: any, groups: any) {
@@ -449,30 +455,77 @@ function pdf55DrawPiece(g: any, it: any, ox: any, oy: any, mmpu: any, groups: an
 }
 async function exportPdfPages55() {
   try {
-    if (!pieces2D || !pieces2D.length) { alert("PDF: сначала выполните развёртку"); return; }
-    const pack: any = pdf55PackPieces();
-    if (!pack) { alert("PDF: нет деталей"); return; }
+    if (!pieces2D || !pieces2D.length) { alert("PDF: \u0441\u043D\u0430\u0447\u0430\u043B\u0430 \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u0435 \u0440\u0430\u0437\u0432\u0451\u0440\u0442\u043A\u0443"); return; }
     const groups: any = pdf55FaceGroups();
     const MARG: any = 10;
     const jpgs: any[] = [];
-    for (let pg = 0; pg < pack.pgs.length; pg++) {
-      const cnv: any = document.createElement("canvas");
-      cnv.width = Math.round(210 * PDF55_PXMM); cnv.height = Math.round(297 * PDF55_PXMM);
-      const g: any = cnv.getContext("2d");
-      g.fillStyle = "#ffffff"; g.fillRect(0, 0, cnv.width, cnv.height);
-      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
-      pack.pgs[pg].items.forEach((it: any) => {
-        pdf55DrawPiece(g, it, (MARG + it.x) * PDF55_PXMM, (MARG + it.y) * PDF55_PXMM, pack.mmPerUnit, groups);
-      });
-      g.fillStyle = "#909090"; g.font = "22px sans-serif"; g.textAlign = "center";
-      g.fillText("стр. " + (pg + 1) + "/" + pack.pgs.length + "  |  масштаб " + pack.mmPerUnit.toFixed(2) + " мм на единицу модели", cnv.width / 2, cnv.height - Math.round(6 * PDF55_PXMM));
-      g.strokeStyle = "#808080"; g.lineWidth = 2; g.beginPath(); const ry55 = cnv.height - Math.round(16 * PDF55_PXMM); const rx55 = cnv.width / 2 - 50 * PDF55_PXMM; g.moveTo(rx55, ry55); g.lineTo(rx55 + 100 * PDF55_PXMM, ry55); g.moveTo(rx55, ry55 - 6); g.lineTo(rx55, ry55 + 6); g.moveTo(rx55 + 100 * PDF55_PXMM, ry55 - 6); g.lineTo(rx55 + 100 * PDF55_PXMM, ry55 + 6); g.stroke(); g.fillStyle = "#808080"; g.font = "20px sans-serif"; g.fillText("100 мм", rx55 + 100 * PDF55_PXMM + 10, ry55 + 7); // [PDF-C] линейка 100 мм
-      jpgs.push(cnv.toDataURL("image/jpeg", 0.9));
+    const pi55: any = (window as any).__pageInfo55;
+    if (pi55 && pi55.list && pi55.list.length && pi55.mmpu && pi55.w && pi55.h) {
+      // [PDF-D] snapshot of each preview sheet: page = sheet (WYSIWYG), fill% in page label
+      const ti55: any = (window as any).__tileInfo55;
+      const fillTxt: any = (ti55 && typeof ti55.fill === "number") ? ("  |  \u0437\u0430\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435 " + ti55.fill + "%") : "";
+      for (let k = 0; k < pi55.list.length; k++) {
+        const ox: any = pi55.list[k].x, oy: any = pi55.list[k].y;
+        const cnv: any = document.createElement("canvas");
+        cnv.width = Math.round(210 * PDF55_PXMM); cnv.height = Math.round(297 * PDF55_PXMM);
+        const g: any = cnv.getContext("2d");
+        g.fillStyle = "#ffffff"; g.fillRect(0, 0, cnv.width, cnv.height);
+        g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+        const X: any = (x: any) => (MARG + (x - ox) * pi55.mmpu) * PDF55_PXMM;
+        const Y: any = (y: any) => (MARG + (y - oy) * pi55.mmpu) * PDF55_PXMM;
+        // [PDF-D] frames: sheet border solid + pieces zone 170x270 dashed
+        g.strokeStyle = "#c8c8c8"; g.lineWidth = 1; g.setLineDash([5, 4]);
+        g.strokeRect(MARG * PDF55_PXMM, MARG * PDF55_PXMM, 170 * PDF55_PXMM, 270 * PDF55_PXMM);
+        g.setLineDash([]);
+        g.strokeRect(0.5, 0.5, cnv.width - 1, cnv.height - 1);
+        // [PDF-D] ruler 100 mm drawn BEFORE pieces (never covers them)
+        g.strokeStyle = "#808080"; g.lineWidth = 2; g.beginPath();
+        const ry55: any = cnv.height - Math.round(16 * PDF55_PXMM); const rx55: any = cnv.width / 2 - 50 * PDF55_PXMM;
+        g.moveTo(rx55, ry55); g.lineTo(rx55 + 100 * PDF55_PXMM, ry55);
+        g.moveTo(rx55, ry55 - 6); g.lineTo(rx55, ry55 + 6);
+        g.moveTo(rx55 + 100 * PDF55_PXMM, ry55 - 6); g.lineTo(rx55 + 100 * PDF55_PXMM, ry55 + 6);
+        g.stroke(); g.fillStyle = "#808080"; g.font = "20px sans-serif"; g.textAlign = "left";
+        g.fillText("100 \u043C\u043C", rx55 + 100 * PDF55_PXMM + 10, ry55 + 7);
+        pieces2D.forEach((p: any) => {
+          let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+          const up9: any = (x: any, y: any) => { if (x < mnx) mnx = x; if (x > mxx) mxx = x; if (y < mny) mny = y; if (y > mxy) mxy = y; };
+          (p.outline_2d || []).forEach((v: any) => up9(v[0], v[1]));
+          (p.cut_lines || []).forEach((s: any) => { up9(s[0][0], s[0][1]); up9(s[1][0], s[1][1]); });
+          (p.fold_lines || []).forEach((s: any) => { up9(s[0][0], s[0][1]); up9(s[1][0], s[1][1]); });
+          if (!isFinite(mnx)) { return; }
+          if (mxx < ox - 1e-9 || mnx > ox + pi55.w + 1e-9 || mxy < oy - 1e-9 || mny > oy + pi55.h + 1e-9) { return; }
+          pdf55DrawPieceWorld(g, p, X, Y, groups);
+          // [PDF-D] piece label at top-left of its bbox
+          g.fillStyle = "#707070"; g.font = "14px sans-serif"; g.textAlign = "left";
+          g.fillText("#" + p.id + (p.part ? " " + p.part : ""), X(mnx), Y(mny) - 4);
+        });
+        g.fillStyle = "#909090"; g.font = "22px sans-serif"; g.textAlign = "center";
+        g.fillText("\u0441\u0442\u0440. " + (k + 1) + "/" + pi55.list.length + "  |  \u043C\u0430\u0441\u0448\u0442\u0430\u0431 " + pi55.mmpu.toFixed(2) + " \u043C\u043C \u043D\u0430 \u0435\u0434\u0438\u043D\u0438\u0446\u0443 \u043C\u043E\u0434\u0435\u043B\u0438" + fillTxt, cnv.width / 2, cnv.height - Math.round(6 * PDF55_PXMM));
+        jpgs.push(cnv.toDataURL("image/jpeg", 0.95)); // [PDF-D] quality 0.95
+      }
+    } else {
+      // [PDF-D] fallback: old packing if __pageInfo55 not found
+      const pack: any = pdf55PackPieces();
+      if (!pack) { alert("PDF: \u043D\u0435\u0442 \u0434\u0435\u0442\u0430\u043B\u0435\u0439"); return; }
+      for (let pg = 0; pg < pack.pgs.length; pg++) {
+        const cnv: any = document.createElement("canvas");
+        cnv.width = Math.round(210 * PDF55_PXMM); cnv.height = Math.round(297 * PDF55_PXMM);
+        const g: any = cnv.getContext("2d");
+        g.fillStyle = "#ffffff"; g.fillRect(0, 0, cnv.width, cnv.height);
+        g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+        pack.pgs[pg].items.forEach((it: any) => {
+          pdf55DrawPiece(g, it, (MARG + it.x) * PDF55_PXMM, (MARG + it.y) * PDF55_PXMM, pack.mmPerUnit, groups);
+        });
+        g.fillStyle = "#909090"; g.font = "22px sans-serif"; g.textAlign = "center";
+        g.fillText("\u0441\u0442\u0440. " + (pg + 1) + "/" + pack.pgs.length + "  |  \u043C\u0430\u0441\u0448\u0442\u0430\u0431 " + pack.mmPerUnit.toFixed(2) + " \u043C\u043C \u043D\u0430 \u0435\u0434\u0438\u043D\u0438\u0446\u0443 \u043C\u043E\u0434\u0435\u043B\u0438", cnv.width / 2, cnv.height - Math.round(6 * PDF55_PXMM));
+        jpgs.push(cnv.toDataURL("image/jpeg", 0.95));
+      }
+      console.log("[PDF-D] fallback packing (no __pageInfo55)");
     }
     const r: any = await invoke("export_pdf", { vertices: [], faces: [], islandIds: null, path: PDF55_PATH, pages: jpgs });
     console.log("[PDF-B] " + r);
-    alert("PDF сохранён: " + PDF55_PATH + "\nстраниц: " + jpgs.length);
-  } catch (e) { console.error("[PDF-B] ошибка: " + e); alert("PDF ошибка: " + e); }
+    alert("PDF \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D: " + PDF55_PATH + "\n\u0441\u0442\u0440\u0430\u043D\u0438\u0446: " + jpgs.length);
+  } catch (e) { console.error("[PDF-B] \u043E\u0448\u0438\u0431\u043A\u0430: " + e); alert("PDF \u043E\u0448\u0438\u0431\u043A\u0430: " + e); }
 }
 (window as any).__pdf55export = exportPdfPages55;
 if (false) { // [PDF-C] плавающая кнопка отключена — кнопка перенесена в панель
@@ -1047,6 +1100,432 @@ onMounted(() => {
   draw2D();
 });
 // === END PATCH ===
+;
+// ===================== [TAB-F] PDF-экспорт: клапаны 5 мм + номера пар + текстуры + упаковка =====================
+// Вставить ЦЕЛИКОМ в конец <script setup lang="ts"> перед последним </script>.
+// Старый экспорт не трогает: перехватывает клики по кнопкам с "PDF" в надписи (capture-фаза).
+;(function () {
+  const W: any = window as any;
+  if (W.__tabF55) { console.log('[TAB-F] уже установлен, повторная вставка пропущена'); return; }
+  W.__tabF55 = true;
+
+  const TABF = { PXMM: 8, PAGEW: 210, PAGEH: 297, ZX: 12, ZY: 12, ZW: 186, ZH: 270, TAB: 5.0, GAP: 3.0 };
+
+  const hyp2 = (dx: number, dy: number) => Math.sqrt(dx * dx + dy * dy);
+  const key2 = (p: any) => Math.round(p[0] * 1e5) + ',' + Math.round(p[1] * 1e5);
+  const clamp1 = (x: number) => Math.max(-1, Math.min(1, x));
+
+  // аффинное преобразование: Source-треугольник -> Target-треугольник
+  function aff(T: any, S: any): any {
+    const det = (S[1][0] - S[0][0]) * (S[2][1] - S[0][1]) - (S[2][0] - S[0][0]) * (S[1][1] - S[0][1]);
+    if (Math.abs(det) < 1e-12) return null;
+    const a = ((T[1][0] - T[0][0]) * (S[2][1] - S[0][1]) - (T[2][0] - T[0][0]) * (S[1][1] - S[0][1])) / det;
+    const c = ((T[2][0] - T[0][0]) * (S[1][0] - S[0][0]) - (T[1][0] - T[0][0]) * (S[2][0] - S[0][0])) / det;
+    const b = ((T[1][1] - T[0][1]) * (S[2][1] - S[0][1]) - (T[2][1] - T[0][1]) * (S[1][1] - S[0][1])) / det;
+    const d = ((T[2][1] - T[0][1]) * (S[1][0] - S[0][0]) - (T[1][1] - T[0][1]) * (S[2][0] - S[0][0])) / det;
+    return [a, b, c, d, T[0][0] - a * S[0][0] - c * S[0][1], T[0][1] - b * S[0][0] - d * S[0][1]];
+  }
+
+  // парсер OBJ: v / vt / usemtl / f (квады веером в треугольники)
+  function parseObj(text: string): any {
+    const verts: any[] = []; const uvs: any[] = []; const faces: any[] = [];
+    let curMat: any = null;
+    const lines = String(text || '').split(/\r?\n/);
+    for (const raw of lines) {
+      const L = raw.trim(); if (!L || L.charAt(0) === '#') continue;
+      const t = L.split(/\s+/);
+      if (t[0] === 'v' && t.length >= 4) verts.push([parseFloat(t[1]), parseFloat(t[2]), parseFloat(t[3])]);
+      else if (t[0] === 'vt' && t.length >= 3) uvs.push([parseFloat(t[1]), parseFloat(t[2])]);
+      else if (t[0] === 'usemtl' && t.length >= 2) curMat = t.slice(1).join(' ');
+      else if (t[0] === 'f' && t.length >= 4) {
+        const vi: any[] = []; const vti: any[] = []; let bad = false;
+        for (let i = 1; i < t.length; i++) {
+          const parts = t[i].split('/');
+          const a = parseInt(parts[0], 10);
+          if (!isFinite(a) || a === 0) { bad = true; break; }
+          vi.push(a > 0 ? a - 1 : verts.length + a);
+          const u = parseInt(parts[1] || '0', 10);
+          vti.push(u > 0 ? u - 1 : (u < 0 ? uvs.length + u : -1));
+        }
+        if (bad || vi.length < 3) continue;
+        for (let i = 1; i + 1 < vi.length; i++) faces.push({ vi: [vi[0], vi[i], vi[i + 1]], vti: [vti[0], vti[i], vti[i + 1]], mat: curMat });
+      }
+    }
+    return { verts, uvs, faces };
+  }
+
+  // загрузка картинки: прямой URL -> convertFileSrc -> readBinaryFile (base64)
+  async function loadTexFlex(url0: string): Promise<any> {
+    const tries: string[] = [String(url0)];
+    try {
+      if (/^[a-zA-Z]:\\/.test(url0) || url0.indexOf('\\\\') === 0) {
+        try { const m: any = await import('@tauri-apps/api/tauri'); tries.push(m.convertFileSrc(url0)); } catch (e) {}
+        try {
+          const fs: any = await import('@tauri-apps/api/fs');
+          const bytes: Uint8Array = await fs.readBinaryFile(url0);
+          let bin = '';
+          for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 0x8000)) as any);
+          tries.push('data:image/png;base64,' + btoa(bin));
+        } catch (e) {}
+      }
+    } catch (e) {}
+    for (const u of tries) {
+      const img = await new Promise<any>((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = u; });
+      if (img) return img;
+    }
+    return null;
+  }
+
+  // упаковка MaxRects (полки не нужны): резерв = bbox + GAP, вырезы из свободных прямоугольников
+  function packPieces(items: any[]): any {
+    const pages: any[] = [[{ x: 0, y: 0, w: TABF.ZW, h: TABF.ZH }]];
+    const placed: any[] = [];
+    for (const it of items) {
+      let pg = -1, best: any = null, bestScore = Infinity;
+      for (let p = 0; p < pages.length && pg < 0; p++) {
+        for (const r of pages[p]) {
+          for (const rot of [false, true]) {
+            const w = (rot ? it.h : it.w) + TABF.GAP, h = (rot ? it.w : it.h) + TABF.GAP;
+            if (w > r.w + 1e-9 || h > r.h + 1e-9) continue;
+            const score = Math.min(r.w - w, r.h - h);
+            if (score < bestScore) { bestScore = score; best = { x: r.x, y: r.y, w: rot ? it.h : it.w, h: rot ? it.w : it.h, rot }; pg = p; }
+          }
+        }
+      }
+      if (!best) { pages.push([{ x: 0, y: 0, w: TABF.ZW, h: TABF.ZH }]); pg = pages.length - 1; best = { x: 0, y: 0, w: it.w, h: it.h, rot: false }; }
+      const fx0 = best.x, fy0 = best.y, fx1 = best.x + best.w + TABF.GAP, fy1 = best.y + best.h + TABF.GAP;
+      const out: any[] = [];
+      for (const r of pages[pg]) {
+        const ix0 = Math.max(r.x, fx0), iy0 = Math.max(r.y, fy0), ix1 = Math.min(r.x + r.w, fx1), iy1 = Math.min(r.y + r.h, fy1);
+        if (ix1 <= ix0 + 1e-9 || iy1 <= iy0 + 1e-9) { out.push(r); continue; }
+        if (r.y < fy0 - 1e-9) out.push({ x: r.x, y: r.y, w: r.w, h: fy0 - r.y });
+        if (r.y + r.h > fy1 + 1e-9) out.push({ x: r.x, y: fy1, w: r.w, h: r.y + r.h - fy1 });
+        if (r.x < fx0 - 1e-9) out.push({ x: r.x, y: Math.max(r.y, fy0), w: fx0 - r.x, h: Math.min(r.y + r.h, fy1) - Math.max(r.y, fy0) });
+        if (r.x + r.w > fx1 + 1e-9) out.push({ x: fx1, y: Math.max(r.y, fy0), w: r.x + r.w - fx1, h: Math.min(r.y + r.h, fy1) - Math.max(r.y, fy0) });
+      }
+      pages[pg] = out;
+      placed.push({ page: pg, x: best.x, y: best.y, rot: best.rot, w: it.w, h: it.h, g: it.g });
+    }
+    return { pages, placed };
+  }
+
+  // главный экспорт
+  async function tabFExport(): Promise<void> {
+    try {
+      const UD: any = (typeof unfoldData !== 'undefined' && unfoldData && (unfoldData as any).value) ? (unfoldData as any).value : null;
+      const P2D: any[] = (typeof pieces2D !== 'undefined' && pieces2D && (pieces2D as any).length) ? pieces2D as any : ((UD && UD.pieces) || []);
+      const V2: any[] = (typeof vertices2D !== 'undefined' && vertices2D && (vertices2D as any).length) ? vertices2D as any : ((UD && UD.vertices_2d) || []);
+      const F2: any[] = (typeof faces2D !== 'undefined' && faces2D && (faces2D as any).length) ? faces2D as any : ((UD && (UD.faces_2d || UD.faces)) || []);
+      const ISO: any[] = (typeof islandIds !== 'undefined' && islandIds && (islandIds as any).length) ? islandIds as any : ((UD && UD.face_pieces) || []);
+      if (!P2D.length || !V2.length || !F2.length || !ISO.length) { alert('[TAB-F] нет данных развёртки: сначала загрузите OBJ и нажмите "Развернуть"'); return; }
+
+      const obj = parseObj(String((typeof objData !== 'undefined' && objData && (objData as any).value) || ''));
+      if (obj.faces.length !== F2.length) console.warn('[TAB-F] OBJ-граней ' + obj.faces.length + ' != faces_2d ' + F2.length + ' (на квадах текстура может сместиться)');
+
+      // масштаб: 2 итерации (bbox граней -> +клапаны -> снова масштаб)
+      const faceBB = new Map<number, any>();
+      for (let fi = 0; fi < F2.length; fi++) {
+        const t = F2[fi]; if (!t || t[0] === t[1]) continue;
+        const pid = ISO[fi]; if (pid === undefined || pid === null) continue;
+        let bb = faceBB.get(pid); if (!bb) { bb = [1e18, 1e18, -1e18, -1e18]; faceBB.set(pid, bb); }
+        for (const idx of t) { const v = V2[idx]; if (!v) continue; if (v[0] < bb[0]) bb[0] = v[0]; if (v[1] < bb[1]) bb[1] = v[1]; if (v[0] > bb[2]) bb[2] = v[0]; if (v[1] > bb[3]) bb[3] = v[1]; }
+      }
+      let mmpu = 1;
+      { let mw = 1e-9, mh = 1e-9; faceBB.forEach((bb: any) => { mw = Math.max(mw, bb[2] - bb[0]); mh = Math.max(mh, bb[3] - bb[1]); }); mmpu = Math.min(TABF.ZW / mw, TABF.ZH / mh); }
+      for (let it = 0; it < 2; it++) { const tw = TABF.TAB / mmpu; let mw = 1e-9, mh = 1e-9; faceBB.forEach((bb: any) => { mw = Math.max(mw, bb[2] - bb[0] + 2 * tw); mh = Math.max(mh, bb[3] - bb[1] + 2 * tw); }); mmpu = Math.min(TABF.ZW / mw, TABF.ZH / mh); }
+      const twU = TABF.TAB / mmpu;
+
+      // рёбра: экземпляры (деталь, грань, 2D-концы); сгибы = два экземпляра одной детали с равными 2D-концами
+      const sameP = (p: any, q: any) => Math.abs(p[0] - q[0]) < 1e-7 && Math.abs(p[1] - q[1]) < 1e-7;
+      const byKey = new Map<string, any[]>();
+      for (let fi = 0; fi < F2.length; fi++) {
+        const t = F2[fi]; if (!t || t[0] === t[1]) continue;
+        const pid = ISO[fi]; if (pid === undefined || pid === null) continue;
+        const P = [V2[t[0]], V2[t[1]], V2[t[2]]];
+        if (!P[0] || !P[1] || !P[2]) continue;
+        for (let k = 0; k < 3; k++) {
+          const a = t[k], b = t[(k + 1) % 3];
+          const key = a < b ? a + '_' + b : b + '_' + a;
+          let arr = byKey.get(key); if (!arr) { arr = []; byKey.set(key, arr); }
+          arr.push({ piece: pid, fi, a, b, pa: P[k], pb: P[(k + 1) % 3], d: null, n: null, tab: false, open: false, pair: 0, top1: null, top2: null });
+        }
+      }
+      const consumed = new Map<string, Set<number>>();
+      const foldRecsByPiece = new Map<number, any[]>();
+      let foldCnt = 0;
+      byKey.forEach((L: any[], key: string) => {
+        for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
+          if (L[i].piece !== L[j].piece) continue;
+          const eq = (sameP(L[i].pa, L[j].pa) && sameP(L[i].pb, L[j].pb)) || (sameP(L[i].pa, L[j].pb) && sameP(L[i].pb, L[j].pa));
+          if (eq) {
+            let s = consumed.get(key); if (!s) { s = new Set<number>(); consumed.set(key, s); }
+            s.add(i); s.add(j);
+            let fr = foldRecsByPiece.get(L[i].piece); if (!fr) { fr = []; foldRecsByPiece.set(L[i].piece, fr); }
+            fr.push({ pa: L[i].pa, pb: L[i].pb, fi1: L[i].fi, fi2: L[j].fi });
+            foldCnt++; j = L.length;
+          }
+        }
+      });
+      let pairCnt = 0;
+      byKey.forEach((L: any[], key: string) => {
+        const usedI = consumed.get(key) || new Set<number>();
+        const rest = L.filter((x: any, idx: number) => !usedI.has(idx)).sort((x: any, y: any) => (x.piece - y.piece) || (x.fi - y.fi));
+        if (!rest.length) return;
+        if (rest.length >= 2) { pairCnt++; rest.forEach((r: any) => { r.pair = pairCnt; }); rest[0].tab = true; }
+        else rest[0].open = true;
+      });
+
+      // границы деталей = все экземпляры, не входящие в сгибы
+      const bnd = new Map<number, any[]>();
+      byKey.forEach((L: any[], key: string) => {
+        const usedI = consumed.get(key) || new Set<number>();
+        L.forEach((inst: any, idx: number) => { if (usedI.has(idx)) return; let a = bnd.get(inst.piece); if (!a) { a = []; bnd.set(inst.piece, a); } a.push(inst); });
+      });
+
+      // клапаны: порт [FIX60B] из papercraft_adapter.rs (митры по углам границы)
+      const pgData: any[] = [];
+      bnd.forEach((segs: any[], pid: number) => {
+        const pc: any = P2D[pid] || {};
+        let cx = 0, cy = 0, cn = 0;
+        for (let fi = 0; fi < F2.length; fi++) { if (ISO[fi] !== pid) continue; const t = F2[fi]; if (!t || t[0] === t[1]) continue; for (const idx of t) { const v = V2[idx]; if (!v) continue; cx += v[0]; cy += v[1]; cn++; } }
+        const cen = cn ? [cx / cn, cy / cn] : [0, 0];
+        for (const s of segs) {
+          const dx = s.pb[0] - s.pa[0], dy = s.pb[1] - s.pa[1]; const el = hyp2(dx, dy);
+          if (el < 1e-9) { s.d = [1, 0]; s.n = [0, 1]; continue; }
+          s.d = [dx / el, dy / el]; s.n = [s.d[1], -s.d[0]];
+          const mx = (s.pa[0] + s.pb[0]) / 2 - cen[0], my = (s.pa[1] + s.pb[1]) / 2 - cen[1];
+          if (mx * s.n[0] + my * s.n[1] < 0) s.n = [-s.n[0], -s.n[1]];
+        }
+        const vtxE = new Map<number, number[]>();
+        segs.forEach((s: any, i: number) => { let A = vtxE.get(s.a); if (!A) { A = []; vtxE.set(s.a, A); } A.push(i); let B = vtxE.get(s.b); if (!B) { B = []; vtxE.set(s.b, B); } B.push(i); });
+        segs.forEach((s: any, ei: number) => {
+          if (!s.tab) return;
+          const el = hyp2(s.pb[0] - s.pa[0], s.pb[1] - s.pa[1]); if (el < 1e-9) return;
+          let tw = Math.min(twU, 0.45 * el);
+          const tFit = [0.3 * tw, 0.3 * tw]; const oms = [Math.PI, Math.PI];
+          const ends: any[] = [[s.a, s.pa, 0], [s.b, s.pb, 1]];
+          for (const ed of ends) {
+            const v = ed[0], pV = ed[1], k = ed[2];
+            const evs = vtxE.get(v); if (!evs || evs.length !== 2) continue;
+            const oi = evs[0] === ei ? evs[1] : evs[0]; const o = segs[oi];
+            let p2: any;
+            if (o.a === v) p2 = o.pb; else if (o.b === v) p2 = o.pa; else continue;
+            const dvx = p2[0] - pV[0], dvy = p2[1] - pV[1]; const lv = hyp2(dvx, dvy); if (lv < 1e-9) continue;
+            const d2 = [dvx / lv, dvy / lv];
+            const d1 = k === 0 ? s.d : [-s.d[0], -s.d[1]];
+            const cr = d1[0] * d2[1] - d1[1] * d2[0], cs2 = d1[0] * d2[0] + d1[1] * d2[1];
+            const sgn = s.d[0] * s.n[1] - s.d[1] * s.n[0];
+            const ang = Math.atan2(cr, cs2); const TAU = Math.PI * 2;
+            const om = sgn < 0 ? (ang < 0 ? -ang : TAU - ang) : (ang > 0 ? ang : TAU + ang);
+            oms[k] = om;
+            if (om < Math.PI && om > 1e-6) { const need = tw / Math.tan(om / 2); if (need > tFit[k]) tFit[k] = Math.min(need, 0.45 * el); }
+          }
+          for (let k = 0; k < 2; k++) { if (oms[k] < Math.PI && tFit[k] >= 0.45 * el - 1e-9) { const tw2 = tFit[k] * Math.tan(oms[k] / 2) * 0.95; if (tw2 < tw) tw = tw2; } }
+          s.top1 = [s.pa[0] + s.n[0] * tw + s.d[0] * tFit[0], s.pa[1] + s.n[1] * tw + s.d[1] * tFit[0]];
+          s.top2 = [s.pb[0] + s.n[0] * tw - s.d[0] * tFit[1], s.pb[1] + s.n[1] * tw - s.d[1] * tFit[1]];
+        });
+
+        // контур с клапанами: обход границы по 2D-точкам
+        const byPt = new Map<string, number[]>();
+        segs.forEach((s: any, i: number) => { const ka = key2(s.pa), kb = key2(s.pb); let A = byPt.get(ka); if (!A) { A = []; byPt.set(ka, A); } A.push(i); let B = byPt.get(kb); if (!B) { B = []; byPt.set(kb, B); } B.push(i); });
+        const used = new Array(segs.length).fill(false);
+        const loops: any[] = [];
+        for (let i0 = 0; i0 < segs.length; i0++) {
+          if (used[i0]) continue;
+          const pts: any[] = []; const startKey = key2(segs[i0].pa);
+          let cur = i0, flip = false, guard = 0;
+          while (guard++ <= segs.length + 4) {
+            used[cur] = true;
+            const s = segs[cur];
+            const pa = flip ? s.pb : s.pa, pb = flip ? s.pa : s.pb;
+            const t1 = flip ? s.top2 : s.top1, t2 = flip ? s.top1 : s.top2;
+            pts.push(pa); if (s.tab && s.top1 && s.top2) { pts.push(t1, t2); }
+            pts.push(pb);
+            const kb = key2(pb);
+            if (kb === startKey && pts.length >= 3) break;
+            const cands = (byPt.get(kb) || []).filter((j: number) => !used[j]);
+            if (!cands.length) break;
+            const sj = segs[cands[0]];
+            flip = key2(sj.pa) === kb ? false : true;
+            cur = cands[0];
+          }
+          if (pts.length >= 3) loops.push(pts);
+        }
+
+        // текстурные треугольники этой детали
+        const tris: any[] = [];
+        for (let fi = 0; fi < F2.length; fi++) {
+          if (ISO[fi] !== pid) continue;
+          const t = F2[fi]; if (!t || t[0] === t[1]) continue;
+          const of = obj.faces[fi]; if (!of) continue;
+          const T = [V2[t[0]], V2[t[1]], V2[t[2]]];
+          if (!T[0] || !T[1] || !T[2]) continue;
+          if (!of.vti || of.vti.length !== 3 || of.vti[0] < 0 || of.vti[1] < 0 || of.vti[2] < 0) continue;
+          const uvT = [obj.uvs[of.vti[0]], obj.uvs[of.vti[1]], obj.uvs[of.vti[2]]];
+          if (!uvT[0] || !uvT[1] || !uvT[2]) continue;
+          tris.push({ T, uvT, mat: of.mat || '' });
+        }
+
+        // номера пар: на клапане и у ответной кромки
+        const nums: any[] = [];
+        for (const s of segs) {
+          if (!s.pair) continue;
+          const txt = String(s.pair);
+          if (s.tab && s.top1 && s.top2) {
+            const m = [(s.top1[0] + s.top2[0]) / 2, (s.top1[1] + s.top2[1]) / 2];
+            let ang = Math.atan2(s.top2[1] - s.top1[1], s.top2[0] - s.top1[0]);
+            if (ang > Math.PI / 2 || ang < -Math.PI / 2) ang += Math.PI;
+            nums.push({ p: [m[0] + s.n[0] * 1.1, m[1] + s.n[1] * 1.1], ang, txt });
+          } else {
+            const m = [(s.pa[0] + s.pb[0]) / 2, (s.pa[1] + s.pb[1]) / 2];
+            let ang = Math.atan2(s.pb[1] - s.pa[1], s.pb[0] - s.pa[0]);
+            if (ang > Math.PI / 2 || ang < -Math.PI / 2) ang += Math.PI;
+            nums.push({ p: [m[0] - s.n[0] * 2.8, m[1] - s.n[1] * 2.8], ang, txt });
+          }
+        }
+
+        const fb = faceBB.get(pid) || [0, 0, 0, 0];
+        const bb = [fb[0] - twU, fb[1] - twU, fb[2] + twU, fb[3] + twU];
+        pgData.push({ pid, part: pc.part || ('Часть ' + ((pc.part_id !== undefined ? pc.part_id : 0) + 1)), loops, folds: foldRecsByPiece.get(pid) || [], nums, tris, bb });
+      });
+      console.log('[TAB-F] деталей: ' + pgData.length + ' | пар склейки: ' + pairCnt + ' | сгибов: ' + foldCnt + ' | масштаб ' + mmpu.toFixed(2) + ' мм/ед');
+
+      // текстуры: material -> Image
+      const tm: any = (typeof textureMap !== 'undefined' && textureMap && (textureMap as any).value) || {};
+      const tmLow: any = {}; Object.keys(tm).forEach((k: string) => { tmLow[k.toLowerCase()] = tm[k]; });
+      const needMats = new Set<string>();
+      pgData.forEach((g: any) => g.tris.forEach((t: any) => { if (t.mat) needMats.add(t.mat); }));
+      const texImgs: any = {};
+      for (const m of Array.from(needMats)) {
+        const u = tm[m] || tmLow[String(m).toLowerCase()];
+        if (!u) continue;
+        const img = await loadTexFlex(String(u));
+        if (img) texImgs[m] = img;
+      }
+      console.log('[TAB-F] текстур загружено: ' + Object.keys(texImgs).length + '/' + needMats.size);
+
+      // упаковка + поворот/сдвиг геометрии в слот
+      const items = pgData.map((g: any) => ({ g, w: g.bb[2] - g.bb[0], h: g.bb[3] - g.bb[1], area: (g.bb[2] - g.bb[0]) * (g.bb[3] - g.bb[1]) }));
+      items.sort((a: any, b: any) => b.area - a.area);
+      const res = packPieces(items);
+      const placedList: any[] = [];
+      for (const pl of res.placed) {
+        const g = pl.g;
+        if (pl.rot) {
+          const rotP = (q: any) => [-q[1], q[0]];
+          g.loops = g.loops.map((lp: any) => lp.map(rotP));
+          g.folds = g.folds.map((f: any) => ({ pa: rotP(f.pa), pb: rotP(f.pb), fi1: f.fi1, fi2: f.fi2 }));
+          g.tris = g.tris.map((t: any) => ({ T: t.T.map(rotP), uvT: t.uvT, mat: t.mat }));
+          g.nums = g.nums.map((nm: any) => ({ p: rotP(nm.p), ang: nm.ang + Math.PI / 2, txt: nm.txt }));
+        }
+        let mnx = 1e18, mny = 1e18;
+        const acc = (q: any) => { if (q[0] < mnx) mnx = q[0]; if (q[1] < mny) mny = q[1]; };
+        g.loops.forEach((lp: any) => lp.forEach(acc)); g.tris.forEach((t: any) => t.T.forEach(acc)); g.folds.forEach((f: any) => { acc(f.pa); acc(f.pb); });
+        if (mnx > 1e17) { mnx = 0; mny = 0; }
+        const dx = pl.x - mnx, dy = pl.y - mny;
+        const sh = (q: any) => [q[0] + dx, q[1] + dy];
+        g.loops = g.loops.map((lp: any) => lp.map(sh));
+        g.folds = g.folds.map((f: any) => ({ pa: sh(f.pa), pb: sh(f.pb), fi1: f.fi1, fi2: f.fi2 }));
+        g.tris = g.tris.map((t: any) => ({ T: t.T.map(sh), uvT: t.uvT, mat: t.mat }));
+        g.nums = g.nums.map((nm: any) => ({ p: sh(nm.p), ang: nm.ang, txt: nm.txt }));
+        g.labelPos = [mnx + dx + 0.4, mny + dy - 1.0];
+        placedList.push({ page: pl.page, g });
+      }
+      let usedArea = 0; for (const pl of res.placed) usedArea += pl.w * pl.h;
+      const fillPct = Math.round(100 * usedArea / (res.pages.length * TABF.ZW * TABF.ZH));
+
+      // гора/долина по 3D-нормалям OBJ
+      function n3(vi: any): any { const A = obj.verts[vi[0]], B = obj.verts[vi[1]], C = obj.verts[vi[2]]; const u = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], v = [C[0] - A[0], C[1] - A[1], C[2] - A[2]]; const w = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]; const l = Math.sqrt(w[0] * w[0] + w[1] * w[1] + w[2] * w[2]) || 1; return [w[0] / l, w[1] / l, w[2] / l]; }
+      function foldKind(fi1: number, fi2: number): string {
+        const of1 = obj.faces[fi1], of2 = obj.faces[fi2]; if (!of1 || !of2) return 'flat';
+        const n1 = n3(of1.vi), n2 = n3(of2.vi);
+        const cs = clamp1(n1[0] * n2[0] + n1[1] * n2[1] + n1[2] * n2[2]);
+        const ang = Math.acos(cs) * 180 / Math.PI;
+        if (ang < 6) return 'flat';
+        return ang <= 92 ? 'mountain' : 'valley';
+      }
+
+      function loopPath(ctx: any, loops: any) { ctx.beginPath(); for (const lp of loops) { ctx.moveTo(lp[0][0], lp[0][1]); for (let i = 1; i < lp.length; i++) ctx.lineTo(lp[i][0], lp[i][1]); ctx.closePath(); } }
+      function drawPiece(ctx: any, g: any) {
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        loopPath(ctx, g.loops); ctx.fill('evenodd');
+        ctx.save(); loopPath(ctx, g.loops); ctx.clip('evenodd');
+        for (const t of g.tris) {
+          const img = texImgs[t.mat]; if (!img) continue;
+          const S = t.uvT.map((uv: any) => [uv[0] * img.width, (1 - uv[1]) * img.height]);
+          const m = aff(t.T, S); if (!m) continue;
+          ctx.save(); ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]); ctx.drawImage(img, 0, 0); ctx.restore();
+        }
+        ctx.restore();
+        ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 0.25; ctx.setLineDash([]);
+        loopPath(ctx, g.loops); ctx.stroke();
+        for (const f of g.folds) {
+          const kind = foldKind(f.fi1, f.fi2); if (kind === 'flat') continue;
+          ctx.beginPath(); ctx.moveTo(f.pa[0], f.pa[1]); ctx.lineTo(f.pb[0], f.pb[1]);
+          if (kind === 'mountain') { ctx.strokeStyle = '#c62828'; ctx.setLineDash([]); } else { ctx.strokeStyle = '#1565c0'; ctx.setLineDash([2.2, 1.4]); }
+          ctx.lineWidth = 0.25; ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#111'; ctx.font = 'bold 2.6px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        for (const nm of g.nums) { ctx.save(); ctx.translate(nm.p[0], nm.p[1]); ctx.rotate(nm.ang); ctx.fillText(nm.txt, 0, 0); ctx.restore(); }
+        ctx.fillStyle = '#9a9a9a'; ctx.font = '2.2px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText('#' + (g.pid + 1) + ' ' + g.part, g.labelPos[0], g.labelPos[1]);
+        ctx.restore();
+      }
+
+      // страницы A4 -> JPEG
+      const pagesJ: string[] = [];
+      for (let p = 0; p < res.pages.length; p++) {
+        const cv = document.createElement('canvas');
+        cv.width = TABF.PAGEW * TABF.PXMM; cv.height = TABF.PAGEH * TABF.PXMM;
+        const ctx: any = cv.getContext('2d');
+        ctx.setTransform(TABF.PXMM, 0, 0, TABF.PXMM, 0, 0);
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, TABF.PAGEW, TABF.PAGEH);
+        ctx.strokeStyle = '#bbb'; ctx.lineWidth = 0.2; ctx.strokeRect(4, 4, TABF.PAGEW - 8, TABF.PAGEH - 8);
+        ctx.fillStyle = '#444'; ctx.font = '2.8px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText('стр. ' + (p + 1) + '/' + res.pages.length + '  |  масштаб ' + mmpu.toFixed(2) + ' мм/ед  |  заполнение ' + fillPct + '%  |  клапан ' + TABF.TAB + ' мм', TABF.ZX, 7.5);
+        const leg: any[] = [['#1a1a1a', 'рез', false], ['#c62828', 'гора', false], ['#1565c0', 'долина', true]];
+        let lx = 128; ctx.font = '2.2px sans-serif'; ctx.textBaseline = 'middle';
+        for (const [c, nm, dash] of leg) {
+          ctx.strokeStyle = c; if (dash) ctx.setLineDash([1.8, 1.1]); ctx.lineWidth = 0.3;
+          ctx.beginPath(); ctx.moveTo(lx, 6.2); ctx.lineTo(lx + 5, 6.2); ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = '#333'; ctx.fillText(nm, lx + 6, 6.2); lx += 6 + ctx.measureText(nm).width + 4;
+        }
+        ctx.textBaseline = 'alphabetic';
+        for (const pl of placedList) if (pl.page === p) drawPiece(ctx, pl.g);
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 0.3; ctx.beginPath();
+        ctx.moveTo(55, 289); ctx.lineTo(155, 289); ctx.moveTo(55, 287.6); ctx.lineTo(55, 290.4);
+        ctx.moveTo(155, 287.6); ctx.lineTo(155, 290.4); ctx.moveTo(105, 288.2); ctx.lineTo(105, 289.8); ctx.stroke();
+        ctx.fillStyle = '#333'; ctx.font = '2.5px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('100 мм', 105, 293.4);
+        pagesJ.push(cv.toDataURL('image/jpeg', 0.95));
+      }
+      console.log('[TAB-F] страниц: ' + pagesJ.length + ' | заполнение ' + fillPct + '%');
+
+      const dlg: any = await import('@tauri-apps/api/dialog');
+      const filePath = await dlg.save({ filters: [{ name: 'PDF', extensions: ['pdf'] }], defaultPath: 'unfold_tex.pdf' });
+      if (!filePath) return;
+      await invoke('export_pdf', { vertices: [], faces: [], islandIds: [], path: filePath, pages: pagesJ });
+      alert('PDF сохранён: ' + filePath + '\nстраниц: ' + pagesJ.length + ', клапаны ' + TABF.TAB + ' мм');
+    } catch (e: any) {
+      console.error('[TAB-F]', e);
+      alert('[TAB-F] ошибка экспорта: ' + (e && e.message ? e.message : String(e)));
+    }
+  }
+
+  // перехват кнопок PDF (capture-фаза на document: сработает раньше обработчиков Vue)
+  document.addEventListener('click', (e: any) => {
+    const t = e.target;
+    const b = t && t.closest ? t.closest('button') : null;
+    if (!b) return;
+    const txt = String(b.textContent || '').toLowerCase();
+    if (txt.indexOf('pdf') === -1) return;
+    e.preventDefault(); e.stopPropagation();
+    tabFExport();
+  }, true);
+  W.__tabFexport = tabFExport;
+  console.log('[TAB-F] готов: перехват кнопок PDF активен');
+})();
 </script>
 
 <style scoped>
